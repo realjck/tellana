@@ -83,9 +83,10 @@ export default function EditorPage({ params }: { params: Params }) {
         ? ({
             question: "",
             type: "qcu" as const,
+            feedback: "",
             options: [
-              { text: "", is_correct: true, feedback: "" },
-              { text: "", is_correct: false, feedback: "" },
+              { text: "", is_correct: true },
+              { text: "", is_correct: false },
             ],
           } satisfies import("@/types").QuizNodeData)
         : ({ character_id: null, text: "" } satisfies import("@/types").DialogueNodeData);

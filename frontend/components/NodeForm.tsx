@@ -40,9 +40,10 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
       setData({
         question: "",
         type: "qcu",
+        feedback: "",
         options: [
-          { text: "", is_correct: true, feedback: "" },
-          { text: "", is_correct: false, feedback: "" },
+          { text: "", is_correct: true },
+          { text: "", is_correct: false },
         ],
       } as unknown as Record<string, unknown>);
     } else {
@@ -186,7 +187,7 @@ function QuizFields({
   const addOption = () => {
     onChange({
       ...data,
-      options: [...options, { text: "", is_correct: false, feedback: "" }],
+      options: [...options, { text: "", is_correct: false }],
     });
   };
 
@@ -234,48 +235,39 @@ function QuizFields({
         <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
           Réponses
         </label>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           {options.map((opt, i) => (
             <div
               key={i}
-              className={`p-3 rounded-xl border ${
+              className={`flex gap-2 items-center p-2 rounded-xl border ${
                 opt.is_correct ? "border-green-600/50 bg-green-900/10" : "border-slate-700 bg-slate-800/50"
               }`}
             >
-              <div className="flex gap-2 items-start mb-2">
-                <input
-                  type="text"
-                  value={opt.text}
-                  onChange={(e) => updateOption(i, { text: e.target.value })}
-                  placeholder={`Réponse ${i + 1}`}
-                  className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-                <button
-                  onClick={() => updateOption(i, { is_correct: !opt.is_correct })}
-                  title={opt.is_correct ? "Marquer comme incorrecte" : "Marquer comme correcte"}
-                  className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
-                    opt.is_correct
-                      ? "bg-green-600 border-green-500 text-white"
-                      : "bg-slate-700 border-slate-600 text-slate-400 hover:border-green-600"
-                  }`}
-                >
-                  ✓
-                </button>
-                <button
-                  onClick={() => removeOption(i)}
-                  disabled={options.length <= 2}
-                  className="px-2 py-1.5 rounded-lg text-xs border border-slate-600 text-slate-400 hover:text-red-400 hover:border-red-600 disabled:opacity-30 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
               <input
                 type="text"
-                value={opt.feedback}
-                onChange={(e) => updateOption(i, { feedback: e.target.value })}
-                placeholder="Feedback après réponse..."
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                value={opt.text}
+                onChange={(e) => updateOption(i, { text: e.target.value })}
+                placeholder={`Réponse ${i + 1}`}
+                className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
               />
+              <button
+                onClick={() => updateOption(i, { is_correct: !opt.is_correct })}
+                title={opt.is_correct ? "Marquer comme incorrecte" : "Marquer comme correcte"}
+                className={`px-2 py-1.5 rounded-lg text-xs font-bold border transition-colors ${
+                  opt.is_correct
+                    ? "bg-green-600 border-green-500 text-white"
+                    : "bg-slate-700 border-slate-600 text-slate-400 hover:border-green-600"
+                }`}
+              >
+                ✓
+              </button>
+              <button
+                onClick={() => removeOption(i)}
+                disabled={options.length <= 2}
+                className="px-2 py-1.5 rounded-lg text-xs border border-slate-600 text-slate-400 hover:text-red-400 hover:border-red-600 disabled:opacity-30 transition-colors"
+              >
+                ✕
+              </button>
             </div>
           ))}
         </div>
@@ -285,6 +277,19 @@ function QuizFields({
         >
           + Ajouter une réponse
         </button>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+          Feedback (affiché après la réponse)
+        </label>
+        <textarea
+          rows={2}
+          value={quizData.feedback ?? ""}
+          onChange={(e) => onChange({ ...data, feedback: e.target.value })}
+          placeholder="Explication ou correction affichée après avoir répondu..."
+          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none"
+        />
       </div>
     </>
   );

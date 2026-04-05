@@ -13,7 +13,6 @@ export interface Character {
 export interface QuizOption {
   text: string;
   is_correct: boolean;
-  feedback: string;
 }
 
 export interface DialogueNodeData {
@@ -29,6 +28,7 @@ export interface TextNodeData {
 export interface QuizNodeData {
   question: string;
   type: QuizType;
+  feedback: string;
   options: QuizOption[];
 }
 

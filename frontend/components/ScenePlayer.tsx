@@ -336,9 +336,9 @@ function QuizPanel({
         </div>
 
         {/* Feedback */}
-        {showFeedback && quizState.selectedIndices.length > 0 && (
+        {showFeedback && data.feedback && (
           <div className="mt-3 p-3 rounded-xl bg-white/5 text-sm text-slate-300">
-            {data.options[quizState.selectedIndices[0]]?.feedback}
+            {data.feedback}
           </div>
         )}
 
