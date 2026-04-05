@@ -300,7 +300,7 @@ export default function EditorPage({ params }: { params: Params }) {
         {/* Main area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Scene preview */}
-          <div className="flex-shrink-0 p-4 border-b border-white/5 bg-[#0b1120]">
+          <div className={`flex-shrink-0 p-4 bg-[#0b1120] ${tab === "nodes" ? "border-b border-white/5" : ""}`}>
             <div className="max-w-2xl mx-auto">
               {nodes.length > 0 ? (
                 <ScenePlayer
@@ -323,7 +323,8 @@ export default function EditorPage({ params }: { params: Params }) {
             </div>
           </div>
 
-          {/* Node editor form */}
+          {/* Node editor form — only visible on the "nodes" tab */}
+          {tab === "nodes" && (
           <div className="flex-1 overflow-y-auto p-6">
             {selectedNode ? (
               <div className="max-w-2xl mx-auto">
@@ -344,6 +345,7 @@ export default function EditorPage({ params }: { params: Params }) {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>
