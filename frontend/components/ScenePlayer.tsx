@@ -127,8 +127,6 @@ export default function ScenePlayer({
     ? []
     : characters.filter((c) => c.position === "right");
 
-  const maxHeight = compact ? "240px" : "420px";
-
   return (
     <div
       ref={containerRef}
@@ -155,41 +153,53 @@ export default function ScenePlayer({
       )}
       {isTextNode && <div className="absolute inset-0 bg-[#0b1120]" />}
 
-      {/* Characters */}
-      <div className="absolute inset-0 flex items-end justify-between px-8 pb-[22%] pointer-events-none">
-        {/* Left */}
-        <div className="flex items-end gap-2">
-          {leftChars.map((c) => (
+      {/* Characters
+          height: 100% of scene + bottom: -10% → exactly 90% visible, cut at lower leg.
+          All % values are relative to the scene container, so it scales at any resolution. */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* Left characters */}
+        {leftChars.map((c, i) => {
+          const isSpeaking = speakingChar?.id === c.id;
+          return (
             <img
               key={c.id}
               src={resolveImage(c.image_url)}
               alt={c.name}
-              className="object-contain drop-shadow-xl transition-opacity"
+              className="absolute object-contain transition-all duration-200"
               style={{
-                height: "70%",
-                maxHeight,
-                opacity: speakingChar && c.id !== speakingChar.id ? 0.4 : 1,
+                height: "100%",
+                bottom: "-10%",
+                left: `${4 + i * 22}%`,
+                opacity: speakingChar && !isSpeaking ? 0.85 : 1,
+                filter: isSpeaking
+                  ? "drop-shadow(0 0 4px white) drop-shadow(0 0 10px rgba(255,255,255,0.7))"
+                  : "none",
               }}
             />
-          ))}
-        </div>
+          );
+        })}
 
-        {/* Right */}
-        <div className="flex items-end gap-2">
-          {rightChars.map((c) => (
+        {/* Right characters (mirrored) */}
+        {rightChars.map((c, i) => {
+          const isSpeaking = speakingChar?.id === c.id;
+          return (
             <img
               key={c.id}
               src={resolveImage(c.image_url)}
               alt={c.name}
-              className="object-contain drop-shadow-xl scale-x-[-1] transition-opacity"
+              className="absolute object-contain scale-x-[-1] transition-all duration-200"
               style={{
-                height: "70%",
-                maxHeight,
-                opacity: speakingChar && c.id !== speakingChar.id ? 0.4 : 1,
+                height: "100%",
+                bottom: "-10%",
+                right: `${4 + i * 22}%`,
+                opacity: speakingChar && !isSpeaking ? 0.85 : 1,
+                filter: isSpeaking
+                  ? "drop-shadow(0 0 4px white) drop-shadow(0 0 10px rgba(255,255,255,0.7))"
+                  : "none",
               }}
             />
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {/* ── Dialogue box (bottom) ── */}
