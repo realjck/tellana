@@ -1,0 +1,2 @@
+- This folder is a working folder used for design.
+- To use elements from this folder in development, copy them to the desired locations.
