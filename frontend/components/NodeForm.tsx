@@ -36,6 +36,12 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
 
   const handleTypeChange = (newType: NodeType) => {
     setType(newType);
+    // Restore original saved data when switching back to the node's persisted type
+    if (newType === node.type) {
+      setData(node.data as unknown as Record<string, unknown>);
+      return;
+    }
+    // Default empty data for a different type
     if (newType === "quiz") {
       setData({
         question: "",
