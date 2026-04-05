@@ -114,20 +114,20 @@ export default function ScenePlayer({
 
   const data = node.data as unknown as Record<string, unknown>;
   const charId = data.character_id as number | null;
-  const char = charId ? characters.find((c) => c.id === charId) : null;
+  const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
-  const leftChars = characters.filter(
-    (c) => c.position === "left" && (node.type !== "dialogue" || c.id === charId)
-  );
-  const rightChars = characters.filter(
-    (c) => c.position === "right" && (node.type !== "dialogue" || c.id === charId)
-  );
+  // ── Character display logic ────────────────────────────────────────────
+  // dialogue / quiz: all characters visible, speaker at full opacity
+  // text: only the optional character_id char, always forced to left
+  const isTextNode = node.type === "text";
+  const leftChars = isTextNode
+    ? speakingChar ? [speakingChar] : []
+    : characters.filter((c) => c.position === "left");
+  const rightChars = isTextNode
+    ? []
+    : characters.filter((c) => c.position === "right");
 
-  // For text nodes: force char on left if present
-  const displayLeftChars =
-    node.type === "text" && char ? [char] : leftChars;
-  const displayRightChars =
-    node.type === "text" && char ? [] : rightChars;
+  const maxHeight = compact ? "240px" : "420px";
 
   return (
     <div
@@ -135,62 +135,73 @@ export default function ScenePlayer({
       className="relative w-full overflow-hidden rounded-xl select-none"
       style={{ aspectRatio: "16/9" }}
     >
-      {/* Background */}
-      <div
-        className="absolute inset-0 bg-slate-800"
-        style={
-          backgroundUrl
-            ? {
-                backgroundImage: `url(${resolveImage(backgroundUrl)})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : {}
-        }
-      />
-
-      {/* Dark overlay for readability */}
-      <div className="absolute inset-0 bg-black/20" />
+      {/* Background — hidden for text nodes */}
+      {!isTextNode && (
+        <>
+          <div
+            className="absolute inset-0 bg-slate-800"
+            style={
+              backgroundUrl
+                ? {
+                    backgroundImage: `url(${resolveImage(backgroundUrl)})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
+                : {}
+            }
+          />
+          <div className="absolute inset-0 bg-black/20" />
+        </>
+      )}
+      {isTextNode && <div className="absolute inset-0 bg-[#0b1120]" />}
 
       {/* Characters */}
       <div className="absolute inset-0 flex items-end justify-between px-8 pb-[22%] pointer-events-none">
-        {/* Left characters */}
+        {/* Left */}
         <div className="flex items-end gap-2">
-          {displayLeftChars.map((c) => (
+          {leftChars.map((c) => (
             <img
               key={c.id}
               src={resolveImage(c.image_url)}
               alt={c.name}
-              className="h-[70%] object-contain drop-shadow-xl"
-              style={{ maxHeight: compact ? "240px" : "420px" }}
+              className="object-contain drop-shadow-xl transition-opacity"
+              style={{
+                height: "70%",
+                maxHeight,
+                opacity: speakingChar && c.id !== speakingChar.id ? 0.4 : 1,
+              }}
             />
           ))}
         </div>
 
-        {/* Right characters */}
+        {/* Right */}
         <div className="flex items-end gap-2">
-          {displayRightChars.map((c) => (
+          {rightChars.map((c) => (
             <img
               key={c.id}
               src={resolveImage(c.image_url)}
               alt={c.name}
-              className="h-[70%] object-contain drop-shadow-xl scale-x-[-1]"
-              style={{ maxHeight: compact ? "240px" : "420px" }}
+              className="object-contain drop-shadow-xl scale-x-[-1] transition-opacity"
+              style={{
+                height: "70%",
+                maxHeight,
+                opacity: speakingChar && c.id !== speakingChar.id ? 0.4 : 1,
+              }}
             />
           ))}
         </div>
       </div>
 
-      {/* Dialogue / Text box */}
-      {(node.type === "dialogue" || node.type === "text") && (
+      {/* ── Dialogue box (bottom) ── */}
+      {node.type === "dialogue" && (
         <div
           className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[90%] cursor-pointer"
           onClick={advance}
         >
           <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-4 shadow-2xl">
-            {char && (
+            {speakingChar && (
               <div className="text-sm font-semibold text-blue-300 mb-1">
-                {char.name}
+                {speakingChar.name}
               </div>
             )}
             <div className="flex items-end justify-between gap-4">
@@ -198,15 +209,35 @@ export default function ScenePlayer({
                 {data.text as string}
               </p>
               <button className="flex-shrink-0 text-blue-300 hover:text-white transition-colors">
-                <svg
-                  className="w-6 h-6"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5l10 7-10 7V5z" />
                 </svg>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Text node: centered block, left-aligned, no background ── */}
+      {node.type === "text" && (
+        <div
+          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+          onClick={advance}
+        >
+          {/* Offset right if a character is shown on the left */}
+          <div
+            className="w-[55%] max-w-lg"
+            style={{ marginLeft: speakingChar ? "20%" : "0" }}
+          >
+            <p className="text-white text-base leading-relaxed text-left">
+              {data.text as string}
+            </p>
+            <button className="mt-4 text-blue-300 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5l10 7-10 7V5z" />
+              </svg>
+              Continuer
+            </button>
           </div>
         </div>
       )}
