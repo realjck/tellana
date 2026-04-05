@@ -65,6 +65,16 @@ export default function ScenePlayer({
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
+      // Don't intercept keystrokes when the user is typing in a form element
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
       if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
         e.preventDefault();
         advance();

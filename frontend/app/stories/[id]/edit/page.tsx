@@ -413,10 +413,13 @@ function NodesTab({
         </p>
       ) : (
         nodes.map((node, i) => (
-          <button
+          <div
             key={node.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(node)}
-            className={`w-full text-left p-3 rounded-xl border transition-all group ${
+            onKeyDown={(e) => e.key === "Enter" && onSelect(node)}
+            className={`w-full text-left p-3 rounded-xl border transition-all group cursor-pointer ${
               selectedNodeId === node.id
                 ? "bg-blue-600/10 border-blue-500/40"
                 : "bg-slate-800/40 border-slate-700/50 hover:border-slate-600"
@@ -445,7 +448,7 @@ function NodesTab({
                 ? (node.data as { question: string }).question || "Question…"
                 : (node.data as { text: string }).text || "…"}
             </p>
-          </button>
+          </div>
         ))
       )}
     </div>
