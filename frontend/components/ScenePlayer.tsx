@@ -153,13 +153,29 @@ export default function ScenePlayer({
       )}
       {isTextNode && <div className="absolute inset-0 bg-[#0b1120]" />}
 
+      {/* SVG filter: sharp white outline via morphological dilation of the alpha channel */}
+      <svg style={{ position: "absolute", width: 0, height: 0 }}>
+        <defs>
+          <filter id="outline-white" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+            <feMorphology in="SourceAlpha" operator="dilate" radius="4" result="dilated" />
+            <feFlood floodColor="white" floodOpacity="1" result="white" />
+            <feComposite in="white" in2="dilated" operator="in" result="outline" />
+            <feMerge>
+              <feMergeNode in="outline" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+
       {/* Characters
           height: 100% of scene + bottom: -10% → exactly 90% visible, cut at lower leg.
-          All % values are relative to the scene container, so it scales at any resolution. */}
+          All % values are relative to the scene container, so it scales at any resolution.
+          White outline only on the speaking character during dialogue nodes. */}
       <div className="absolute inset-0 pointer-events-none">
         {/* Left characters */}
         {leftChars.map((c, i) => {
-          const isSpeaking = speakingChar?.id === c.id;
+          const isSpeaking = node.type === "dialogue" && speakingChar?.id === c.id;
           return (
             <img
               key={c.id}
@@ -170,10 +186,7 @@ export default function ScenePlayer({
                 height: "100%",
                 bottom: "-10%",
                 left: `${4 + i * 22}%`,
-                opacity: speakingChar && !isSpeaking ? 0.85 : 1,
-                filter: isSpeaking
-                  ? "drop-shadow(0 0 4px white) drop-shadow(0 0 10px rgba(255,255,255,0.7))"
-                  : "none",
+                filter: isSpeaking ? "url(#outline-white)" : "none",
               }}
             />
           );
@@ -181,7 +194,7 @@ export default function ScenePlayer({
 
         {/* Right characters (mirrored) */}
         {rightChars.map((c, i) => {
-          const isSpeaking = speakingChar?.id === c.id;
+          const isSpeaking = node.type === "dialogue" && speakingChar?.id === c.id;
           return (
             <img
               key={c.id}
@@ -192,10 +205,7 @@ export default function ScenePlayer({
                 height: "100%",
                 bottom: "-10%",
                 right: `${4 + i * 22}%`,
-                opacity: speakingChar && !isSpeaking ? 0.85 : 1,
-                filter: isSpeaking
-                  ? "drop-shadow(0 0 4px white) drop-shadow(0 0 10px rgba(255,255,255,0.7))"
-                  : "none",
+                filter: isSpeaking ? "url(#outline-white)" : "none",
               }}
             />
           );
