@@ -63,3 +63,11 @@ desktop.ini
 # Docker
 *.env.local
 docker-compose.override.yml
+
+# Claude
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Database & uploads
+backend/tellana.db
+backend/uploads/
