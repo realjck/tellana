@@ -316,6 +316,10 @@ export default function EditorPage({ params }: { params: Params }) {
                     : tab === "background" ? "background-only"
                     : undefined
                   }
+                  onIndexChange={tab === "nodes" ? (idx) => {
+                    setPreviewIndex(idx);
+                    if (idx < nodes.length) setSelectedNodeId(nodes[idx].id);
+                  } : undefined}
                 />
               ) : (
                 <div

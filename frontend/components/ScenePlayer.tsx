@@ -14,6 +14,8 @@ interface Props {
   compact?: boolean;
   /** preview-only modes for the editor sidebar tabs */
   showMode?: "normal" | "characters-only" | "background-only";
+  /** called whenever the displayed node index changes (for editor sync) */
+  onIndexChange?: (index: number) => void;
 }
 
 type QuizState = {
@@ -36,6 +38,7 @@ export default function ScenePlayer({
   onEnd,
   compact = false,
   showMode,
+  onIndexChange,
 }: Props) {
   const [index, setIndex] = useState(startIndex);
   const [quizState, setQuizState] = useState<QuizState | null>(null);
@@ -45,6 +48,13 @@ export default function ScenePlayer({
 
   const node = nodes[index];
   const isPreviewMode = !!showMode && showMode !== "normal";
+  // End state: past the last node in normal mode
+  const isEndState = !isPreviewMode && nodes.length > 0 && index >= nodes.length;
+
+  // Notify parent when index changes (editor sidebar sync)
+  useEffect(() => {
+    onIndexChange?.(index);
+  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset quiz state on node change
   useEffect(() => {
@@ -57,12 +67,18 @@ export default function ScenePlayer({
     }
   }, [index, node?.type]);
 
+  const restart = useCallback(() => {
+    setIndex(0);
+  }, []);
+
   const advance = useCallback(() => {
     if (!node) return;
     if (node.type === "quiz" && quizState && !showFeedback) return; // must confirm first
     if (index < nodes.length - 1) {
       setIndex((i) => i + 1);
     } else {
+      // Move to end state instead of immediately calling onEnd
+      setIndex(nodes.length);
       onEnd?.();
     }
   }, [node, quizState, showFeedback, index, nodes.length, onEnd]);
@@ -107,6 +123,26 @@ export default function ScenePlayer({
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
+
+  // End screen
+  if (isEndState) {
+    return (
+      <div
+        className="relative w-full overflow-hidden rounded-xl select-none flex items-center justify-center bg-[#0b1120]"
+        style={{ aspectRatio: "16/9" }}
+      >
+        <button
+          onClick={restart}
+          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors text-sm"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+          </svg>
+          Recommencer
+        </button>
+      </div>
+    );
+  }
 
   if (!node && !isPreviewMode) {
     return (
