@@ -1,0 +1,90 @@
+from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+import models
+import schemas
+from database import get_db
+
+router = APIRouter(prefix="/stories/{story_id}/nodes", tags=["nodes"])
+
+
+def _get_story_or_404(story_id: int, db: Session) -> models.Story:
+    story = db.query(models.Story).filter(models.Story.id == story_id).first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+    return story
+
+
+@router.get("/", response_model=List[schemas.Node])
+def list_nodes(story_id: int, db: Session = Depends(get_db)):
+    return (
+        db.query(models.Node)
+        .filter(models.Node.story_id == story_id)
+        .order_by(models.Node.order)
+        .all()
+    )
+
+
+@router.post("/", response_model=schemas.Node, status_code=201)
+def create_node(story_id: int, node: schemas.NodeCreate, db: Session = Depends(get_db)):
+    _get_story_or_404(story_id, db)
+    db_node = models.Node(**node.model_dump(), story_id=story_id)
+    db.add(db_node)
+    db.commit()
+    db.refresh(db_node)
+    return db_node
+
+
+@router.patch("/{node_id}", response_model=schemas.Node)
+def update_node(
+    story_id: int,
+    node_id: int,
+    update: schemas.NodeUpdate,
+    db: Session = Depends(get_db),
+):
+    node = (
+        db.query(models.Node)
+        .filter(models.Node.id == node_id, models.Node.story_id == story_id)
+        .first()
+    )
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    for field, value in update.model_dump(exclude_unset=True).items():
+        setattr(node, field, value)
+    db.commit()
+    db.refresh(node)
+    return node
+
+
+@router.delete("/{node_id}", status_code=204)
+def delete_node(story_id: int, node_id: int, db: Session = Depends(get_db)):
+    node = (
+        db.query(models.Node)
+        .filter(models.Node.id == node_id, models.Node.story_id == story_id)
+        .first()
+    )
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+    db.delete(node)
+    db.commit()
+
+
+@router.post("/reorder", response_model=List[schemas.Node])
+def reorder_nodes(
+    story_id: int, body: schemas.ReorderRequest, db: Session = Depends(get_db)
+):
+    _get_story_or_404(story_id, db)
+    nodes = {
+        n.id: n
+        for n in db.query(models.Node)
+        .filter(models.Node.story_id == story_id)
+        .all()
+    }
+    if any(node_id not in nodes for node_id in body.order):
+        raise HTTPException(status_code=400, detail="Invalid node IDs in reorder request")
+    for index, node_id in enumerate(body.order):
+        nodes[node_id].order = index
+    db.commit()
+    return sorted(nodes.values(), key=lambda n: n.order)
