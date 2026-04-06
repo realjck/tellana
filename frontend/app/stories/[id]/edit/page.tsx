@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { use } from "react";
 import { api, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
-import type { Story, StoryNode, NodeType } from "@/types";
+import type { Story, StoryNode, NodeType, DialogueNodeData, QuizNodeData } from "@/types";
 import ScenePlayer from "@/components/ScenePlayer";
 import NodeForm from "@/components/NodeForm";
 import CharacterManager from "@/components/CharacterManager";
@@ -100,17 +100,19 @@ export default function EditorPage({ params }: { params: Params }) {
               { text: "", is_correct: true },
               { text: "", is_correct: false },
             ],
-          } satisfies import("@/types").QuizNodeData)
-        : ({ character_id: null, text: "" } satisfies import("@/types").DialogueNodeData);
+          } satisfies QuizNodeData)
+        : ({ character_id: null, text: "" } satisfies DialogueNodeData);
 
     const node = await api.nodes.create(storyId, {
       type,
       data: defaultData,
       order: nodes.length,
     });
-    await mutate();
+    const refreshed = await mutate();
+    const newNodes = refreshed?.nodes ?? [];
+    const newIndex = newNodes.findIndex((n) => n.id === node.id);
     setSelectedNodeId(node.id);
-    setPreviewIndex(nodes.length);
+    setPreviewIndex(newIndex >= 0 ? newIndex : newNodes.length - 1);
     setTab("nodes");
   };
 

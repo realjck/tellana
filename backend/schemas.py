@@ -1,6 +1,9 @@
 from pydantic import BaseModel
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any, Dict, Literal
 from datetime import datetime
+
+Position = Literal["left", "right"]
+NodeType = Literal["dialogue", "text", "quiz"]
 
 
 # ── Character ──────────────────────────────────────────────────────────────
@@ -8,7 +11,7 @@ from datetime import datetime
 class CharacterBase(BaseModel):
     name: str
     image_url: str
-    position: str = "left"
+    position: Position = "left"
 
 
 class CharacterCreate(CharacterBase):
@@ -18,7 +21,7 @@ class CharacterCreate(CharacterBase):
 class CharacterUpdate(BaseModel):
     name: Optional[str] = None
     image_url: Optional[str] = None
-    position: Optional[str] = None
+    position: Optional[Position] = None
 
 
 class Character(CharacterBase):
@@ -31,7 +34,7 @@ class Character(CharacterBase):
 # ── Node ───────────────────────────────────────────────────────────────────
 
 class NodeBase(BaseModel):
-    type: str
+    type: NodeType
     data: Dict[str, Any] = {}
     order: int
 
@@ -41,7 +44,7 @@ class NodeCreate(NodeBase):
 
 
 class NodeUpdate(BaseModel):
-    type: Optional[str] = None
+    type: Optional[NodeType] = None
     data: Optional[Dict[str, Any]] = None
     order: Optional[int] = None
 

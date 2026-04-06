@@ -31,8 +31,12 @@ export default function DashboardPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm("Supprimer cette story ?")) return;
-    await api.stories.delete(id);
-    mutate();
+    try {
+      await api.stories.delete(id);
+      mutate();
+    } catch {
+      alert("Erreur lors de la suppression");
+    }
   };
 
   return (

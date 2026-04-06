@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Character, QuizNodeData, StoryNode } from "@/types";
-import { API_BASE } from "@/lib/api";
+import { resolveImage } from "@/lib/api";
 
 interface Props {
   nodes: StoryNode[];
@@ -23,12 +23,6 @@ type QuizState = {
   confirmed: boolean;
 };
 
-function resolveImage(url: string | null | undefined): string {
-  if (!url) return "";
-  if (url.startsWith("http")) return url;
-  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
-  return url; // relative Next.js public asset
-}
 
 export default function ScenePlayer({
   nodes,
@@ -51,10 +45,14 @@ export default function ScenePlayer({
   // End state: past the last node in normal mode
   const isEndState = !isPreviewMode && nodes.length > 0 && index >= nodes.length;
 
-  // Notify parent when index changes (editor sidebar sync)
+  // Notify parent when index changes (editor sidebar sync).
+  // Use a ref for the callback to avoid stale-closure issues without requiring
+  // the caller to memoize the function.
+  const onIndexChangeRef = useRef(onIndexChange);
+  useEffect(() => { onIndexChangeRef.current = onIndexChange; });
   useEffect(() => {
-    onIndexChange?.(index);
-  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
+    onIndexChangeRef.current?.(index);
+  }, [index]);
 
   // Reset quiz state on node change
   useEffect(() => {

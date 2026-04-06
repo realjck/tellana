@@ -76,18 +76,15 @@ def reorder_nodes(
     story_id: int, body: schemas.ReorderRequest, db: Session = Depends(get_db)
 ):
     _get_story_or_404(story_id, db)
-    for index, node_id in enumerate(body.order):
-        node = (
-            db.query(models.Node)
-            .filter(models.Node.id == node_id, models.Node.story_id == story_id)
-            .first()
-        )
-        if node:
-            node.order = index
-    db.commit()
-    return (
-        db.query(models.Node)
+    nodes = {
+        n.id: n
+        for n in db.query(models.Node)
         .filter(models.Node.story_id == story_id)
-        .order_by(models.Node.order)
         .all()
-    )
+    }
+    if any(node_id not in nodes for node_id in body.order):
+        raise HTTPException(status_code=400, detail="Invalid node IDs in reorder request")
+    for index, node_id in enumerate(body.order):
+        nodes[node_id].order = index
+    db.commit()
+    return sorted(nodes.values(), key=lambda n: n.order)

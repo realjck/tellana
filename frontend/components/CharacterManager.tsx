@@ -2,12 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { Character, Position } from "@/types";
-import { api, DEFAULT_SPRITES, API_BASE } from "@/lib/api";
-
-function resolveImage(url: string): string {
-  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
-  return url;
-}
+import { api, DEFAULT_SPRITES, resolveImage } from "@/lib/api";
 
 interface Props {
   storyId: number;
