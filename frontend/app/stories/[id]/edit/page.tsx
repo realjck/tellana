@@ -302,15 +302,20 @@ export default function EditorPage({ params }: { params: Params }) {
           {/* Scene preview */}
           <div className={`flex-shrink-0 p-4 bg-[#0b1120] ${tab === "nodes" ? "border-b border-white/5" : ""}`}>
             <div className="max-w-2xl mx-auto">
-              {nodes.length > 0 ? (
+              {nodes.length > 0 || tab !== "nodes" ? (
                 <ScenePlayer
                   nodes={nodes}
                   characters={characters}
                   backgroundUrl={story.background_url}
-                  startIndex={previewIndex}
-                  key={`${previewIndex}-${JSON.stringify(nodes)}`}
+                  startIndex={tab === "nodes" ? previewIndex : 0}
+                  key={`${tab}-${previewIndex}-${story.background_url}-${JSON.stringify(nodes)}-${JSON.stringify(characters)}`}
                   compact
                   onEnd={() => {}}
+                  showMode={
+                    tab === "characters" ? "characters-only"
+                    : tab === "background" ? "background-only"
+                    : undefined
+                  }
                 />
               ) : (
                 <div

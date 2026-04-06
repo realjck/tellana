@@ -2,7 +2,12 @@
 
 import { useRef, useState } from "react";
 import type { Character, Position } from "@/types";
-import { api, DEFAULT_SPRITES } from "@/lib/api";
+import { api, DEFAULT_SPRITES, API_BASE } from "@/lib/api";
+
+function resolveImage(url: string): string {
+  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
+  return url;
+}
 
 interface Props {
   storyId: number;
@@ -72,7 +77,7 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
               className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 border border-slate-700 hover:border-slate-500 transition-colors text-left w-full group"
             >
               <img
-                src={c.image_url}
+                src={resolveImage(c.image_url)}
                 alt={c.name}
                 className="w-10 h-12 object-contain rounded-lg bg-slate-700 flex-shrink-0"
               />
@@ -129,16 +134,30 @@ function CharacterForm({
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Track all custom-uploaded URLs so they persist in the picker even when another sprite is selected
+  const [customUploads, setCustomUploads] = useState<string[]>(() => {
+    if (initial?.image_url && !DEFAULT_SPRITES.find((s) => s.url === initial.image_url)) {
+      return [initial.image_url];
+    }
+    return [];
+  });
+
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
       const url = await api.assets.upload(file);
       setImageUrl(url);
+      setCustomUploads((prev) => (prev.includes(url) ? prev : [...prev, url]));
     } catch {
       alert("Échec de l'upload");
     } finally {
       setUploading(false);
     }
+  };
+
+  const removeCustomUpload = (url: string) => {
+    setCustomUploads((prev) => prev.filter((u) => u !== url));
+    if (imageUrl === url) setImageUrl(DEFAULT_SPRITES[0].url);
   };
 
   const handleSave = async () => {
@@ -211,15 +230,31 @@ function CharacterForm({
             </button>
           ))}
 
-          {/* Custom sprite preview */}
-          {imageUrl && !DEFAULT_SPRITES.find((s) => s.url === imageUrl) && (
-            <button
-              onClick={() => setImageUrl(imageUrl)}
-              className="p-1 rounded-lg border-2 border-blue-500"
-            >
-              <img src={imageUrl} alt="Custom" className="h-14 w-10 object-contain" />
-            </button>
-          )}
+          {/* Custom uploaded sprites — each has a red × to remove it */}
+          {customUploads.map((url) => (
+            <div key={url} className="relative">
+              <button
+                onClick={() => setImageUrl(url)}
+                className={`p-1 rounded-lg border-2 transition-colors ${
+                  imageUrl === url
+                    ? "border-blue-500"
+                    : "border-transparent hover:border-slate-500"
+                }`}
+                title="Sprite importé"
+              >
+                <img src={resolveImage(url)} alt="Custom" className="h-14 w-10 object-contain" />
+              </button>
+              <button
+                onClick={() => removeCustomUpload(url)}
+                className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center transition-colors"
+                title="Supprimer"
+              >
+                <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          ))}
 
           <button
             onClick={() => fileRef.current?.click()}

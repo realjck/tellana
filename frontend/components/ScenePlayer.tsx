@@ -12,6 +12,8 @@ interface Props {
   onEnd?: () => void;
   /** compact mode for the editor preview panel */
   compact?: boolean;
+  /** preview-only modes for the editor sidebar tabs */
+  showMode?: "normal" | "characters-only" | "background-only";
 }
 
 type QuizState = {
@@ -33,6 +35,7 @@ export default function ScenePlayer({
   startIndex = 0,
   onEnd,
   compact = false,
+  showMode,
 }: Props) {
   const [index, setIndex] = useState(startIndex);
   const [quizState, setQuizState] = useState<QuizState | null>(null);
@@ -41,6 +44,7 @@ export default function ScenePlayer({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const node = nodes[index];
+  const isPreviewMode = !!showMode && showMode !== "normal";
 
   // Reset quiz state on node change
   useEffect(() => {
@@ -104,7 +108,7 @@ export default function ScenePlayer({
     return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
 
-  if (!node) {
+  if (!node && !isPreviewMode) {
     return (
       <div className="flex items-center justify-center h-full bg-slate-900 text-slate-400 text-sm rounded-xl">
         Aucun nœud à afficher
@@ -112,20 +116,25 @@ export default function ScenePlayer({
     );
   }
 
-  const data = node.data as unknown as Record<string, unknown>;
+  const data = node ? (node.data as unknown as Record<string, unknown>) : {};
   const charId = data.character_id as number | null;
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
   // ── Character display logic ────────────────────────────────────────────
+  // preview modes: all characters always shown, no speaking outline
   // dialogue / quiz: all characters visible, speaker at full opacity
   // text: only the optional character_id char, always forced to left
-  const isTextNode = node.type === "text";
-  const leftChars = isTextNode
-    ? speakingChar ? [speakingChar] : []
-    : characters.filter((c) => c.position === "left");
-  const rightChars = isTextNode
-    ? []
-    : characters.filter((c) => c.position === "right");
+  const isTextNode = !isPreviewMode && node?.type === "text";
+  const leftChars = isPreviewMode
+    ? characters.filter((c) => c.position === "left")
+    : isTextNode
+      ? speakingChar ? [speakingChar] : []
+      : characters.filter((c) => c.position === "left");
+  const rightChars = isPreviewMode
+    ? characters.filter((c) => c.position === "right")
+    : isTextNode
+      ? []
+      : characters.filter((c) => c.position === "right");
 
   return (
     <div
@@ -171,11 +180,13 @@ export default function ScenePlayer({
       {/* Characters
           height: 100% of scene + bottom: -10% → exactly 90% visible, cut at lower leg.
           All % values are relative to the scene container, so it scales at any resolution.
-          White outline only on the speaking character during dialogue nodes. */}
+          White outline only on the speaking character during dialogue nodes.
+          Hidden in background-only preview mode. */}
+      {showMode !== "background-only" && (
       <div className="absolute inset-0 pointer-events-none">
         {/* Left characters */}
         {leftChars.map((c, i) => {
-          const isSpeaking = node.type === "dialogue" && speakingChar?.id === c.id;
+          const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
           return (
             <img
               key={c.id}
@@ -194,7 +205,7 @@ export default function ScenePlayer({
 
         {/* Right characters (mirrored) */}
         {rightChars.map((c, i) => {
-          const isSpeaking = node.type === "dialogue" && speakingChar?.id === c.id;
+          const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
           return (
             <img
               key={c.id}
@@ -211,9 +222,10 @@ export default function ScenePlayer({
           );
         })}
       </div>
+      )}
 
       {/* ── Dialogue box (bottom) ── */}
-      {node.type === "dialogue" && (
+      {!isPreviewMode && node?.type === "dialogue" && (
         <div
           className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[90%] cursor-pointer"
           onClick={advance}
@@ -239,7 +251,7 @@ export default function ScenePlayer({
       )}
 
       {/* ── Text node: centered block, left-aligned, no background ── */}
-      {node.type === "text" && (
+      {!isPreviewMode && node?.type === "text" && (
         <div
           className="absolute inset-0 flex items-center justify-center cursor-pointer"
           onClick={advance}
@@ -263,7 +275,7 @@ export default function ScenePlayer({
       )}
 
       {/* Quiz box */}
-      {node.type === "quiz" && quizState && (
+      {!isPreviewMode && node?.type === "quiz" && quizState && (
         <QuizPanel
           data={data as unknown as QuizNodeData}
           quizState={quizState}
@@ -292,10 +304,12 @@ export default function ScenePlayer({
         />
       )}
 
-      {/* Progress indicator */}
-      <div className="absolute top-3 right-3 text-xs text-white/50">
-        {index + 1} / {nodes.length}
-      </div>
+      {/* Progress indicator — hidden in preview modes */}
+      {!isPreviewMode && (
+        <div className="absolute top-3 right-3 text-xs text-white/50">
+          {index + 1} / {nodes.length}
+        </div>
+      )}
 
       {/* Fullscreen toggle */}
       {!compact && (
