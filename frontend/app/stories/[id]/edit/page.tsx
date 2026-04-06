@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
@@ -44,6 +44,18 @@ export default function EditorPage({ params }: { params: Params }) {
   const [publishing, setPublishing] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const bgFileRef = useRef<HTMLInputElement>(null);
+  const [bgCustomUploads, setBgCustomUploads] = useState<string[]>([]);
+  const bgCustomInitialized = useRef(false);
+
+  // Seed bgCustomUploads once when story loads (persists custom bg from previous sessions)
+  useEffect(() => {
+    if (!bgCustomInitialized.current && story) {
+      bgCustomInitialized.current = true;
+      if (story.background_url && !DEFAULT_BACKGROUNDS.find((b) => b.url === story.background_url)) {
+        setBgCustomUploads([story.background_url]);
+      }
+    }
+  }, [story]);
 
   if (isLoading) {
     return (
@@ -145,11 +157,20 @@ export default function EditorPage({ params }: { params: Params }) {
     setUploadingBg(true);
     try {
       const url = await api.assets.upload(file);
+      setBgCustomUploads((prev) => (prev.includes(url) ? prev : [...prev, url]));
       await setBackground(url);
     } catch {
       alert("Échec de l'upload");
     } finally {
       setUploadingBg(false);
+    }
+  };
+
+  const removeBgCustom = async (url: string) => {
+    setBgCustomUploads((prev) => prev.filter((u) => u !== url));
+    if (story.background_url === url) {
+      await api.stories.update(storyId, { background_url: null });
+      await mutate();
     }
   };
 
@@ -292,6 +313,8 @@ export default function EditorPage({ params }: { params: Params }) {
                 fileRef={bgFileRef}
                 onSelect={setBackground}
                 onUpload={uploadBackground}
+                customUploads={bgCustomUploads}
+                onRemoveCustom={removeBgCustom}
               />
             )}
           </div>
@@ -475,12 +498,16 @@ function BackgroundTab({
   fileRef,
   onSelect,
   onUpload,
+  customUploads,
+  onRemoveCustom,
 }: {
   currentUrl: string | null;
   uploading: boolean;
   fileRef: React.RefObject<HTMLInputElement | null>;
   onSelect: (url: string) => void;
   onUpload: (file: File) => void;
+  customUploads: string[];
+  onRemoveCustom: (url: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -516,7 +543,46 @@ function BackgroundTab({
         </button>
       ))}
 
-      {/* Custom upload */}
+      {/* Custom uploaded backgrounds */}
+      {customUploads.map((url) => {
+        const src = url.startsWith("/uploads/") ? `${API_BASE}${url}` : url;
+        return (
+          <div key={url} className="relative">
+            <button
+              onClick={() => onSelect(url)}
+              className={`relative w-full rounded-xl overflow-hidden border-2 transition-all ${
+                currentUrl === url
+                  ? "border-blue-500"
+                  : "border-transparent hover:border-slate-500"
+              }`}
+            >
+              <img src={src} alt="Décor importé" className="w-full h-24 object-cover" />
+              <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">
+                Décor importé
+              </div>
+              {currentUrl === url && (
+                <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </button>
+            {/* Red × to remove */}
+            <button
+              onClick={() => onRemoveCustom(url)}
+              className="absolute top-2 left-2 w-5 h-5 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center transition-colors"
+              title="Supprimer ce décor"
+            >
+              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        );
+      })}
+
+      {/* Upload button */}
       <button
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
@@ -544,17 +610,6 @@ function BackgroundTab({
           e.target.value = "";
         }}
       />
-
-      {/* Current custom */}
-      {currentUrl &&
-        !DEFAULT_BACKGROUNDS.find((b) => b.url === currentUrl) && (
-          <div className="rounded-xl overflow-hidden border-2 border-blue-500">
-            <img src={currentUrl.startsWith("/uploads/") ? `${API_BASE}${currentUrl}` : currentUrl} alt="Décor actuel" className="w-full h-24 object-cover" />
-            <div className="bg-blue-600/20 px-2 py-1 text-xs text-blue-300 text-center">
-              Décor actuel (custom)
-            </div>
-          </div>
-        )}
     </div>
   );
 }
