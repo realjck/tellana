@@ -174,7 +174,7 @@ export default function ScenePlayer({
 
   // Adjusted positions for dialogue with 1 or 2 characters
   const totalChars = leftChars.length + rightChars.length;
-  const isDialogue = (!isPreviewMode && node?.type === "dialogue") || showMode === "characters-only";
+  const isDialogue = (!isPreviewMode && (node?.type === "dialogue" || node?.type === "quiz")) || showMode === "characters-only";
   const leftPos = (i: number) => {
     if (isDialogue && totalChars === 1) return "36%";
     if (isDialogue && totalChars === 2) return `${16 + i * 22}%`;
