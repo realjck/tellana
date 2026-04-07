@@ -6,6 +6,8 @@ Instructions et contexte pour Claude Code sur ce projet.
 
 Plateforme Visual Novel : éditeur de stories composées de scènes (dialogues, textes, quiz) avec personnages et décors. Backend FastAPI + SQLite, frontend Next.js 16 App Router.
 
+**Intégration prévue** avec **Media Creator** (projet compagnon : génération/édition d'images et vidéos par IA, local-first + cloud). Phase 1 : import d'assets. Spec : `docs/superpowers/specs/2026-04-07-media-creator-integration-design.md`.
+
 ### Hiérarchie des objets (V2)
 
 - **Story** (parent) : titre, slug, published, personnages — une story = plusieurs scènes ordonnées
@@ -47,12 +49,17 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 - Composants `"use client"` — tous les composants interactifs.
 - Fetch de données via **SWR** avec `mutate()` pour les rechargements. `await mutate()` retourne la donnée fraîche — utiliser son retour plutôt que les closures périmées.
 - Résolution d'URL d'images : toujours utiliser `resolveImage()` importé depuis `@/lib/api` (gère `/uploads/` → URL complète backend).
+- **Assets (V2+)** : tout nouvel asset doit utiliser le type `AssetRef` (voir spec Media Creator). `resolveImage()` sera étendu en `resolveAsset(ref: string | AssetRef)` — conserver la rétrocompatibilité `string`.
+- **Types de nœuds** : ne pas fermer le `Literal` à `"dialogue"|"text"|"quiz"` — les types `"image"`, `"video"`, `"image_text"` sont prévus (spec Media Creator).
+- **Sprites personnages** : prévoir `sprites: Record<string, AssetRef>` sur `Character` à la place de `image_url` (champ `expression` optionnel sur les nœuds dialogue).
 - Types `NodeData` : double cast `as unknown as TargetType` pour passer entre `Record<string,unknown>` et les types union.
 - Pas de `<button>` imbriqués — utiliser `<div role="button" tabIndex={0} onKeyDown={...}>` pour les items de liste cliquables.
 
 ### Backend
-- Schémas Pydantic : `type: Literal["dialogue","text","quiz"]` — ne pas élargir en `str`.
+- Schémas Pydantic : `type: Literal["dialogue","text","quiz"]` — ne pas élargir en `str`, mais documenter les types futurs prévus (`"image"`, `"video"`, `"image_text"`) en commentaire.
 - `Character` n'a pas de champ `position` (supprimé en V2 — positionnement dynamique dans ScenePlayer).
+- `Character` cible V2 : `sprites: dict[str, AssetRef]` à la place de `image_url` (voir spec Media Creator).
+- `Scene` cible V2 : `background_asset: AssetRef | None` + `background_loop: bool` à la place de `background_url`.
 - `exclude_unset=True` sur tous les PATCH pour n'écraser que les champs fournis.
 - Reorder : valider tous les IDs avant de committer (lever `HTTPException(400)` si ID inconnu).
 - Slug : `unicodedata.normalize("NFKD")` + encode ASCII avant le regex pour translittérer les accents.
