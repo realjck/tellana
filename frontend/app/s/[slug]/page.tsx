@@ -10,7 +10,9 @@ export default async function PublicStoryPage({
 
   let story;
   try {
-    story = await api.stories.getBySlug(slug);
+    story = await api.stories.getBySlug(slug, {
+      signal: AbortSignal.timeout(5000),
+    });
   } catch {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">

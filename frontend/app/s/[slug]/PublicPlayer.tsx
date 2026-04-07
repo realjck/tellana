@@ -41,7 +41,8 @@ export default function PublicPlayer({ story }: { story: Story }) {
           <ScenePlayer
             nodes={story.nodes}
             characters={story.characters}
-            backgroundUrl={story.background_url}
+            backgroundAsset={story.background_asset}
+            backgroundLoop={story.background_loop}
             onEnd={() => setEnded(true)}
           />
         )}

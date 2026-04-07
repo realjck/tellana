@@ -1,11 +1,16 @@
 import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import ScenePlayer from "@/components/ScenePlayer";
-import type { StoryNode, Character } from "@/types";
+import type { AssetRef, StoryNode, Character } from "@/types";
 
 jest.mock("@/lib/api", () => ({
   API_BASE: "http://localhost:8000",
   resolveImage: (url: string | null | undefined) => url ?? "",
+  resolveAsset: (ref: string | AssetRef | null | undefined) => {
+    if (!ref) return "";
+    if (typeof ref === "string") return ref;
+    return ref.url ?? "";
+  },
 }));
 
 const makeNode = (overrides: Partial<StoryNode> = {}): StoryNode => ({
@@ -21,15 +26,24 @@ const makeChar = (overrides: Partial<Character> = {}): Character => ({
   id: 1,
   story_id: 1,
   name: "Alice",
-  image_url: "/sprite_woman.png",
-  position: "left",
+  sprites: {
+    default: {
+      type: "local",
+      url: "/sprite_woman.png",
+      opfs_key: null,
+      job_id: null,
+      mime_type: null,
+      width: null,
+      height: null,
+    },
+  },
   ...overrides,
 });
 
 describe("ScenePlayer — navigation", () => {
   it("affiche le texte du premier nœud", () => {
     const nodes = [makeNode({ data: { character_id: null, text: "Hello" } as StoryNode["data"] })];
-    render(<ScenePlayer nodes={nodes} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={nodes} characters={[]} backgroundAsset={null} />);
     expect(screen.getByText("Hello")).toBeInTheDocument();
   });
 
@@ -38,7 +52,7 @@ describe("ScenePlayer — navigation", () => {
       makeNode({ id: 1, order: 0, data: { character_id: null, text: "Nœud 1" } as StoryNode["data"] }),
       makeNode({ id: 2, order: 1, data: { character_id: null, text: "Nœud 2" } as StoryNode["data"] }),
     ];
-    render(<ScenePlayer nodes={nodes} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={nodes} characters={[]} backgroundAsset={null} />);
     expect(screen.getByText("Nœud 1")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Nœud 1"));
     expect(screen.getByText("Nœud 2")).toBeInTheDocument();
@@ -46,14 +60,14 @@ describe("ScenePlayer — navigation", () => {
 
   it("affiche l'écran de fin après le dernier nœud", () => {
     const nodes = [makeNode({ data: { character_id: null, text: "Dernier" } as StoryNode["data"] })];
-    render(<ScenePlayer nodes={nodes} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={nodes} characters={[]} backgroundAsset={null} />);
     fireEvent.click(screen.getByText("Dernier"));
     expect(screen.getByText("Recommencer")).toBeInTheDocument();
   });
 
   it("le bouton Recommencer remet l'index à 0", () => {
     const nodes = [makeNode({ data: { character_id: null, text: "Premier" } as StoryNode["data"] })];
-    render(<ScenePlayer nodes={nodes} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={nodes} characters={[]} backgroundAsset={null} />);
     fireEvent.click(screen.getByText("Premier"));
     expect(screen.getByText("Recommencer")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Recommencer"));
@@ -67,9 +81,8 @@ describe("ScenePlayer — navigation", () => {
       makeNode({ id: 2, order: 1, data: { character_id: null, text: "B" } as StoryNode["data"] }),
     ];
     render(
-      <ScenePlayer nodes={nodes} characters={[]} backgroundUrl={null} onIndexChange={onIndexChange} />
+      <ScenePlayer nodes={nodes} characters={[]} backgroundAsset={null} onIndexChange={onIndexChange} />
     );
-    // Initial call on mount (index=0)
     expect(onIndexChange).toHaveBeenCalledWith(0);
     fireEvent.click(screen.getByText("A"));
     expect(onIndexChange).toHaveBeenCalledWith(1);
@@ -80,7 +93,7 @@ describe("ScenePlayer — showMode", () => {
   it("characters-only : la bulle dialogue n'est pas rendue", () => {
     const nodes = [makeNode({ data: { character_id: null, text: "Bulle cachée" } as StoryNode["data"] })];
     render(
-      <ScenePlayer nodes={nodes} characters={[]} backgroundUrl={null} showMode="characters-only" />
+      <ScenePlayer nodes={nodes} characters={[]} backgroundAsset={null} showMode="characters-only" />
     );
     expect(screen.queryByText("Bulle cachée")).not.toBeInTheDocument();
   });
@@ -89,7 +102,7 @@ describe("ScenePlayer — showMode", () => {
     const nodes = [makeNode()];
     const characters = [makeChar({ name: "Alice" })];
     render(
-      <ScenePlayer nodes={nodes} characters={characters} backgroundUrl={null} showMode="characters-only" />
+      <ScenePlayer nodes={nodes} characters={characters} backgroundAsset={null} showMode="characters-only" />
     );
     expect(screen.getByAltText("Alice")).toBeInTheDocument();
   });
@@ -98,7 +111,7 @@ describe("ScenePlayer — showMode", () => {
     const nodes = [makeNode()];
     const characters = [makeChar({ name: "Alice" })];
     render(
-      <ScenePlayer nodes={nodes} characters={characters} backgroundUrl={null} showMode="background-only" />
+      <ScenePlayer nodes={nodes} characters={characters} backgroundAsset={null} showMode="background-only" />
     );
     expect(screen.queryByAltText("Alice")).not.toBeInTheDocument();
   });
@@ -107,19 +120,19 @@ describe("ScenePlayer — showMode", () => {
 describe("ScenePlayer — positionnement personnages", () => {
   it("1 personnage en dialogue : left=36%", () => {
     const nodes = [makeNode({ type: "dialogue", data: { character_id: 1, text: "Hi" } as StoryNode["data"] })];
-    const characters = [makeChar({ id: 1, position: "left" })];
-    render(<ScenePlayer nodes={nodes} characters={characters} backgroundUrl={null} />);
+    const characters = [makeChar({ id: 1 })];
+    render(<ScenePlayer nodes={nodes} characters={characters} backgroundAsset={null} />);
     const img = screen.getByAltText("Alice");
     expect(img).toHaveStyle({ left: "36%" });
   });
 
-  it("2 personnages en dialogue : left=16%, right=16%", () => {
+  it("2 personnages : char[0] left=16%, char[1] right=16%", () => {
     const nodes = [makeNode({ type: "dialogue", data: { character_id: 1, text: "Hi" } as StoryNode["data"] })];
     const characters = [
-      makeChar({ id: 1, name: "Alice", position: "left" }),
-      makeChar({ id: 2, name: "Bob", position: "right" }),
+      makeChar({ id: 1, name: "Alice" }),
+      makeChar({ id: 2, name: "Bob" }),
     ];
-    render(<ScenePlayer nodes={nodes} characters={characters} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={nodes} characters={characters} backgroundAsset={null} />);
     expect(screen.getByAltText("Alice")).toHaveStyle({ left: "16%" });
     expect(screen.getByAltText("Bob")).toHaveStyle({ right: "16%" });
   });
@@ -140,32 +153,30 @@ describe("ScenePlayer — quiz", () => {
   });
 
   it("affiche la question et les options", () => {
-    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundAsset={null} />);
     expect(screen.getByText("Quelle est la réponse ?")).toBeInTheDocument();
     expect(screen.getByText("Bonne réponse")).toBeInTheDocument();
     expect(screen.getByText("Mauvaise réponse")).toBeInTheDocument();
   });
 
   it("le bouton Valider est désactivé si rien n'est sélectionné", () => {
-    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundAsset={null} />);
     expect(screen.getByText("Valider")).toBeDisabled();
   });
 
   it("affiche le feedback après validation", () => {
-    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundAsset={null} />);
     fireEvent.click(screen.getByText("Bonne réponse"));
     fireEvent.click(screen.getByText("Valider"));
     expect(screen.getByText("Bravo !")).toBeInTheDocument();
   });
 
   it("QCU : sélectionner une option remplace la précédente", () => {
-    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundUrl={null} />);
+    render(<ScenePlayer nodes={[quizNode]} characters={[]} backgroundAsset={null} />);
     fireEvent.click(screen.getByText("Bonne réponse"));
     fireEvent.click(screen.getByText("Mauvaise réponse"));
-    // Valider should be enabled (something is selected)
     expect(screen.getByText("Valider")).not.toBeDisabled();
     fireEvent.click(screen.getByText("Valider"));
-    // Mauvaise réponse should be red (wrong), Bonne réponse should be green (correct)
     expect(screen.getByText("Bravo !")).toBeInTheDocument();
   });
 });

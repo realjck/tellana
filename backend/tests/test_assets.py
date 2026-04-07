@@ -8,6 +8,9 @@ MINIMAL_PNG = (
     b"\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
+# Minimal JPEG header (SOI + APP0 marker)
+MINIMAL_JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 16
+
 
 def test_upload_valid_image(client):
     res = client.post(
@@ -19,10 +22,30 @@ def test_upload_valid_image(client):
     assert res.json()["url"].endswith(".png")
 
 
-def test_upload_invalid_type(client):
+def test_upload_invalid_content_type_rejected_by_client_header(client):
+    """Client-declared PDF → rejected (magic bytes check: no valid image signature)."""
     res = client.post(
         "/api/assets/upload",
-        files={"file": ("doc.pdf", io.BytesIO(b"%PDF-1.4"), "application/pdf")},
+        files={"file": ("doc.pdf", io.BytesIO(b"%PDF-1.4 fake content"), "application/pdf")},
+    )
+    assert res.status_code == 400
+
+
+def test_upload_magic_bytes_override_client_header(client):
+    """PNG bytes sent with a spoofed application/pdf content_type must still be accepted."""
+    res = client.post(
+        "/api/assets/upload",
+        files={"file": ("trick.pdf", io.BytesIO(MINIMAL_PNG), "application/pdf")},
+    )
+    # Magic bytes say PNG → accepted despite wrong declared type
+    assert res.status_code == 200
+
+
+def test_upload_pdf_bytes_with_image_type_rejected(client):
+    """PDF bytes sent with image/png content_type must be rejected (bad magic bytes)."""
+    res = client.post(
+        "/api/assets/upload",
+        files={"file": ("evil.png", io.BytesIO(b"%PDF-1.4 fake content"), "image/png")},
     )
     assert res.status_code == 400
 

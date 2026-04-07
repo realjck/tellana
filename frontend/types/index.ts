@@ -1,13 +1,23 @@
 export type NodeType = "dialogue" | "text" | "quiz";
-export type Position = "left" | "right";
 export type QuizType = "qcm" | "qcu";
+
+export type AssetSource = "upload" | "remote" | "local" | "generated";
+
+export interface AssetRef {
+  type: AssetSource;
+  url: string | null;
+  opfs_key: string | null;
+  job_id: string | null;
+  mime_type: string | null;
+  width: number | null;
+  height: number | null;
+}
 
 export interface Character {
   id: number;
   story_id: number;
   name: string;
-  image_url: string;
-  position: Position;
+  sprites: Record<string, AssetRef>;
 }
 
 export interface QuizOption {
@@ -47,7 +57,9 @@ export interface Story {
   title: string;
   slug: string;
   published: boolean;
-  background_url: string | null;
+  background_asset: AssetRef | null;
+  background_loop: boolean;
+  bg_custom_uploads: string[];
   created_at: string;
   updated_at: string;
   nodes: StoryNode[];
@@ -59,7 +71,9 @@ export interface StorySummary {
   title: string;
   slug: string;
   published: boolean;
-  background_url: string | null;
+  background_asset: AssetRef | null;
+  background_loop: boolean;
+  bg_custom_uploads: string[];
   created_at: string;
   updated_at: string;
 }

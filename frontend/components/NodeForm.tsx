@@ -147,7 +147,7 @@ function DialogueTextFields({
           <option value="">— Aucun personnage —</option>
           {characters.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name} ({c.position === "left" ? "gauche" : "droite"})
+              {c.name}
             </option>
           ))}
         </select>

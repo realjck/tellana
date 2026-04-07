@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Character, QuizNodeData, StoryNode } from "@/types";
-import { resolveImage } from "@/lib/api";
+import type { AssetRef, Character, QuizNodeData, StoryNode } from "@/types";
+import { resolveAsset } from "@/lib/api";
 
 interface Props {
   nodes: StoryNode[];
   characters: Character[];
-  backgroundUrl: string | null;
+  backgroundAsset: AssetRef | null;
+  backgroundLoop?: boolean;
   startIndex?: number;
   onEnd?: () => void;
   /** compact mode for the editor preview panel */
@@ -27,7 +28,7 @@ type QuizState = {
 export default function ScenePlayer({
   nodes,
   characters,
-  backgroundUrl,
+  backgroundAsset,
   startIndex = 0,
   onEnd,
   compact = false,
@@ -155,33 +156,31 @@ export default function ScenePlayer({
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
   // ── Character display logic ────────────────────────────────────────────
-  // preview modes: all characters always shown, no speaking outline
-  // dialogue / quiz: all characters visible, speaker at full opacity
-  // text: only the optional character_id char, always forced to left
+  // text node: only the speaking character (if any), on the left
+  // all other modes: all characters visible, speaker at full opacity
   const isTextNode = !isPreviewMode && node?.type === "text";
-  const leftChars = isPreviewMode
-    ? characters.filter((c) => c.position === "left")
-    : isTextNode
-      ? speakingChar ? [speakingChar] : []
-      : characters.filter((c) => c.position === "left");
-  const rightChars = isPreviewMode
-    ? characters.filter((c) => c.position === "right")
-    : isTextNode
-      ? []
-      : characters.filter((c) => c.position === "right");
+  const displayChars = isTextNode
+    ? (speakingChar ? [speakingChar] : [])
+    : characters;
 
-  // Adjusted positions for dialogue with 1 or 2 characters
-  const totalChars = leftChars.length + rightChars.length;
-  const isDialogue = (!isPreviewMode && (node?.type === "dialogue" || node?.type === "quiz")) || showMode === "characters-only";
-  const leftPos = (i: number) => {
-    if (isDialogue && totalChars === 1) return "36%";
-    if (isDialogue && totalChars === 2) return `${16 + i * 22}%`;
-    return `${4 + i * 22}%`;
+  const total = displayChars.length;
+
+  // Dynamic positioning — no stored position field:
+  //   1 char  → left: 36% (centered)
+  //   2 chars → char[0]: left:16%, char[1]: right:16% (mirrored)
+  //   3+      → left: (4 + 22×i)%  (all from left, no mirror)
+  const charLeft = (i: number): string | undefined => {
+    if (isTextNode) return `${4 + i * 22}%`; // text node: always from far left
+    if (total === 1) return "36%";
+    if (total === 2 && i === 0) return "16%";
+    if (total >= 3) return `${4 + i * 22}%`;
+    return undefined;
   };
-  const rightPos = (i: number) => {
-    if (isDialogue && totalChars === 2) return `${16 + i * 22}%`;
-    return `${4 + i * 22}%`;
+  const charRight = (i: number): string | undefined => {
+    if (total === 2 && i === 1) return "16%";
+    return undefined;
   };
+  const charMirror = (i: number): boolean => total === 2 && i === 1;
 
   return (
     <div
@@ -195,9 +194,9 @@ export default function ScenePlayer({
           <div
             className="absolute inset-0 bg-slate-800"
             style={
-              backgroundUrl
+              backgroundAsset
                 ? {
-                    backgroundImage: `url(${resolveImage(backgroundUrl)})`,
+                    backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }
@@ -231,38 +230,21 @@ export default function ScenePlayer({
           Hidden in background-only preview mode. */}
       {showMode !== "background-only" && (
       <div className="absolute inset-0 pointer-events-none">
-        {/* Left characters */}
-        {leftChars.map((c, i) => {
+        {displayChars.map((c, i) => {
           const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
+          const mirrored = charMirror(i);
+          const firstSprite = Object.values(c.sprites)[0];
           return (
             <img
               key={c.id}
-              src={resolveImage(c.image_url)}
+              src={firstSprite ? resolveAsset(firstSprite) : ""}
               alt={c.name}
-              className="absolute object-contain transition-all duration-200"
+              className={`absolute object-contain transition-all duration-200${mirrored ? " scale-x-[-1]" : ""}`}
               style={{
                 height: "100%",
                 bottom: "-10%",
-                left: leftPos(i),
-                filter: isSpeaking ? "url(#outline-white)" : "none",
-              }}
-            />
-          );
-        })}
-
-        {/* Right characters (mirrored) */}
-        {rightChars.map((c, i) => {
-          const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
-          return (
-            <img
-              key={c.id}
-              src={resolveImage(c.image_url)}
-              alt={c.name}
-              className="absolute object-contain scale-x-[-1] transition-all duration-200"
-              style={{
-                height: "100%",
-                bottom: "-10%",
-                right: rightPos(i),
+                left: charLeft(i),
+                right: charRight(i),
                 filter: isSpeaking ? "url(#outline-white)" : "none",
               }}
             />
