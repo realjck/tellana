@@ -4,7 +4,14 @@ Instructions et contexte pour Claude Code sur ce projet.
 
 ## Projet
 
-Plateforme Visual Novel : éditeur de stories (dialogues, textes, quiz) avec personnages et décors. Backend FastAPI + SQLite, frontend Next.js 16 App Router.
+Plateforme Visual Novel : éditeur de stories composées de scènes (dialogues, textes, quiz) avec personnages et décors. Backend FastAPI + SQLite, frontend Next.js 16 App Router.
+
+### Hiérarchie des objets (V2)
+
+- **Story** (parent) : titre, slug, published, personnages — une story = plusieurs scènes ordonnées
+- **Scene** (anciennement "Story") : séquence de nœuds avec son propre décor et titre, ordonnée au sein d'une story
+- **Character** : attaché à la Story (partagé entre toutes les scènes), sans champ `position` (positionné dynamiquement par ScenePlayer)
+- **Node** : attaché à une Scene via `scene_id`
 
 ## Structure
 
@@ -44,7 +51,8 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 - Pas de `<button>` imbriqués — utiliser `<div role="button" tabIndex={0} onKeyDown={...}>` pour les items de liste cliquables.
 
 ### Backend
-- Schémas Pydantic : `position: Literal["left","right"]`, `type: Literal["dialogue","text","quiz"]` — ne pas élargir en `str`.
+- Schémas Pydantic : `type: Literal["dialogue","text","quiz"]` — ne pas élargir en `str`.
+- `Character` n'a pas de champ `position` (supprimé en V2 — positionnement dynamique dans ScenePlayer).
 - `exclude_unset=True` sur tous les PATCH pour n'écraser que les champs fournis.
 - Reorder : valider tous les IDs avant de committer (lever `HTTPException(400)` si ID inconnu).
 - Slug : `unicodedata.normalize("NFKD")` + encode ASCII avant le regex pour translittérer les accents.
