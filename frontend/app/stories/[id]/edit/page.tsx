@@ -179,7 +179,8 @@ export default function EditorPage({ params }: { params: Params }) {
     await persistBgCustomUploads(next);
     const currentUrl = story.background_asset?.url;
     if (currentUrl === url) {
-      await setBackground(null);
+      const fallback = DEFAULT_BACKGROUNDS[0];
+      await setBackground({ type: "local", url: fallback.url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null });
     }
   };
 
