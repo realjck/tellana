@@ -6,26 +6,20 @@ def story_id(client):
     return client.post("/api/stories/", json={"title": "Story"}).json()["id"]
 
 
-def _char(name="Alice", position="left"):
-    return {"name": name, "image_url": "/sprite_woman.png", "position": position}
+def _char(name="Alice"):
+    return {
+        "name": name,
+        "sprites": {
+            "default": {"type": "local", "url": "/sprite_woman.png"},
+        },
+    }
 
 
 def test_create_character(client, story_id):
     res = client.post(f"/api/stories/{story_id}/characters/", json=_char())
     assert res.status_code == 201
     assert res.json()["name"] == "Alice"
-    assert res.json()["position"] == "left"
-
-
-def test_create_character_right_position(client, story_id):
-    res = client.post(f"/api/stories/{story_id}/characters/", json=_char(position="right"))
-    assert res.status_code == 201
-    assert res.json()["position"] == "right"
-
-
-def test_create_character_invalid_position(client, story_id):
-    res = client.post(f"/api/stories/{story_id}/characters/", json=_char(position="center"))
-    assert res.status_code == 422
+    assert res.json()["sprites"]["default"]["url"] == "/sprite_woman.png"
 
 
 def test_list_characters(client, story_id):
@@ -43,10 +37,15 @@ def test_update_character(client, story_id):
     assert res.json()["name"] == "Bob"
 
 
-def test_update_character_invalid_position(client, story_id):
+def test_update_character_sprites(client, story_id):
     char_id = client.post(f"/api/stories/{story_id}/characters/", json=_char()).json()["id"]
-    res = client.patch(f"/api/stories/{story_id}/characters/{char_id}", json={"position": "center"})
-    assert res.status_code == 422
+    new_sprites = {"default": {"type": "upload", "url": "/uploads/custom.png"}}
+    res = client.patch(
+        f"/api/stories/{story_id}/characters/{char_id}",
+        json={"sprites": new_sprites},
+    )
+    assert res.status_code == 200
+    assert res.json()["sprites"]["default"]["url"] == "/uploads/custom.png"
 
 
 def test_delete_character(client, story_id):

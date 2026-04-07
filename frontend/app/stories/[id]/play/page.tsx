@@ -65,7 +65,8 @@ export default function PlayPage({ params }: { params: Params }) {
             <ScenePlayer
               nodes={story.nodes}
               characters={story.characters}
-              backgroundUrl={story.background_url}
+              backgroundAsset={story.background_asset}
+              backgroundLoop={story.background_loop}
               onEnd={() => {
                 // Show end screen
               }}

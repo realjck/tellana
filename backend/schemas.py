@@ -2,16 +2,29 @@ from pydantic import BaseModel
 from typing import Optional, List, Any, Dict, Literal
 from datetime import datetime
 
-Position = Literal["left", "right"]
 NodeType = Literal["dialogue", "text", "quiz"]
+# Future node types (not yet implemented): "image", "video", "image_text"
+
+AssetSourceType = Literal["upload", "remote", "local", "generated"]
+
+
+# ── AssetRef ───────────────────────────────────────────────────────────────
+
+class AssetRef(BaseModel):
+    type: AssetSourceType
+    url: Optional[str] = None
+    opfs_key: Optional[str] = None
+    job_id: Optional[str] = None
+    mime_type: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
 
 
 # ── Character ──────────────────────────────────────────────────────────────
 
 class CharacterBase(BaseModel):
     name: str
-    image_url: str
-    position: Position = "left"
+    sprites: Dict[str, AssetRef] = {}
 
 
 class CharacterCreate(CharacterBase):
@@ -20,8 +33,7 @@ class CharacterCreate(CharacterBase):
 
 class CharacterUpdate(BaseModel):
     name: Optional[str] = None
-    image_url: Optional[str] = None
-    position: Optional[Position] = None
+    sprites: Optional[Dict[str, AssetRef]] = None
 
 
 class Character(CharacterBase):
@@ -60,7 +72,8 @@ class Node(NodeBase):
 
 class StoryBase(BaseModel):
     title: str
-    background_url: Optional[str] = None
+    background_asset: Optional[AssetRef] = None
+    background_loop: bool = True
 
 
 class StoryCreate(StoryBase):
@@ -69,14 +82,17 @@ class StoryCreate(StoryBase):
 
 class StoryUpdate(BaseModel):
     title: Optional[str] = None
-    background_url: Optional[str] = None
+    background_asset: Optional[AssetRef] = None
+    background_loop: Optional[bool] = None
     published: Optional[bool] = None
+    bg_custom_uploads: Optional[List[str]] = None
 
 
 class StorySummary(StoryBase):
     id: int
     slug: str
     published: bool
+    bg_custom_uploads: List[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -87,6 +103,7 @@ class Story(StoryBase):
     id: int
     slug: str
     published: bool
+    bg_custom_uploads: List[str] = []
     created_at: datetime
     updated_at: datetime
     nodes: List[Node] = []

@@ -131,10 +131,10 @@ function StoryCard({
   return (
     <div className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-black/20">
       {/* Background preview */}
-      {story.background_url ? (
+      {story.background_asset?.url ? (
         <div
           className="h-28 bg-cover bg-center"
-          style={{ backgroundImage: `url(${story.background_url})` }}
+          style={{ backgroundImage: `url(${story.background_asset.url})` }}
         />
       ) : (
         <div className="h-28 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">

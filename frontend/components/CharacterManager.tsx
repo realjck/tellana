@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { Character, Position } from "@/types";
-import { api, DEFAULT_SPRITES, resolveImage } from "@/lib/api";
+import type { AssetRef, Character } from "@/types";
+import { api, DEFAULT_SPRITES, resolveAsset } from "@/lib/api";
 
 interface Props {
   storyId: number;
@@ -11,11 +11,6 @@ interface Props {
 }
 
 type Mode = "list" | "edit" | "add";
-
-const POSITIONS: { value: Position; label: string }[] = [
-  { value: "left", label: "Gauche" },
-  { value: "right", label: "Droite" },
-];
 
 export default function CharacterManager({ storyId, characters, onRefresh }: Props) {
   const [mode, setMode] = useState<Mode>("list");
@@ -65,32 +60,32 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
         </p>
       ) : (
         <div className="flex flex-col gap-2">
-          {characters.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => openEdit(c)}
-              className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 border border-slate-700 hover:border-slate-500 transition-colors text-left w-full group"
-            >
-              <img
-                src={resolveImage(c.image_url)}
-                alt={c.name}
-                className="w-10 h-12 object-contain rounded-lg bg-slate-700 flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-white truncate">{c.name}</div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  {c.position === "left" ? "Gauche" : "Droite"}
-                </div>
-              </div>
-              <svg
-                className="w-4 h-4 text-slate-500 group-hover:text-slate-300 flex-shrink-0 transition-colors"
-                fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          {characters.map((c) => {
+            const firstSprite = Object.values(c.sprites)[0];
+            return (
+              <button
+                key={c.id}
+                onClick={() => openEdit(c)}
+                className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 border border-slate-700 hover:border-slate-500 transition-colors text-left w-full group"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
-          ))}
+                <img
+                  src={firstSprite ? resolveAsset(firstSprite) : ""}
+                  alt={c.name}
+                  className="w-10 h-12 object-contain rounded-lg bg-slate-700 flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-white truncate">{c.name}</div>
+                </div>
+                <svg
+                  className="w-4 h-4 text-slate-500 group-hover:text-slate-300 flex-shrink-0 transition-colors"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -129,26 +124,37 @@ function CharacterForm({
   onDelete?: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [imageUrl, setImageUrl] = useState(initial?.image_url ?? DEFAULT_SPRITES[0].url);
-  const [position, setPosition] = useState<Position>(initial?.position ?? "left");
+
+  // Current default sprite as AssetRef
+  const initialAsset: AssetRef = Object.values(initial?.sprites ?? {})[0] ?? {
+    type: "local",
+    url: DEFAULT_SPRITES[0].url,
+    opfs_key: null,
+    job_id: null,
+    mime_type: null,
+    width: null,
+    height: null,
+  };
+  const [activeAsset, setActiveAsset] = useState<AssetRef>(initialAsset);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Track all custom-uploaded URLs so they persist in the picker even when another sprite is selected
-  const [customUploads, setCustomUploads] = useState<string[]>(() => {
-    if (initial?.image_url && !DEFAULT_SPRITES.find((s) => s.url === initial.image_url)) {
-      return [initial.image_url];
-    }
+  // Track all custom-uploaded AssetRefs so they persist in the picker
+  const [customUploads, setCustomUploads] = useState<AssetRef[]>(() => {
+    const first = Object.values(initial?.sprites ?? {})[0];
+    if (first && first.type === "upload") return [first];
     return [];
   });
 
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
-      const url = await api.assets.upload(file);
-      setImageUrl(url);
-      setCustomUploads((prev) => (prev.includes(url) ? prev : [...prev, url]));
+      const ref = await api.assets.upload(file);
+      setActiveAsset(ref);
+      setCustomUploads((prev) =>
+        prev.some((r) => r.url === ref.url) ? prev : [...prev, ref]
+      );
     } catch {
       alert("Échec de l'upload");
     } finally {
@@ -156,27 +162,30 @@ function CharacterForm({
     }
   };
 
-  const removeCustomUpload = (url: string) => {
-    setCustomUploads((prev) => prev.filter((u) => u !== url));
-    if (imageUrl === url) setImageUrl(DEFAULT_SPRITES[0].url);
+  const removeCustomUpload = (ref: AssetRef) => {
+    setCustomUploads((prev) => prev.filter((r) => r.url !== ref.url));
+    if (activeAsset.url === ref.url) {
+      setActiveAsset({
+        type: "local",
+        url: DEFAULT_SPRITES[0].url,
+        opfs_key: null,
+        job_id: null,
+        mime_type: null,
+        width: null,
+        height: null,
+      });
+    }
   };
 
   const handleSave = async () => {
-    if (!name.trim() || !imageUrl) return;
+    if (!name.trim()) return;
     setSaving(true);
     try {
+      const sprites = { default: activeAsset };
       if (initial) {
-        await api.characters.update(storyId, initial.id, {
-          name: name.trim(),
-          image_url: imageUrl,
-          position,
-        });
+        await api.characters.update(storyId, initial.id, { name: name.trim(), sprites });
       } else {
-        await api.characters.create(storyId, {
-          name: name.trim(),
-          image_url: imageUrl,
-          position,
-        });
+        await api.characters.create(storyId, { name: name.trim(), sprites });
       }
       onSave();
     } catch {
@@ -216,37 +225,48 @@ function CharacterForm({
       <div>
         <div className="text-xs text-slate-400 mb-2">Sprite</div>
         <div className="flex gap-2 flex-wrap">
-          {DEFAULT_SPRITES.map((s) => (
-            <button
-              key={s.url}
-              onClick={() => setImageUrl(s.url)}
-              className={`p-1 rounded-lg border-2 transition-colors ${
-                imageUrl === s.url
-                  ? "border-blue-500"
-                  : "border-transparent hover:border-slate-500"
-              }`}
-              title={s.label}
-            >
-              <img src={s.url} alt={s.label} className="h-14 w-10 object-contain" />
-            </button>
-          ))}
-
-          {/* Custom uploaded sprites — each has a red × to remove it */}
-          {customUploads.map((url) => (
-            <div key={url} className="relative">
+          {DEFAULT_SPRITES.map((s) => {
+            const isActive = activeAsset.url === s.url;
+            return (
               <button
-                onClick={() => setImageUrl(url)}
+                key={s.url}
+                onClick={() =>
+                  setActiveAsset({
+                    type: "local",
+                    url: s.url,
+                    opfs_key: null,
+                    job_id: null,
+                    mime_type: null,
+                    width: null,
+                    height: null,
+                  })
+                }
                 className={`p-1 rounded-lg border-2 transition-colors ${
-                  imageUrl === url
+                  isActive ? "border-blue-500" : "border-transparent hover:border-slate-500"
+                }`}
+                title={s.label}
+              >
+                <img src={s.url} alt={s.label} className="h-14 w-10 object-contain" />
+              </button>
+            );
+          })}
+
+          {/* Custom uploaded sprites */}
+          {customUploads.map((ref) => (
+            <div key={ref.url} className="relative">
+              <button
+                onClick={() => setActiveAsset(ref)}
+                className={`p-1 rounded-lg border-2 transition-colors ${
+                  activeAsset.url === ref.url
                     ? "border-blue-500"
                     : "border-transparent hover:border-slate-500"
                 }`}
                 title="Sprite importé"
               >
-                <img src={resolveImage(url)} alt="Custom" className="h-14 w-10 object-contain" />
+                <img src={resolveAsset(ref)} alt="Custom" className="h-14 w-10 object-contain" />
               </button>
               <button
-                onClick={() => removeCustomUpload(url)}
+                onClick={() => removeCustomUpload(ref)}
                 className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center transition-colors"
                 title="Supprimer"
               >
@@ -279,31 +299,11 @@ function CharacterForm({
         </div>
       </div>
 
-      {/* Position */}
-      <div>
-        <div className="text-xs text-slate-400 mb-2">Position sur scène</div>
-        <div className="flex gap-2">
-          {POSITIONS.map((p) => (
-            <button
-              key={p.value}
-              onClick={() => setPosition(p.value)}
-              className={`flex-1 py-1.5 rounded-lg text-sm border transition-colors ${
-                position === p.value
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button
           onClick={handleSave}
-          disabled={!name.trim() || !imageUrl || saving}
+          disabled={!name.trim() || saving}
           className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
         >
           {saving ? "Enregistrement…" : initial ? "Enregistrer" : "Ajouter"}

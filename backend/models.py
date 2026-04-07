@@ -10,7 +10,9 @@ class Story(Base):
     title = Column(String, nullable=False)
     slug = Column(String, unique=True, nullable=False, index=True)
     published = Column(Boolean, default=False)
-    background_url = Column(String, nullable=True)
+    background_asset = Column(JSON, nullable=True)
+    background_loop = Column(Boolean, default=True)
+    bg_custom_uploads = Column(JSON, nullable=False, default=list)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -31,8 +33,7 @@ class Character(Base):
     id = Column(Integer, primary_key=True, index=True)
     story_id = Column(Integer, ForeignKey("stories.id"), nullable=False)
     name = Column(String, nullable=False)
-    image_url = Column(String, nullable=False)
-    position = Column(String, default="left")  # "left" or "right"
+    sprites = Column(JSON, nullable=False, default=dict)
 
     story = relationship("Story", back_populates="characters")
 

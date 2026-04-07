@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { use } from "react";
-import { api, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
-import type { Story, StoryNode, NodeType, DialogueNodeData, QuizNodeData } from "@/types";
+import { api, resolveAsset, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
+import type { AssetRef, Story, StoryNode, NodeType, DialogueNodeData, QuizNodeData } from "@/types";
 import ScenePlayer from "@/components/ScenePlayer";
 import NodeForm from "@/components/NodeForm";
 import CharacterManager from "@/components/CharacterManager";
@@ -44,16 +44,14 @@ export default function EditorPage({ params }: { params: Params }) {
   const [publishing, setPublishing] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const bgFileRef = useRef<HTMLInputElement>(null);
+  // bgCustomUploads is seeded from story.bg_custom_uploads (persisted in backend)
   const [bgCustomUploads, setBgCustomUploads] = useState<string[]>([]);
   const bgCustomInitialized = useRef(false);
 
-  // Seed bgCustomUploads once when story loads (persists custom bg from previous sessions)
   useEffect(() => {
     if (!bgCustomInitialized.current && story) {
       bgCustomInitialized.current = true;
-      if (story.background_url && !DEFAULT_BACKGROUNDS.find((b) => b.url === story.background_url)) {
-        setBgCustomUploads([story.background_url]);
-      }
+      setBgCustomUploads(story.bg_custom_uploads ?? []);
     }
   }, [story]);
 
@@ -150,17 +148,24 @@ export default function EditorPage({ params }: { params: Params }) {
     }
   };
 
-  const setBackground = async (url: string) => {
-    await api.stories.update(storyId, { background_url: url });
+  const setBackground = async (asset: AssetRef | null) => {
+    await api.stories.update(storyId, { background_asset: asset ?? undefined });
     await mutate();
+  };
+
+  const persistBgCustomUploads = async (uploads: string[]) => {
+    await api.stories.update(storyId, { bg_custom_uploads: uploads });
   };
 
   const uploadBackground = async (file: File) => {
     setUploadingBg(true);
     try {
-      const url = await api.assets.upload(file);
-      setBgCustomUploads((prev) => (prev.includes(url) ? prev : [...prev, url]));
-      await setBackground(url);
+      const ref = await api.assets.upload(file);
+      const url = ref.url!;
+      const next = bgCustomUploads.includes(url) ? bgCustomUploads : [...bgCustomUploads, url];
+      setBgCustomUploads(next);
+      await persistBgCustomUploads(next);
+      await setBackground(ref);
     } catch {
       alert("Échec de l'upload");
     } finally {
@@ -169,10 +174,12 @@ export default function EditorPage({ params }: { params: Params }) {
   };
 
   const removeBgCustom = async (url: string) => {
-    setBgCustomUploads((prev) => prev.filter((u) => u !== url));
-    if (story.background_url === url) {
-      await api.stories.update(storyId, { background_url: null });
-      await mutate();
+    const next = bgCustomUploads.filter((u) => u !== url);
+    setBgCustomUploads(next);
+    await persistBgCustomUploads(next);
+    const currentUrl = story.background_asset?.url;
+    if (currentUrl === url) {
+      await setBackground(null);
     }
   };
 
@@ -310,7 +317,7 @@ export default function EditorPage({ params }: { params: Params }) {
             )}
             {tab === "background" && (
               <BackgroundTab
-                currentUrl={story.background_url}
+                currentAsset={story.background_asset}
                 uploading={uploadingBg}
                 fileRef={bgFileRef}
                 onSelect={setBackground}
@@ -331,9 +338,10 @@ export default function EditorPage({ params }: { params: Params }) {
                 <ScenePlayer
                   nodes={nodes}
                   characters={characters}
-                  backgroundUrl={story.background_url}
+                  backgroundAsset={story.background_asset}
+                  backgroundLoop={story.background_loop}
                   startIndex={tab === "nodes" ? previewIndex : 0}
-                  key={`${tab}-${previewIndex}-${story.background_url}-${JSON.stringify(nodes)}-${JSON.stringify(characters)}`}
+                  key={`${tab}-${previewIndex}-${story.background_asset?.url}-${JSON.stringify(nodes)}-${JSON.stringify(characters)}`}
                   compact
                   onEnd={() => {}}
                   showMode={
@@ -495,7 +503,7 @@ function NodesTab({
 // ── Background Tab ─────────────────────────────────────────────────────────
 
 function BackgroundTab({
-  currentUrl,
+  currentAsset,
   uploading,
   fileRef,
   onSelect,
@@ -503,14 +511,16 @@ function BackgroundTab({
   customUploads,
   onRemoveCustom,
 }: {
-  currentUrl: string | null;
+  currentAsset: AssetRef | null;
   uploading: boolean;
   fileRef: React.RefObject<HTMLInputElement | null>;
-  onSelect: (url: string) => void;
+  onSelect: (asset: AssetRef | null) => void;
   onUpload: (file: File) => void;
   customUploads: string[];
   onRemoveCustom: (url: string) => void;
 }) {
+  const currentUrl = currentAsset?.url ?? null;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
@@ -520,7 +530,9 @@ function BackgroundTab({
       {DEFAULT_BACKGROUNDS.map((bg) => (
         <button
           key={bg.url}
-          onClick={() => onSelect(bg.url)}
+          onClick={() =>
+            onSelect({ type: "local", url: bg.url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null })
+          }
           className={`relative rounded-xl overflow-hidden border-2 transition-all ${
             currentUrl === bg.url
               ? "border-blue-500"
@@ -551,7 +563,9 @@ function BackgroundTab({
         return (
           <div key={url} className="relative">
             <button
-              onClick={() => onSelect(url)}
+              onClick={() =>
+                onSelect({ type: "upload", url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null })
+              }
               className={`relative w-full rounded-xl overflow-hidden border-2 transition-all ${
                 currentUrl === url
                   ? "border-blue-500"

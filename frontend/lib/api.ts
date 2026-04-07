@@ -1,4 +1,4 @@
-import type { Character, Story, StorySummary, StoryNode } from "@/types";
+import type { AssetRef, Character, Story, StorySummary, StoryNode } from "@/types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -9,6 +9,15 @@ export function resolveImage(url: string | null | undefined): string {
   if (url.startsWith("http")) return url;
   if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
   return url;
+}
+
+/** Resolve an AssetRef (or legacy string) to a displayable URL */
+export function resolveAsset(ref: string | AssetRef | null | undefined): string {
+  if (!ref) return "";
+  if (typeof ref === "string") return resolveImage(ref);
+  if (!ref.url) return "";
+  if (ref.type === "upload") return resolveImage(ref.url);
+  return ref.url;
 }
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
@@ -31,8 +40,8 @@ export const api = {
   stories: {
     list: () => request<StorySummary[]>("/api/stories/"),
     get: (id: number) => request<Story>(`/api/stories/${id}`),
-    getBySlug: (slug: string) =>
-      request<Story>(`/api/stories/by-slug/${slug}`),
+    getBySlug: (slug: string, options?: RequestInit) =>
+      request<Story>(`/api/stories/by-slug/${slug}`, options),
     create: (title: string) =>
       request<Story>("/api/stories/", {
         method: "POST",
@@ -77,7 +86,7 @@ export const api = {
   characters: {
     create: (
       storyId: number,
-      data: Pick<Character, "name" | "image_url" | "position">
+      data: Pick<Character, "name" | "sprites">
     ) =>
       request<Character>(`/api/stories/${storyId}/characters/`, {
         method: "POST",
@@ -86,7 +95,7 @@ export const api = {
     update: (
       storyId: number,
       charId: number,
-      data: Partial<Pick<Character, "name" | "image_url" | "position">>
+      data: Partial<Pick<Character, "name" | "sprites">>
     ) =>
       request<Character>(`/api/stories/${storyId}/characters/${charId}`, {
         method: "PATCH",
@@ -98,7 +107,7 @@ export const api = {
       }),
   },
   assets: {
-    upload: async (file: File): Promise<string> => {
+    upload: async (file: File): Promise<AssetRef> => {
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch(`${API_BASE}/api/assets/upload`, {
@@ -107,7 +116,15 @@ export const api = {
       });
       if (!res.ok) throw new Error("Échec de l'upload");
       const data = await res.json();
-      return `${API_BASE}${data.url}`;
+      return {
+        type: "upload",
+        url: data.url,
+        opfs_key: null,
+        job_id: null,
+        mime_type: file.type || null,
+        width: null,
+        height: null,
+      };
     },
   },
 };
