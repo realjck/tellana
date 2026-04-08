@@ -442,37 +442,54 @@ function NodesTab({
             tabIndex={0}
             onClick={() => onSelect(node)}
             onKeyDown={(e) => e.key === "Enter" && onSelect(node)}
-            className={`w-full text-left p-3 rounded-xl border transition-all group cursor-pointer ${
+            className={`w-full text-left px-3 rounded-xl border transition-all group cursor-pointer ${
               selectedNodeId === node.id
                 ? "bg-blue-600/10 border-blue-500/40"
                 : "bg-slate-800/40 border-slate-700/50 hover:border-slate-600"
-            }`}
+            } ${node.type === "dialogue" ? "py-1.5" : "py-2 "}`}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs text-slate-500 font-mono w-5">{i + 1}</span>
-              <span className={`px-1.5 py-0.5 rounded text-[10px] border font-medium ${NODE_TYPE_COLORS[node.type]}`}>
-                {NODE_TYPE_LABELS[node.type]}
-              </span>
-              <div className="ml-auto flex gap-0.5 invisible group-hover:visible">
-                <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
-                  className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▲</button>
-                <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
-                  className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▼</button>
+            {node.type === "dialogue" ? (
+              /* ── Dialogue : single line, no label ── */
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-500 font-mono w-4 flex-shrink-0">{i + 1}</span>
+                <p className="text-xs text-slate-400 truncate flex-1">
+                  {(() => {
+                    const d = node.data as { character_id: number | null; text: string };
+                    const char = d.character_id ? characters.find((c) => c.id === d.character_id) : null;
+                    return char
+                      ? <><span className="font-semibold text-slate-300">{char.name}</span>{" : "}{d.text || "…"}</>
+                      : d.text || "…";
+                  })()}
+                </p>
+                <div className="flex gap-0.5 invisible group-hover:visible flex-shrink-0">
+                  <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
+                    className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▲</button>
+                  <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
+                    className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▼</button>
+                </div>
               </div>
-            </div>
-            <p className="text-xs text-slate-400 truncate pl-7">
-              {node.type === "quiz" ? (
-                (node.data as { question: string }).question || "Question…"
-              ) : node.type === "dialogue" ? (() => {
-                const d = node.data as { character_id: number | null; text: string };
-                const char = d.character_id ? characters.find((c) => c.id === d.character_id) : null;
-                return char
-                  ? <><span className="font-bold text-slate-300">{char.name}</span>{" : "}{d.text || "…"}</>
-                  : d.text || "…";
-              })() : (
-                (node.data as { text: string }).text || "…"
-              )}
-            </p>
+            ) : (
+              /* ── Other types : label + text on second line ── */
+              <>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-xs text-slate-500 font-mono w-4">{i + 1}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] border font-medium ${NODE_TYPE_COLORS[node.type]}`}>
+                    {NODE_TYPE_LABELS[node.type]}
+                  </span>
+                  <div className="ml-auto flex gap-0.5 invisible group-hover:visible">
+                    <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
+                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▲</button>
+                    <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
+                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▼</button>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-400 truncate pl-5.5">
+                  {node.type === "quiz"
+                    ? (node.data as { question: string }).question || "Question…"
+                    : (node.data as { text: string }).text || "…"}
+                </p>
+              </>
+            )}
           </div>
         ))
       )}
