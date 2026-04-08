@@ -47,6 +47,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   );
 
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [previewPatch, setPreviewPatch] = useState<{ type: NodeType; data: Record<string, unknown> } | null>(null);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -95,6 +96,10 @@ export default function SceneEditorPage({ params }: { params: Params }) {
     .map((cid) => allCharacters.find((c) => c.id === cid))
     .filter((c): c is Character => !!c);
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
+  // Nodes with live preview patch applied to the selected node (no API call)
+  const previewNodes = previewPatch && selectedNodeId !== null
+    ? nodes.map((n) => n.id === selectedNodeId ? { ...n, type: previewPatch.type, data: previewPatch.data as unknown as StoryNode["data"] } : n)
+    : nodes;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -304,6 +309,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                 selectedNodeId={selectedNodeId}
                 onSelect={(n) => {
                   setSelectedNodeId(n.id);
+                  setPreviewPatch(null);
                   setPreviewIndex(nodes.findIndex((x) => x.id === n.id));
                 }}
                 onAdd={addNode}
@@ -342,7 +348,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
             <div className="max-w-2xl mx-auto">
               {nodes.length > 0 || tab !== "nodes" ? (
                 <ScenePlayer
-                  nodes={nodes}
+                  nodes={previewNodes}
                   characters={sceneCharacters}
                   characterPositions={localPositions}
                   backgroundAsset={scene.background_asset}
@@ -386,6 +392,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                     characters={sceneCharacters}
                     onSave={saveNode}
                     onDelete={deleteNode}
+                    onPreview={(type, data) => setPreviewPatch({ type, data })}
                   />
                 </div>
               ) : (

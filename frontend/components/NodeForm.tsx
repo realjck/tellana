@@ -14,6 +14,7 @@ interface Props {
   characters: Character[];
   onSave: (data: Partial<StoryNode>) => void;
   onDelete: () => void;
+  onPreview?: (type: NodeType, data: Record<string, unknown>) => void;
 }
 
 const NODE_LABELS: Record<NodeType, string> = {
@@ -22,7 +23,7 @@ const NODE_LABELS: Record<NodeType, string> = {
   quiz: "Quiz",
 };
 
-export default function NodeForm({ node, characters, onSave, onDelete }: Props) {
+export default function NodeForm({ node, characters, onSave, onDelete, onPreview }: Props) {
   const [type, setType] = useState<NodeType>(node.type);
   const [data, setData] = useState<Record<string, unknown>>(
     node.data as unknown as Record<string, unknown>
@@ -34,16 +35,19 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
     setData(node.data as unknown as Record<string, unknown>);
   }, [node.id, node.type, node.data]);
 
+  const updateData = (newData: Record<string, unknown>) => {
+    setData(newData);
+    onPreview?.(type, newData);
+  };
+
   const handleTypeChange = (newType: NodeType) => {
     setType(newType);
     // Restore original saved data when switching back to the node's persisted type
+    let newData: Record<string, unknown>;
     if (newType === node.type) {
-      setData(node.data as unknown as Record<string, unknown>);
-      return;
-    }
-    // Default empty data for a different type
-    if (newType === "quiz") {
-      setData({
+      newData = node.data as unknown as Record<string, unknown>;
+    } else if (newType === "quiz") {
+      newData = {
         question: "",
         type: "qcu",
         feedback: "",
@@ -51,12 +55,14 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
           { text: "", is_correct: true },
           { text: "", is_correct: false },
         ],
-      } as unknown as Record<string, unknown>);
+      };
     } else if (newType === "dialogue") {
-      setData({ character_id: null, text: "" });
+      newData = { character_id: null, text: "" };
     } else {
-      setData({ text: "" });
+      newData = { text: "" };
     }
+    setData(newData);
+    onPreview?.(newType, newData);
   };
 
   const save = () => onSave({ type, data: data as unknown as StoryNode["data"] });
@@ -87,13 +93,13 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
 
       {/* Fields */}
       {type === "dialogue" && (
-        <DialogueFields data={data} characters={characters} onChange={setData} />
+        <DialogueFields data={data} characters={characters} onChange={updateData} />
       )}
       {type === "text" && (
-        <TextFields data={data} onChange={setData} />
+        <TextFields data={data} onChange={updateData} />
       )}
       {type === "quiz" && (
-        <QuizFields data={data} onChange={setData} />
+        <QuizFields data={data} onChange={updateData} />
       )}
 
       {/* Actions */}
