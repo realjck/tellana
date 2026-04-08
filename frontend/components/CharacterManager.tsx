@@ -32,13 +32,14 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
   };
 
   if (mode === "add") {
-    return <CharacterForm storyId={storyId} onSave={refresh} onCancel={back} />;
+    return <CharacterForm storyId={storyId} characters={characters} onSave={refresh} onCancel={back} />;
   }
 
   if (mode === "edit" && selected) {
     return (
       <CharacterForm
         storyId={storyId}
+        characters={characters}
         initial={selected}
         onSave={refresh}
         onCancel={back}
@@ -106,12 +107,14 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
 
 function CharacterForm({
   storyId,
+  characters,
   initial,
   onSave,
   onCancel,
   onDelete,
 }: {
   storyId: number;
+  characters: Character[];
   initial?: Character;
   onSave: () => void;
   onCancel: () => void;
@@ -134,11 +137,19 @@ function CharacterForm({
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Track all custom-uploaded AssetRefs so they persist in the picker
+  // Collect all uploaded sprites from every character in the story (deduped by URL)
   const [customUploads, setCustomUploads] = useState<AssetRef[]>(() => {
-    const first = Object.values(initial?.sprites ?? {})[0];
-    if (first && first.type === "upload") return [first];
-    return [];
+    const seen = new Set<string>();
+    const uploads: AssetRef[] = [];
+    for (const c of characters) {
+      for (const sprite of Object.values(c.sprites)) {
+        if (sprite.type === "upload" && sprite.url && !seen.has(sprite.url)) {
+          seen.add(sprite.url);
+          uploads.push(sprite);
+        }
+      }
+    }
+    return uploads;
   });
 
   const handleUpload = async (file: File) => {
