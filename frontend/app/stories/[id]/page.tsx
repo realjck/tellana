@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { api, resolveAsset } from "@/lib/api";
 import type { SceneSummary, Story } from "@/types";
@@ -13,6 +14,7 @@ type Params = Promise<{ id: string }>;
 export default function StoryEditorPage({ params }: { params: Params }) {
   const { id } = use(params);
   const storyId = Number(id);
+  const router = useRouter();
 
   const { data: story, mutate, isLoading } = useSWR<Story>(
     `story-${storyId}`,
@@ -72,10 +74,11 @@ export default function StoryEditorPage({ params }: { params: Params }) {
     if (!newSceneTitle.trim()) return;
     setCreatingScene(true);
     try {
-      await api.scenes.create(storyId, newSceneTitle.trim());
+      const newScene = await api.scenes.create(storyId, newSceneTitle.trim());
       await mutate();
       setAddingScene(false);
       setNewSceneTitle("");
+      router.push(`/stories/${storyId}/scenes/${newScene.id}/edit?tab=background`);
     } catch {
       alert("Erreur lors de la création");
     } finally {

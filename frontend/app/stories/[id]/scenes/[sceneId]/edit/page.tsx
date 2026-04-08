@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, use } from "react";
+import { useState, useRef, useEffect, use, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import { api, resolveAsset, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
@@ -28,6 +29,12 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   const { id, sceneId: sceneIdStr } = use(params);
   const storyId = Number(id);
   const sceneId = Number(sceneIdStr);
+  const searchParams = useSearchParams();
+  const initialTab = useMemo(
+    () => (searchParams.get("tab") as Tab | null) ?? "nodes",
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   const { data: scene, mutate: mutateScene, isLoading: sceneLoading } = useSWR<Scene>(
     `scene-${sceneId}`,
@@ -40,7 +47,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   );
 
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
-  const [tab, setTab] = useState<Tab>("nodes");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [previewIndex, setPreviewIndex] = useState(0);
@@ -280,7 +287,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                     : "text-slate-500 hover:text-slate-300"
                 }`}
               >
-                {t === "nodes" ? "Nœuds" : t === "perso" ? "Perso." : "Décor"}
+                {t === "nodes" ? "Script" : t === "perso" ? "Perso." : "Décor"}
               </button>
             ))}
           </div>

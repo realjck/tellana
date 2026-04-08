@@ -228,15 +228,6 @@ function CharacterForm({
         {initial ? "Modifier le personnage" : "Nouveau personnage"}
       </div>
 
-      {/* Name */}
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nom du personnage"
-        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-      />
-
       {/* Sprite picker */}
       <div>
         <div className="text-xs text-slate-400 mb-2">Sprite</div>
@@ -314,6 +305,15 @@ function CharacterForm({
           />
         </div>
       </div>
+
+      {/* Name */}
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Nom du personnage"
+        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+      />
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">
