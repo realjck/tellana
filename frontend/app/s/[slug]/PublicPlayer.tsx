@@ -1,12 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import type { Story } from "@/types";
-import ScenePlayer from "@/components/ScenePlayer";
+import type { PublicStory } from "@/types";
+import MultiScenePlayer from "@/components/MultiScenePlayer";
 
-export default function PublicPlayer({ story }: { story: Story }) {
-  const [ended, setEnded] = useState(false);
-
+export default function PublicPlayer({ story }: { story: PublicStory }) {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
       {/* Branding */}
@@ -21,31 +18,11 @@ export default function PublicPlayer({ story }: { story: Story }) {
           {story.title}
         </h1>
 
-        {ended ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-6">
-            <div className="text-5xl">🎬</div>
-            <p className="text-white text-xl font-semibold">Fin de la story</p>
-            <p className="text-slate-400 text-sm">{story.title}</p>
-            <button
-              onClick={() => setEnded(false)}
-              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors"
-            >
-              Rejouer depuis le début
-            </button>
-            <div className="text-xs text-slate-600 mt-4">
-              Créé avec{" "}
-              <span className="text-slate-400">Tellana</span>
-            </div>
-          </div>
-        ) : (
-          <ScenePlayer
-            nodes={story.nodes}
-            characters={story.characters}
-            backgroundAsset={story.background_asset}
-            backgroundLoop={story.background_loop}
-            onEnd={() => setEnded(true)}
-          />
-        )}
+        <MultiScenePlayer
+          scenes={story.scenes}
+          characters={story.characters}
+          title={story.title}
+        />
       </div>
     </div>
   );

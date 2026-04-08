@@ -5,7 +5,7 @@ import type { StoryNode } from "@/types";
 
 const dialogueNode: StoryNode = {
   id: 1,
-  story_id: 1,
+  scene_id: 1,
   order: 0,
   type: "dialogue",
   data: { character_id: null, text: "Texte initial" } as StoryNode["data"],
@@ -13,7 +13,7 @@ const dialogueNode: StoryNode = {
 
 const quizNode: StoryNode = {
   id: 2,
-  story_id: 1,
+  scene_id: 1,
   order: 1,
   type: "quiz",
   data: {

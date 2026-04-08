@@ -15,7 +15,7 @@ jest.mock("@/lib/api", () => ({
 
 const makeNode = (overrides: Partial<StoryNode> = {}): StoryNode => ({
   id: 1,
-  story_id: 1,
+  scene_id: 1,
   order: 0,
   type: "dialogue",
   data: { character_id: null, text: "Bonjour" } as StoryNode["data"],

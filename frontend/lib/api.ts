@@ -1,4 +1,4 @@
-import type { AssetRef, Character, Story, StorySummary, StoryNode } from "@/types";
+import type { AssetRef, Character, PublicStory, Scene, SceneSummary, Story, StorySummary, StoryNode } from "@/types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -40,14 +40,15 @@ export const api = {
   stories: {
     list: () => request<StorySummary[]>("/api/stories/"),
     get: (id: number) => request<Story>(`/api/stories/${id}`),
+    getForPlay: (id: number) => request<PublicStory>(`/api/stories/${id}/play`),
     getBySlug: (slug: string, options?: RequestInit) =>
-      request<Story>(`/api/stories/by-slug/${slug}`, options),
+      request<PublicStory>(`/api/stories/by-slug/${slug}`, options),
     create: (title: string) =>
       request<Story>("/api/stories/", {
         method: "POST",
         body: JSON.stringify({ title }),
       }),
-    update: (id: number, data: Partial<Story>) =>
+    update: (id: number, data: Partial<Pick<Story, "title" | "published">>) =>
       request<Story>(`/api/stories/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
@@ -55,39 +56,64 @@ export const api = {
     delete: (id: number) =>
       request<void>(`/api/stories/${id}`, { method: "DELETE" }),
   },
+  scenes: {
+    list: (storyId: number) =>
+      request<SceneSummary[]>(`/api/stories/${storyId}/scenes/`),
+    get: (storyId: number, sceneId: number) =>
+      request<Scene>(`/api/stories/${storyId}/scenes/${sceneId}`),
+    create: (storyId: number, title: string) =>
+      request<Scene>(`/api/stories/${storyId}/scenes/`, {
+        method: "POST",
+        body: JSON.stringify({ title }),
+      }),
+    update: (storyId: number, sceneId: number, data: Partial<Scene>) =>
+      request<Scene>(`/api/stories/${storyId}/scenes/${sceneId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    delete: (storyId: number, sceneId: number) =>
+      request<void>(`/api/stories/${storyId}/scenes/${sceneId}`, {
+        method: "DELETE",
+      }),
+    reorder: (storyId: number, order: number[]) =>
+      request<SceneSummary[]>(`/api/stories/${storyId}/scenes/reorder`, {
+        method: "POST",
+        body: JSON.stringify({ order }),
+      }),
+  },
   nodes: {
     create: (
       storyId: number,
+      sceneId: number,
       data: Pick<StoryNode, "type" | "data" | "order">
     ) =>
-      request<StoryNode>(`/api/stories/${storyId}/nodes/`, {
+      request<StoryNode>(`/api/stories/${storyId}/scenes/${sceneId}/nodes/`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
     update: (
       storyId: number,
+      sceneId: number,
       nodeId: number,
       data: Partial<Pick<StoryNode, "type" | "data" | "order">>
     ) =>
-      request<StoryNode>(`/api/stories/${storyId}/nodes/${nodeId}`, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      }),
-    delete: (storyId: number, nodeId: number) =>
-      request<void>(`/api/stories/${storyId}/nodes/${nodeId}`, {
-        method: "DELETE",
-      }),
-    reorder: (storyId: number, order: number[]) =>
-      request<StoryNode[]>(`/api/stories/${storyId}/nodes/reorder`, {
-        method: "POST",
-        body: JSON.stringify({ order }),
-      }),
+      request<StoryNode>(
+        `/api/stories/${storyId}/scenes/${sceneId}/nodes/${nodeId}`,
+        { method: "PATCH", body: JSON.stringify(data) }
+      ),
+    delete: (storyId: number, sceneId: number, nodeId: number) =>
+      request<void>(
+        `/api/stories/${storyId}/scenes/${sceneId}/nodes/${nodeId}`,
+        { method: "DELETE" }
+      ),
+    reorder: (storyId: number, sceneId: number, order: number[]) =>
+      request<StoryNode[]>(
+        `/api/stories/${storyId}/scenes/${sceneId}/nodes/reorder`,
+        { method: "POST", body: JSON.stringify({ order }) }
+      ),
   },
   characters: {
-    create: (
-      storyId: number,
-      data: Pick<Character, "name" | "sprites">
-    ) =>
+    create: (storyId: number, data: Pick<Character, "name" | "sprites">) =>
       request<Character>(`/api/stories/${storyId}/characters/`, {
         method: "POST",
         body: JSON.stringify(data),

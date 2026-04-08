@@ -46,10 +46,27 @@ export type NodeData = DialogueNodeData | TextNodeData | QuizNodeData;
 
 export interface StoryNode {
   id: number;
-  story_id: number;
+  scene_id: number;
   order: number;
   type: NodeType;
   data: NodeData;
+}
+
+export interface SceneSummary {
+  id: number;
+  story_id: number;
+  title: string;
+  order: number;
+  background_asset: AssetRef | null;
+  background_loop: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Scene extends SceneSummary {
+  nodes: StoryNode[];
+  character_ids: number[];
+  bg_custom_uploads: string[];
 }
 
 export interface Story {
@@ -57,12 +74,9 @@ export interface Story {
   title: string;
   slug: string;
   published: boolean;
-  background_asset: AssetRef | null;
-  background_loop: boolean;
-  bg_custom_uploads: string[];
   created_at: string;
   updated_at: string;
-  nodes: StoryNode[];
+  scenes: SceneSummary[];
   characters: Character[];
 }
 
@@ -71,9 +85,19 @@ export interface StorySummary {
   title: string;
   slug: string;
   published: boolean;
-  background_asset: AssetRef | null;
-  background_loop: boolean;
-  bg_custom_uploads: string[];
+  first_scene_background: AssetRef | null;
   created_at: string;
   updated_at: string;
+}
+
+// For the public player: scenes include their nodes
+export interface PublicStory {
+  id: number;
+  title: string;
+  slug: string;
+  published: boolean;
+  created_at: string;
+  updated_at: string;
+  scenes: Scene[];
+  characters: Character[];
 }

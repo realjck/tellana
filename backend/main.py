@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 
 import models
 from database import engine
-from routers import assets, characters, nodes, stories
+from routers import assets, characters, nodes, scenes, stories
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
@@ -27,6 +27,7 @@ app.add_middleware(
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(stories.router, prefix="/api")
+app.include_router(scenes.router, prefix="/api")
 app.include_router(nodes.router, prefix="/api")
 app.include_router(characters.router, prefix="/api")
 app.include_router(assets.router, prefix="/api")
