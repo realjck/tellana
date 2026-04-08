@@ -245,10 +245,10 @@ export default function ScenePlayer({
               alt={c.name}
               className="absolute object-contain transition-all duration-200"
               style={{
-                height: `${pos.scale * 100}%`,
+                height: "100%",
                 bottom: `calc(-10% + ${pos.y * 50}%)`,
                 left: `${((pos.x + 1) / 2) * 100}%`,
-                transform: `translateX(-50%) scaleX(${pos.flip_x ? -1 : 1})`,
+                transform: `translateX(-50%) scale(${pos.scale}) scaleX(${pos.flip_x ? -1 : 1})`,
                 filter: isSpeaking ? "url(#outline-white)" : "none",
               }}
             />
