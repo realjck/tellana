@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import type { AssetRef, Character, CharacterPosition, QuizNodeData, StoryNode } from "@/types";
 import { resolveAsset } from "@/lib/api";
 
@@ -142,15 +144,15 @@ export default function ScenePlayer({
   }
 
   const data = node ? (node.data as unknown as Record<string, unknown>) : {};
-  const charId = data.character_id as number | null;
+  const charId = node?.type === "dialogue" ? (data.character_id as number | null) : null;
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
   // ── Character display logic ────────────────────────────────────────────
+  // Text nodes: no characters shown — narrative text only.
   // Dialogue/quiz nodes: all scene characters are visible (ordered by caller).
-  // Text nodes: show only the associated character (or none) — no full cast.
   // The speaking character gets the white outline on dialogue nodes.
   const isTextNode = !isPreviewMode && node?.type === "text";
-  const displayChars = isTextNode ? (speakingChar ? [speakingChar] : []) : characters;
+  const displayChars = isTextNode ? [] : characters;
 
   // Resolve a character's position: use stored position if available,
   // otherwise fall back to the slot default based on the character's index
@@ -259,26 +261,33 @@ export default function ScenePlayer({
         </div>
       )}
 
-      {/* ── Text node: centered block, left-aligned, no background ── */}
+      {/* ── Text node: centered narrative block with thick blue border ── */}
       {!isPreviewMode && node?.type === "text" && (
         <div
-          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+          className="absolute inset-0 flex items-center justify-center cursor-pointer p-8"
           onClick={advance}
         >
-          {/* Offset right if a character is shown on the left */}
-          <div
-            className="w-[55%] max-w-lg"
-            style={{ marginLeft: speakingChar ? "20%" : "0" }}
-          >
-            <p className="text-white text-base leading-relaxed text-left">
-              {data.text as string}
-            </p>
-            <button className="mt-4 text-blue-300 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5l10 7-10 7V5z" />
-              </svg>
-              Continuer
-            </button>
+          <div className="border-4 border-blue-500 rounded-2xl px-8 py-6 max-w-xl w-full flex flex-col gap-4">
+            <div className="prose prose-invert prose-sm max-w-none text-white leading-relaxed
+              prose-p:my-1 prose-headings:text-white prose-headings:font-bold
+              prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
+              prose-strong:text-white prose-em:text-slate-200
+              prose-ul:my-1 prose-ol:my-1 prose-li:my-0
+              prose-blockquote:border-blue-400 prose-blockquote:text-slate-300
+              prose-code:text-blue-200 prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded
+              prose-a:text-blue-300">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {data.text as string}
+              </ReactMarkdown>
+            </div>
+            <div className="flex justify-end">
+              <button className="text-blue-300 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5l10 7-10 7V5z" />
+                </svg>
+                Continuer
+              </button>
+            </div>
           </div>
         </div>
       )}

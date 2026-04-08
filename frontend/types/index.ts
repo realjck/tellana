@@ -31,7 +31,6 @@ export interface DialogueNodeData {
 }
 
 export interface TextNodeData {
-  character_id: number | null;
   text: string;
 }
 

@@ -120,7 +120,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
         <div className="flex items-center gap-4 px-4 py-3">
           <Link
             href="/"
-            className="text-slate-400 hover:text-white transition-colors"
+            className="text-slate-400 hover:text-white transition-colors flex-shrink-0"
             title="Retour au dashboard"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -128,29 +128,34 @@ export default function StoryEditorPage({ params }: { params: Params }) {
             </svg>
           </Link>
 
-          {editingTitle ? (
-            <input
-              autoFocus
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveTitle();
-                if (e.key === "Escape") setEditingTitle(false);
-              }}
-              className="flex-1 bg-slate-700 border border-blue-500 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none max-w-sm"
-            />
-          ) : (
-            <button
-              onClick={() => { setTitleDraft(story.title); setEditingTitle(true); }}
-              className="text-white font-semibold hover:text-blue-300 transition-colors text-sm flex items-center gap-1.5"
-            >
-              {story.title}
-              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
-          )}
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wide font-medium leading-none mb-1">
+              Éditer votre story
+            </span>
+            {editingTitle ? (
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle();
+                  if (e.key === "Escape") setEditingTitle(false);
+                }}
+                className="bg-slate-700 border border-blue-500 rounded-lg px-3 py-1 text-white text-lg font-bold focus:outline-none max-w-sm"
+              />
+            ) : (
+              <button
+                onClick={() => { setTitleDraft(story.title); setEditingTitle(true); }}
+                className="text-white font-bold hover:text-blue-300 transition-colors text-lg flex items-center gap-1.5 truncate"
+              >
+                {story.title}
+                <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            )}
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <button
