@@ -41,6 +41,8 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [tab, setTab] = useState<Tab>("nodes");
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
   const [previewIndex, setPreviewIndex] = useState(0);
   const [uploadingBg, setUploadingBg] = useState(false);
   const bgFileRef = useRef<HTMLInputElement>(null);
@@ -186,6 +188,15 @@ export default function SceneEditorPage({ params }: { params: Params }) {
     setLocalPositions((prev) => ({ ...prev, [String(charId)]: pos }));
   };
 
+  const saveSceneTitle = async () => {
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== scene.title) {
+      await api.scenes.update(storyId, sceneId, { title: trimmed });
+      await mutateScene();
+    }
+    setEditingTitle(false);
+  };
+
   const handlePositionCommit = async (charId: number, pos: CharacterPosition) => {
     const newPositions = { ...localPositions, [String(charId)]: pos };
     setLocalPositions(newPositions);
@@ -213,7 +224,29 @@ export default function SceneEditorPage({ params }: { params: Params }) {
           <div className="flex items-center gap-2 text-sm">
             <span className="text-slate-400">{story?.title}</span>
             <span className="text-slate-600">/</span>
-            <span className="text-white font-semibold">{scene.title}</span>
+            {editingTitle ? (
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={saveSceneTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveSceneTitle();
+                  if (e.key === "Escape") setEditingTitle(false);
+                }}
+                className="bg-slate-700 border border-blue-500 rounded-lg px-3 py-1 text-white text-sm focus:outline-none max-w-48"
+              />
+            ) : (
+              <button
+                onClick={() => { setTitleDraft(scene.title); setEditingTitle(true); }}
+                className="text-white font-semibold hover:text-blue-300 transition-colors flex items-center gap-1.5"
+              >
+                {scene.title}
+                <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            )}
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -339,7 +372,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                   <NodeForm
                     key={selectedNode.id}
                     node={selectedNode}
-                    characters={allCharacters}
+                    characters={sceneCharacters}
                     onSave={saveNode}
                     onDelete={deleteNode}
                   />
