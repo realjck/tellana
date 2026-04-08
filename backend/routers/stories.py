@@ -4,7 +4,7 @@ import uuid
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 import models
 import schemas
@@ -24,23 +24,56 @@ def _generate_slug(title: str) -> str:
 
 @router.get("/", response_model=List[schemas.StorySummary])
 def list_stories(db: Session = Depends(get_db)):
-    return db.query(models.Story).order_by(models.Story.updated_at.desc()).all()
+    stories = db.query(models.Story).order_by(models.Story.updated_at.desc()).all()
+    result = []
+    for story in stories:
+        first_bg = story.scenes[0].background_asset if story.scenes else None
+        result.append(schemas.StorySummary(
+            id=story.id,
+            title=story.title,
+            slug=story.slug,
+            published=story.published,
+            first_scene_background=first_bg,
+            created_at=story.created_at,
+            updated_at=story.updated_at,
+        ))
+    return result
 
 
 @router.post("/", response_model=schemas.Story, status_code=201)
 def create_story(story: schemas.StoryCreate, db: Session = Depends(get_db)):
-    db_story = models.Story(**story.model_dump(), slug=_generate_slug(story.title))
+    db_story = models.Story(title=story.title, slug=_generate_slug(story.title))
     db.add(db_story)
     db.commit()
     db.refresh(db_story)
     return db_story
 
 
-@router.get("/by-slug/{slug}", response_model=schemas.Story)
+@router.get("/by-slug/{slug}", response_model=schemas.PublicStory)
 def get_story_by_slug(slug: str, db: Session = Depends(get_db)):
     story = (
         db.query(models.Story)
+        .options(
+            selectinload(models.Story.scenes).selectinload(models.Scene.nodes),
+            selectinload(models.Story.characters),
+        )
         .filter(models.Story.slug == slug, models.Story.published == True)
+        .first()
+    )
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+    return story
+
+
+@router.get("/{story_id}/play", response_model=schemas.PublicStory)
+def get_story_for_play(story_id: int, db: Session = Depends(get_db)):
+    story = (
+        db.query(models.Story)
+        .options(
+            selectinload(models.Story.scenes).selectinload(models.Scene.nodes),
+            selectinload(models.Story.characters),
+        )
+        .filter(models.Story.id == story_id)
         .first()
     )
     if not story:

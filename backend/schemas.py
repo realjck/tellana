@@ -63,17 +63,48 @@ class NodeUpdate(BaseModel):
 
 class Node(NodeBase):
     id: int
-    story_id: int
+    scene_id: int
 
     model_config = {"from_attributes": True}
+
+
+# ── Scene ──────────────────────────────────────────────────────────────────
+
+class SceneCreate(BaseModel):
+    title: str
+
+
+class SceneUpdate(BaseModel):
+    title: Optional[str] = None
+    background_asset: Optional[AssetRef] = None
+    background_loop: Optional[bool] = None
+    bg_custom_uploads: Optional[List[str]] = None
+    character_ids: Optional[List[int]] = None
+
+
+class SceneSummary(BaseModel):
+    id: int
+    story_id: int
+    title: str
+    order: int
+    background_asset: Optional[AssetRef] = None
+    background_loop: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class Scene(SceneSummary):
+    nodes: List[Node] = []
+    character_ids: List[int] = []
+    bg_custom_uploads: List[str] = []
 
 
 # ── Story ──────────────────────────────────────────────────────────────────
 
 class StoryBase(BaseModel):
     title: str
-    background_asset: Optional[AssetRef] = None
-    background_loop: bool = True
 
 
 class StoryCreate(StoryBase):
@@ -82,31 +113,39 @@ class StoryCreate(StoryBase):
 
 class StoryUpdate(BaseModel):
     title: Optional[str] = None
-    background_asset: Optional[AssetRef] = None
-    background_loop: Optional[bool] = None
     published: Optional[bool] = None
-    bg_custom_uploads: Optional[List[str]] = None
 
 
-class StorySummary(StoryBase):
+class StorySummary(BaseModel):
     id: int
+    title: str
     slug: str
     published: bool
-    bg_custom_uploads: List[str] = []
+    first_scene_background: Optional[AssetRef] = None
     created_at: datetime
     updated_at: datetime
-
-    model_config = {"from_attributes": True}
 
 
 class Story(StoryBase):
     id: int
     slug: str
     published: bool
-    bg_custom_uploads: List[str] = []
     created_at: datetime
     updated_at: datetime
-    nodes: List[Node] = []
+    scenes: List[SceneSummary] = []
+    characters: List[Character] = []
+
+    model_config = {"from_attributes": True}
+
+
+# For the public by-slug endpoint: scenes include their nodes
+class PublicStory(StoryBase):
+    id: int
+    slug: str
+    published: bool
+    created_at: datetime
+    updated_at: datetime
+    scenes: List[Scene] = []
     characters: List[Character] = []
 
     model_config = {"from_attributes": True}

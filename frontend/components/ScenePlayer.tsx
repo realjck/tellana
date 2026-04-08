@@ -156,12 +156,11 @@ export default function ScenePlayer({
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
   // ── Character display logic ────────────────────────────────────────────
-  // text node: only the speaking character (if any), on the left
-  // all other modes: all characters visible, speaker at full opacity
+  // Dialogue/quiz nodes: all scene characters are visible (ordered by caller).
+  // Text nodes: show only the associated character (or none) — no full cast.
+  // The speaking character gets the white outline on dialogue nodes.
   const isTextNode = !isPreviewMode && node?.type === "text";
-  const displayChars = isTextNode
-    ? (speakingChar ? [speakingChar] : [])
-    : characters;
+  const displayChars = isTextNode ? (speakingChar ? [speakingChar] : []) : characters;
 
   const total = displayChars.length;
 

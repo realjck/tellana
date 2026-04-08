@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { api } from "@/lib/api";
+import { api, resolveAsset } from "@/lib/api";
 import type { StorySummary } from "@/types";
 
 const fetcher = () => api.stories.list();
@@ -22,7 +22,7 @@ export default function DashboardPage() {
     try {
       const story = await api.stories.create(newTitle.trim());
       mutate();
-      router.push(`/stories/${story.id}/edit`);
+      router.push(`/stories/${story.id}`);
     } catch {
       alert("Erreur lors de la création");
       setCreating(false);
@@ -130,11 +130,11 @@ function StoryCard({
 }) {
   return (
     <div className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-black/20">
-      {/* Background preview */}
-      {story.background_asset?.url ? (
+      {/* Background preview — uses first scene's background */}
+      {story.first_scene_background ? (
         <div
           className="h-28 bg-cover bg-center"
-          style={{ backgroundImage: `url(${story.background_asset.url})` }}
+          style={{ backgroundImage: `url(${resolveAsset(story.first_scene_background)})` }}
         />
       ) : (
         <div className="h-28 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
@@ -164,7 +164,7 @@ function StoryCard({
 
         <div className="flex gap-2">
           <Link
-            href={`/stories/${story.id}/edit`}
+            href={`/stories/${story.id}`}
             className="flex-1 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-sm font-medium text-center transition-colors border border-blue-500/20"
           >
             Éditer

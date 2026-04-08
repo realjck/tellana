@@ -5,6 +5,8 @@ def test_create_story(client):
     assert data["title"] == "Ma Story"
     assert "slug" in data
     assert data["published"] is False
+    assert "scenes" in data
+    assert data["scenes"] == []
 
 
 def test_slug_ascii_transliteration(client):
@@ -29,11 +31,32 @@ def test_list_stories(client):
     assert len(res.json()) == 2
 
 
+def test_list_stories_first_scene_background(client):
+    story_id = client.post("/api/stories/", json={"title": "X"}).json()["id"]
+    # No scenes → first_scene_background is null
+    res = client.get("/api/stories/")
+    assert res.json()[0]["first_scene_background"] is None
+
+    # Add a scene with a background
+    scene_id = client.post(
+        f"/api/stories/{story_id}/scenes/", json={"title": "Scène 1"}
+    ).json()["id"]
+    client.patch(
+        f"/api/stories/{story_id}/scenes/{scene_id}",
+        json={"background_asset": {"type": "local", "url": "/bg.png"}},
+    )
+    res = client.get("/api/stories/")
+    assert res.json()[0]["first_scene_background"]["url"] == "/bg.png"
+
+
 def test_get_story(client):
     story_id = client.post("/api/stories/", json={"title": "X"}).json()["id"]
     res = client.get(f"/api/stories/{story_id}")
     assert res.status_code == 200
-    assert res.json()["title"] == "X"
+    data = res.json()
+    assert data["title"] == "X"
+    assert "scenes" in data
+    assert "characters" in data
 
 
 def test_get_story_not_found(client):
@@ -63,9 +86,21 @@ def test_get_by_slug_unpublished(client):
 def test_get_by_slug_published(client):
     story = client.post("/api/stories/", json={"title": "Public"}).json()
     client.patch(f"/api/stories/{story['id']}", json={"published": True})
+    # Add a scene with a node
+    scene_id = client.post(
+        f"/api/stories/{story['id']}/scenes/", json={"title": "Scène 1"}
+    ).json()["id"]
+    client.post(
+        f"/api/stories/{story['id']}/scenes/{scene_id}/nodes/",
+        json={"type": "dialogue", "data": {"character_id": None, "text": "Hi"}, "order": 0},
+    )
     res = client.get(f"/api/stories/by-slug/{story['slug']}")
     assert res.status_code == 200
-    assert res.json()["title"] == "Public"
+    data = res.json()
+    assert data["title"] == "Public"
+    assert "scenes" in data
+    assert len(data["scenes"]) == 1
+    assert len(data["scenes"][0]["nodes"]) == 1
 
 
 def test_delete_story(client):
