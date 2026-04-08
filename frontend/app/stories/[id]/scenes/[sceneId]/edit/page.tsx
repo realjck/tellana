@@ -257,6 +257,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
             {tab === "nodes" && (
               <NodesTab
                 nodes={nodes}
+                characters={allCharacters}
                 selectedNodeId={selectedNodeId}
                 onSelect={(n) => {
                   setSelectedNodeId(n.id);
@@ -360,12 +361,14 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
 function NodesTab({
   nodes,
+  characters,
   selectedNodeId,
   onSelect,
   onAdd,
   onMove,
 }: {
   nodes: StoryNode[];
+  characters: Character[];
   selectedNodeId: number | null;
   onSelect: (n: StoryNode) => void;
   onAdd: (type: NodeType) => void;
@@ -428,7 +431,7 @@ function NodesTab({
               <span className={`px-1.5 py-0.5 rounded text-[10px] border font-medium ${NODE_TYPE_COLORS[node.type]}`}>
                 {NODE_TYPE_LABELS[node.type]}
               </span>
-              <div className="ml-auto hidden group-hover:flex gap-0.5">
+              <div className="ml-auto flex gap-0.5 invisible group-hover:visible">
                 <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
                   className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▲</button>
                 <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
@@ -436,9 +439,17 @@ function NodesTab({
               </div>
             </div>
             <p className="text-xs text-slate-400 truncate pl-7">
-              {node.type === "quiz"
-                ? (node.data as { question: string }).question || "Question…"
-                : (node.data as { text: string }).text || "…"}
+              {node.type === "quiz" ? (
+                (node.data as { question: string }).question || "Question…"
+              ) : node.type === "dialogue" ? (() => {
+                const d = node.data as { character_id: number | null; text: string };
+                const char = d.character_id ? characters.find((c) => c.id === d.character_id) : null;
+                return char
+                  ? <><span className="font-bold text-slate-300">{char.name}</span>{" : "}{d.text || "…"}</>
+                  : d.text || "…";
+              })() : (
+                (node.data as { text: string }).text || "…"
+              )}
             </p>
           </div>
         ))

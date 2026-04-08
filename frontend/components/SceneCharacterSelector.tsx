@@ -145,7 +145,7 @@ export default function SceneCharacterSelector({
                       {/* Position Y */}
                       <SliderRow
                         label="Pos. Y"
-                        min={-1} max={1} step={0.01}
+                        min={-3} max={1} step={0.01}
                         value={pos.y}
                         display={pos.y.toFixed(2)}
                         onChange={(v) => {
