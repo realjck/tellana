@@ -1,5 +1,7 @@
 # Design Spec — Refonte Story/Scene (Prototype V2)
 
+**Ticket correspondant :** TEL-8
+
 **Date :** 2026-04-07  
 **EPIC Jira :** TEL-5 (Prototype V2)  
 **Statut :** Approuvé
@@ -127,8 +129,8 @@ POST   /api/stories/{id}/scenes/{sid}/nodes/reorder
 ### Flux UX
 1. **Dashboard** → liste des stories → "Créer une story" → POST → redirect `/stories/[id]`
 2. **Story editor** (`/stories/[id]`) :
-   - Header : titre éditable inline, bouton Publier/Dépublier, lien copier URL publique
-   - Sidebar gauche : `CharacterManager` (personnages de la story)
+   - Header : titre éditable inline, bouton Prévisualiser, bouton Publier/Dépublier, lien copier URL publique
+   - Sidebar gauche : `CharacterManager` (personnages de la story) - Nous ferons évoluer plus tard avec le choix des expressions (NB: Chaque avatar aura plusieurs sprites d'expressions)
    - Zone principale : liste des scènes ordonnables (▲▼), carte par scène avec titre + preview background, bouton "+ Nouvelle scène", bouton "Éditer" → `/stories/[id]/scenes/[sceneId]/edit`
 3. **Scene editor** (`/stories/[id]/scenes/[sceneId]/edit`) : l'éditeur actuel adapté (tabs Nœuds / Décor), personnages chargés depuis la story parente
 4. **Page publique** (`/s/[slug]`) : charge la story + toutes les scènes avec leurs nodes, les joue en séquence dans `ScenePlayer`
@@ -165,5 +167,4 @@ POST   /api/stories/{id}/scenes/{sid}/nodes/reorder
 ## Hors scope (prototype)
 
 - Pas de drag-and-drop pour réordonner les scènes (▲▼ suffisent)
-- Pas de prévisualisation de la story complète depuis l'éditeur de story
 - Pas de migration de données (reset complet)
