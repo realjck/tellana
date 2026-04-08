@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { api } from "@/lib/api";
+import { api, resolveAsset } from "@/lib/api";
 import type { StorySummary } from "@/types";
 
 const fetcher = () => api.stories.list();
@@ -131,10 +131,10 @@ function StoryCard({
   return (
     <div className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-black/20">
       {/* Background preview — uses first scene's background */}
-      {story.first_scene_background?.url ? (
+      {story.first_scene_background ? (
         <div
           className="h-28 bg-cover bg-center"
-          style={{ backgroundImage: `url(${story.first_scene_background.url})` }}
+          style={{ backgroundImage: `url(${resolveAsset(story.first_scene_background)})` }}
         />
       ) : (
         <div className="h-28 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
