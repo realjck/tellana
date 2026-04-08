@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, use } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { api, resolveAsset, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
-import type { AssetRef, Scene, Story, StoryNode, NodeType, DialogueNodeData, QuizNodeData, Character } from "@/types";
+import type { AssetRef, CharacterPosition, Scene, Story, StoryNode, NodeType, DialogueNodeData, QuizNodeData, Character } from "@/types";
 import ScenePlayer from "@/components/ScenePlayer";
 import NodeForm from "@/components/NodeForm";
 import SceneCharacterSelector from "@/components/SceneCharacterSelector";
@@ -46,11 +46,18 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   const bgFileRef = useRef<HTMLInputElement>(null);
   const [bgCustomUploads, setBgCustomUploads] = useState<string[]>([]);
   const bgCustomInitialized = useRef(false);
+  // Local character positions for real-time preview (no API call on every drag)
+  const [localPositions, setLocalPositions] = useState<Record<string, CharacterPosition>>({});
+  const positionsInitialized = useRef(false);
 
   useEffect(() => {
     if (!bgCustomInitialized.current && scene) {
       bgCustomInitialized.current = true;
       setBgCustomUploads(scene.bg_custom_uploads ?? []);
+    }
+    if (!positionsInitialized.current && scene) {
+      positionsInitialized.current = true;
+      setLocalPositions(scene.character_positions ?? {});
     }
   }, [scene]);
 
@@ -169,8 +176,20 @@ export default function SceneEditorPage({ params }: { params: Params }) {
     }
   };
 
-  const updateCharacterIds = async (ids: number[]) => {
-    await api.scenes.update(storyId, sceneId, { character_ids: ids });
+  const updateCharacters = async (ids: number[], positions: Record<string, CharacterPosition>) => {
+    setLocalPositions(positions);
+    await api.scenes.update(storyId, sceneId, { character_ids: ids, character_positions: positions });
+    await mutateScene();
+  };
+
+  const handlePositionChange = (charId: number, pos: CharacterPosition) => {
+    setLocalPositions((prev) => ({ ...prev, [String(charId)]: pos }));
+  };
+
+  const handlePositionCommit = async (charId: number, pos: CharacterPosition) => {
+    const newPositions = { ...localPositions, [String(charId)]: pos };
+    setLocalPositions(newPositions);
+    await api.scenes.update(storyId, sceneId, { character_positions: newPositions });
     await mutateScene();
   };
 
@@ -251,7 +270,10 @@ export default function SceneEditorPage({ params }: { params: Params }) {
               <SceneCharacterSelector
                 allCharacters={allCharacters}
                 selectedIds={scene.character_ids}
-                onChange={updateCharacterIds}
+                characterPositions={localPositions}
+                onChange={updateCharacters}
+                onPositionChange={handlePositionChange}
+                onPositionCommit={handlePositionCommit}
               />
             )}
             {tab === "background" && (
@@ -276,7 +298,8 @@ export default function SceneEditorPage({ params }: { params: Params }) {
               {nodes.length > 0 || tab !== "nodes" ? (
                 <ScenePlayer
                   nodes={nodes}
-                  characters={tab === "perso" ? sceneCharacters : tab === "background" ? sceneCharacters : sceneCharacters}
+                  characters={sceneCharacters}
+                  characterPositions={localPositions}
                   backgroundAsset={scene.background_asset}
                   backgroundLoop={scene.background_loop}
                   startIndex={tab === "nodes" ? previewIndex : 0}

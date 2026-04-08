@@ -1,12 +1,25 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AssetRef, Character, QuizNodeData, StoryNode } from "@/types";
+import type { AssetRef, Character, CharacterPosition, QuizNodeData, StoryNode } from "@/types";
 import { resolveAsset } from "@/lib/api";
+
+// Default positions by slot (0–3) when no stored position is available.
+// 1st: centre-gauche facing right, 2nd: centre-droit facing left,
+// 3rd: far left facing right, 4th: far right facing left.
+const DEFAULT_POSITIONS: CharacterPosition[] = [
+  { x: -0.35, y: 0, scale: 1, flip_x: false },
+  { x:  0.35, y: 0, scale: 1, flip_x: true  },
+  { x: -0.7,  y: 0, scale: 1, flip_x: false },
+  { x:  0.7,  y: 0, scale: 1, flip_x: true  },
+];
+const FALLBACK_POSITION: CharacterPosition = { x: 0, y: 0, scale: 1, flip_x: false };
 
 interface Props {
   nodes: StoryNode[];
   characters: Character[];
+  /** Per-character position overrides keyed by character id (as string). */
+  characterPositions?: Record<string, CharacterPosition>;
   backgroundAsset: AssetRef | null;
   backgroundLoop?: boolean;
   startIndex?: number;
@@ -28,6 +41,7 @@ type QuizState = {
 export default function ScenePlayer({
   nodes,
   characters,
+  characterPositions,
   backgroundAsset,
   startIndex = 0,
   onEnd,
@@ -162,24 +176,15 @@ export default function ScenePlayer({
   const isTextNode = !isPreviewMode && node?.type === "text";
   const displayChars = isTextNode ? (speakingChar ? [speakingChar] : []) : characters;
 
-  const total = displayChars.length;
-
-  // Dynamic positioning — no stored position field:
-  //   1 char  → left: 36% (centered)
-  //   2 chars → char[0]: left:16%, char[1]: right:16% (mirrored)
-  //   3+      → left: (4 + 22×i)%  (all from left, no mirror)
-  const charLeft = (i: number): string | undefined => {
-    if (isTextNode) return `${4 + i * 22}%`; // text node: always from far left
-    if (total === 1) return "36%";
-    if (total === 2 && i === 0) return "16%";
-    if (total >= 3) return `${4 + i * 22}%`;
-    return undefined;
+  // Resolve a character's position: use stored position if available,
+  // otherwise fall back to the slot default based on the character's index
+  // in the full cast (not the displayChars subset).
+  const getCharPosition = (c: Character): CharacterPosition => {
+    const stored = characterPositions?.[String(c.id)];
+    if (stored) return stored;
+    const slotIndex = characters.findIndex((ch) => ch.id === c.id);
+    return DEFAULT_POSITIONS[slotIndex >= 0 ? slotIndex : 0] ?? FALLBACK_POSITION;
   };
-  const charRight = (i: number): string | undefined => {
-    if (total === 2 && i === 1) return "16%";
-    return undefined;
-  };
-  const charMirror = (i: number): boolean => total === 2 && i === 1;
 
   return (
     <div
@@ -229,21 +234,21 @@ export default function ScenePlayer({
           Hidden in background-only preview mode. */}
       {showMode !== "background-only" && (
       <div className="absolute inset-0 pointer-events-none">
-        {displayChars.map((c, i) => {
+        {displayChars.map((c) => {
           const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
-          const mirrored = charMirror(i);
+          const pos = getCharPosition(c);
           const firstSprite = Object.values(c.sprites)[0];
           return (
             <img
               key={c.id}
               src={firstSprite ? resolveAsset(firstSprite) : ""}
               alt={c.name}
-              className={`absolute object-contain transition-all duration-200${mirrored ? " scale-x-[-1]" : ""}`}
+              className="absolute object-contain transition-all duration-200"
               style={{
-                height: "100%",
-                bottom: "-10%",
-                left: charLeft(i),
-                right: charRight(i),
+                height: `${pos.scale * 100}%`,
+                bottom: `calc(-10% + ${pos.y * 50}%)`,
+                left: `${((pos.x + 1) / 2) * 100}%`,
+                transform: `translateX(-50%) scaleX(${pos.flip_x ? -1 : 1})`,
                 filter: isSpeaking ? "url(#outline-white)" : "none",
               }}
             />

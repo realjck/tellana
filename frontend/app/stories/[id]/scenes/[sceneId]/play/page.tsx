@@ -71,6 +71,7 @@ export default function ScenePlayPage({ params }: { params: Params }) {
             <ScenePlayer
               nodes={scene.nodes}
               characters={sceneCharacters}
+              characterPositions={scene.character_positions}
               backgroundAsset={scene.background_asset}
               backgroundLoop={scene.background_loop}
               onEnd={() => {}}

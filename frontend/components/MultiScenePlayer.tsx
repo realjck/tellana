@@ -54,6 +54,7 @@ export default function MultiScenePlayer({ scenes, characters, title }: Props) {
       key={currentScene.id}
       nodes={currentScene.nodes}
       characters={sceneCharacters}
+      characterPositions={currentScene.character_positions}
       backgroundAsset={currentScene.background_asset}
       backgroundLoop={currentScene.background_loop}
       onEnd={() => {

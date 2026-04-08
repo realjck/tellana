@@ -1,12 +1,29 @@
 "use client";
 
-import type { Character } from "@/types";
+import { useState } from "react";
+import type { Character, CharacterPosition } from "@/types";
 import { resolveAsset } from "@/lib/api";
+
+// Default positions assigned when a character is added to the scene.
+// Order matches the slot index (0-based).
+const DEFAULT_POSITIONS: CharacterPosition[] = [
+  { x: -0.35, y: 0, scale: 1, flip_x: false },
+  { x:  0.35, y: 0, scale: 1, flip_x: true  },
+  { x: -0.7,  y: 0, scale: 1, flip_x: false },
+  { x:  0.7,  y: 0, scale: 1, flip_x: true  },
+];
 
 interface Props {
   allCharacters: Character[];
   selectedIds: number[];
-  onChange: (ids: number[]) => void;
+  characterPositions: Record<string, CharacterPosition>;
+  /** Called when the character list changes (add/remove). Positions are included
+   *  so the parent can persist both fields in a single PATCH. */
+  onChange: (ids: number[], positions: Record<string, CharacterPosition>) => void;
+  /** Called on every slider/switch interaction for real-time preview (no API). */
+  onPositionChange: (charId: number, pos: CharacterPosition) => void;
+  /** Called when the user finishes dragging a slider (pointer up) to persist. */
+  onPositionCommit: (charId: number, pos: CharacterPosition) => void;
 }
 
 const MAX = 4;
@@ -14,8 +31,13 @@ const MAX = 4;
 export default function SceneCharacterSelector({
   allCharacters,
   selectedIds,
+  characterPositions,
   onChange,
+  onPositionChange,
+  onPositionCommit,
 }: Props) {
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
   const selectedChars = selectedIds
     .map((id) => allCharacters.find((c) => c.id === id))
     .filter((c): c is Character => !!c);
@@ -23,25 +45,24 @@ export default function SceneCharacterSelector({
 
   const add = (id: number) => {
     if (selectedIds.length >= MAX) return;
-    onChange([...selectedIds, id]);
+    const newIds = [...selectedIds, id];
+    const defaultPos = DEFAULT_POSITIONS[selectedIds.length] ?? DEFAULT_POSITIONS[0];
+    const newPositions = { ...characterPositions, [String(id)]: defaultPos };
+    onChange(newIds, newPositions);
+    setExpandedId(id);
   };
 
   const remove = (id: number) => {
-    onChange(selectedIds.filter((i) => i !== id));
+    onChange(selectedIds.filter((i) => i !== id), characterPositions);
+    if (expandedId === id) setExpandedId(null);
   };
 
-  const moveUp = (index: number) => {
-    if (index === 0) return;
-    const next = [...selectedIds];
-    [next[index - 1], next[index]] = [next[index], next[index - 1]];
-    onChange(next);
-  };
+  const getPos = (charId: number, slotIndex: number): CharacterPosition =>
+    characterPositions[String(charId)] ?? DEFAULT_POSITIONS[slotIndex] ?? DEFAULT_POSITIONS[0];
 
-  const moveDown = (index: number) => {
-    if (index === selectedIds.length - 1) return;
-    const next = [...selectedIds];
-    [next[index], next[index + 1]] = [next[index + 1], next[index]];
-    onChange(next);
+  const updatePos = (charId: number, slotIndex: number, partial: Partial<CharacterPosition>) => {
+    const current = getPos(charId, slotIndex);
+    return { ...current, ...partial };
   };
 
   return (
@@ -57,38 +78,39 @@ export default function SceneCharacterSelector({
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {selectedChars.map((c, i) => {
+            {selectedChars.map((c, slotIndex) => {
               const firstSprite = Object.values(c.sprites)[0];
+              const isExpanded = expandedId === c.id;
+              const pos = getPos(c.id, slotIndex);
+
               return (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-2 bg-slate-800/60 rounded-xl px-3 py-2 border border-slate-700/50"
-                >
-                  {firstSprite && (
-                    <img
-                      src={resolveAsset(firstSprite)}
-                      alt={c.name}
-                      className="w-8 h-8 object-contain rounded"
-                    />
-                  )}
-                  <span className="flex-1 text-sm text-white truncate">{c.name}</span>
-                  <div className="flex gap-0.5">
-                    <button
-                      onClick={() => moveUp(i)}
-                      disabled={i === 0}
-                      className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors text-xs"
+                <div key={c.id} className="rounded-xl border border-slate-700/50 overflow-hidden">
+                  {/* Header row — click to expand/collapse */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setExpandedId(isExpanded ? null : c.id)}
+                    onKeyDown={(e) => e.key === "Enter" && setExpandedId(isExpanded ? null : c.id)}
+                    className="flex items-center gap-2 bg-slate-800/60 px-3 py-2 cursor-pointer hover:bg-slate-800/80 transition-colors select-none"
+                  >
+                    {firstSprite && (
+                      <img
+                        src={resolveAsset(firstSprite)}
+                        alt={c.name}
+                        className="w-8 h-8 object-contain rounded"
+                      />
+                    )}
+                    <span className="flex-1 text-sm text-white truncate">{c.name}</span>
+                    <svg
+                      className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
                     >
-                      ▲
-                    </button>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                     <button
-                      onClick={() => moveDown(i)}
-                      disabled={i === selectedIds.length - 1}
-                      className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors text-xs"
-                    >
-                      ▼
-                    </button>
-                    <button
-                      onClick={() => remove(c.id)}
+                      onClick={(e) => { e.stopPropagation(); remove(c.id); }}
                       className="p-1 text-slate-500 hover:text-red-400 transition-colors"
                     >
                       <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -100,6 +122,94 @@ export default function SceneCharacterSelector({
                       </svg>
                     </button>
                   </div>
+
+                  {/* Expanded: position controls */}
+                  {isExpanded && (
+                    <div className="px-3 py-3 bg-slate-900/60 border-t border-slate-700/40 flex flex-col gap-3">
+                      {/* Position X */}
+                      <SliderRow
+                        label="Pos. X"
+                        min={-1} max={1} step={0.01}
+                        value={pos.x}
+                        display={pos.x.toFixed(2)}
+                        onChange={(v) => {
+                          const next = updatePos(c.id, slotIndex, { x: v });
+                          onPositionChange(c.id, next);
+                        }}
+                        onCommit={(v) => {
+                          const next = updatePos(c.id, slotIndex, { x: v });
+                          onPositionCommit(c.id, next);
+                        }}
+                      />
+
+                      {/* Position Y */}
+                      <SliderRow
+                        label="Pos. Y"
+                        min={-1} max={1} step={0.01}
+                        value={pos.y}
+                        display={pos.y.toFixed(2)}
+                        onChange={(v) => {
+                          const next = updatePos(c.id, slotIndex, { y: v });
+                          onPositionChange(c.id, next);
+                        }}
+                        onCommit={(v) => {
+                          const next = updatePos(c.id, slotIndex, { y: v });
+                          onPositionCommit(c.id, next);
+                        }}
+                      />
+
+                      {/* Scale */}
+                      <SliderRow
+                        label="Échelle"
+                        min={0.1} max={2.5} step={0.05}
+                        value={pos.scale}
+                        display={`${Math.round(pos.scale * 100)}%`}
+                        onChange={(v) => {
+                          const next = updatePos(c.id, slotIndex, { scale: v });
+                          onPositionChange(c.id, next);
+                        }}
+                        onCommit={(v) => {
+                          const next = updatePos(c.id, slotIndex, { scale: v });
+                          onPositionCommit(c.id, next);
+                        }}
+                      />
+
+                      {/* Flip X toggle */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-slate-400">Orientation</span>
+                        <div className="flex rounded-lg overflow-hidden border border-slate-600">
+                          <button
+                            onClick={() => {
+                              const next = updatePos(c.id, slotIndex, { flip_x: false });
+                              onPositionChange(c.id, next);
+                              onPositionCommit(c.id, next);
+                            }}
+                            className={`px-3 py-1 text-xs transition-colors ${
+                              !pos.flip_x
+                                ? "bg-blue-600 text-white"
+                                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                            }`}
+                          >
+                            → Droite
+                          </button>
+                          <button
+                            onClick={() => {
+                              const next = updatePos(c.id, slotIndex, { flip_x: true });
+                              onPositionChange(c.id, next);
+                              onPositionCommit(c.id, next);
+                            }}
+                            className={`px-3 py-1 text-xs transition-colors ${
+                              pos.flip_x
+                                ? "bg-blue-600 text-white"
+                                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                            }`}
+                          >
+                            ← Gauche
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -151,6 +261,47 @@ export default function SceneCharacterSelector({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Slider row ─────────────────────────────────────────────────────────────
+
+function SliderRow({
+  label,
+  min,
+  max,
+  step,
+  value,
+  display,
+  onChange,
+  onCommit,
+}: {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  display: string;
+  onChange: (v: number) => void;
+  onCommit: (v: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-slate-400">{label}</span>
+        <span className="text-xs text-slate-300 font-mono w-10 text-right">{display}</span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={(e) => onCommit(Number((e.target as HTMLInputElement).value))}
+        className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-slate-700 accent-blue-500"
+      />
     </div>
   );
 }
