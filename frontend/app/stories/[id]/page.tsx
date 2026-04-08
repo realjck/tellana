@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { api, resolveAsset } from "@/lib/api";
 import type { SceneSummary, Story } from "@/types";
 import CharacterManager from "@/components/CharacterManager";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type Params = Promise<{ id: string }>;
 
@@ -21,6 +22,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [confirmDeleteSceneId, setConfirmDeleteSceneId] = useState<number | null>(null);
   const [addingScene, setAddingScene] = useState(false);
   const [newSceneTitle, setNewSceneTitle] = useState("");
   const [creatingScene, setCreatingScene] = useState(false);
@@ -81,7 +83,6 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   };
 
   const deleteScene = async (sceneId: number) => {
-    if (!confirm("Supprimer cette scène et tous ses nœuds ?")) return;
     try {
       await api.scenes.delete(storyId, sceneId);
       await mutate();
@@ -103,6 +104,13 @@ export default function StoryEditorPage({ params }: { params: Params }) {
 
   return (
     <div className="min-h-screen bg-[#0b1120] flex flex-col">
+      {confirmDeleteSceneId !== null && (
+        <ConfirmModal
+          message="Supprimer cette scène et tous ses nœuds ? Cette action est irréversible."
+          onConfirm={() => { deleteScene(confirmDeleteSceneId); setConfirmDeleteSceneId(null); }}
+          onCancel={() => setConfirmDeleteSceneId(null)}
+        />
+      )}
       {/* Header */}
       <header className="flex-shrink-0 border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 px-4 py-3">
@@ -221,7 +229,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                     total={scenes.length}
                     storyId={storyId}
                     onMove={moveScene}
-                    onDelete={() => deleteScene(scene.id)}
+                    onDelete={() => setConfirmDeleteSceneId(scene.id)}
                   />
                 ))}
               </div>

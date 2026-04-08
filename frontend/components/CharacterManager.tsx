@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { AssetRef, Character } from "@/types";
 import { api, DEFAULT_SPRITES, resolveAsset } from "@/lib/api";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface Props {
   storyId: number;
@@ -15,6 +16,7 @@ type Mode = "list" | "edit" | "add";
 export default function CharacterManager({ storyId, characters, onRefresh }: Props) {
   const [mode, setMode] = useState<Mode>("list");
   const [selected, setSelected] = useState<Character | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const openEdit = (c: Character) => {
     setSelected(c);
@@ -37,18 +39,27 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
 
   if (mode === "edit" && selected) {
     return (
-      <CharacterForm
-        storyId={storyId}
-        characters={characters}
-        initial={selected}
-        onSave={refresh}
-        onCancel={back}
-        onDelete={async () => {
-          if (!confirm("Supprimer ce personnage ?")) return;
-          await api.characters.delete(storyId, selected.id);
-          refresh();
-        }}
-      />
+      <>
+        {confirmDelete && (
+          <ConfirmModal
+            message={`Supprimer "${selected.name}" ? Cette action est irréversible.`}
+            onConfirm={async () => {
+              await api.characters.delete(storyId, selected.id);
+              setConfirmDelete(false);
+              refresh();
+            }}
+            onCancel={() => setConfirmDelete(false)}
+          />
+        )}
+        <CharacterForm
+          storyId={storyId}
+          characters={characters}
+          initial={selected}
+          onSave={refresh}
+          onCancel={back}
+          onDelete={() => setConfirmDelete(true)}
+        />
+      </>
     );
   }
 

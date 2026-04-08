@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { api, resolveAsset } from "@/lib/api";
 import type { StorySummary } from "@/types";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const fetcher = () => api.stories.list();
 
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const { data: stories, mutate, isLoading } = useSWR("stories", fetcher);
   const [newTitle, setNewTitle] = useState("");
   const [creating, setCreating] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +32,6 @@ export default function DashboardPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Supprimer cette story ?")) return;
     try {
       await api.stories.delete(id);
       mutate();
@@ -41,6 +42,13 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0b1120]">
+      {confirmDeleteId !== null && (
+        <ConfirmModal
+          message="Supprimer cette story ? Cette action est irréversible."
+          onConfirm={() => { handleDelete(confirmDeleteId); setConfirmDeleteId(null); }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
       {/* Header */}
       <header className="border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
@@ -111,7 +119,7 @@ export default function DashboardPage() {
               <StoryCard
                 key={story.id}
                 story={story}
-                onDelete={() => handleDelete(story.id)}
+                onDelete={() => setConfirmDeleteId(story.id)}
               />
             ))}
           </div>
