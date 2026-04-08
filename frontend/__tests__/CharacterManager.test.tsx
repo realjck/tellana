@@ -80,11 +80,10 @@ describe("CharacterManager — liste", () => {
     expect(screen.getByText("Ajouter un personnage")).toBeInTheDocument();
   });
 
-  it("masque le bouton Ajouter à 4 personnages", () => {
+  it("affiche toujours le bouton Ajouter même avec 4 personnages ou plus", () => {
     const chars = [1, 2, 3, 4].map((i) => makeChar({ id: i, name: `Perso ${i}` }));
     render(<CharacterManager storyId={1} characters={chars} onRefresh={jest.fn()} />);
-    expect(screen.queryByText("Ajouter un personnage")).not.toBeInTheDocument();
-    expect(screen.getByText("Maximum 4 personnages atteint")).toBeInTheDocument();
+    expect(screen.getByText("Ajouter un personnage")).toBeInTheDocument();
   });
 });
 
