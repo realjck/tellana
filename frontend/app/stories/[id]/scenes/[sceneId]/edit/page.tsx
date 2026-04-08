@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import { api, resolveAsset, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
-import type { AssetRef, CharacterPosition, Scene, Story, StoryNode, NodeType, DialogueNodeData, QuizNodeData, Character } from "@/types";
+import type { AssetRef, CharacterPosition, Scene, Story, StoryNode, NodeType, DialogueNodeData, Character } from "@/types";
 import ScenePlayer from "@/components/ScenePlayer";
 import NodeForm from "@/components/NodeForm";
 import SceneCharacterSelector from "@/components/SceneCharacterSelector";
@@ -98,25 +98,28 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const addNode = async (type: NodeType) => {
-    const defaultData =
-      type === "quiz"
-        ? ({
-            question: "",
-            type: "qcu" as const,
-            feedback: "",
-            options: [
-              { text: "", is_correct: true },
-              { text: "", is_correct: false },
-            ],
-          } satisfies QuizNodeData)
-        : ({ character_id: null, text: "" } satisfies DialogueNodeData);
-
+  const addNode = async () => {
+    const defaultData: DialogueNodeData = { character_id: null, text: "" };
     const node = await api.nodes.create(storyId, sceneId, {
-      type,
+      type: "dialogue",
       data: defaultData,
       order: nodes.length,
     });
+
+    // Reorder: insert right after the currently selected node
+    if (selectedNodeId !== null && nodes.length > 0) {
+      const afterIndex = nodes.findIndex((n) => n.id === selectedNodeId);
+      if (afterIndex >= 0) {
+        const existingIds = nodes.map((n) => n.id);
+        const newOrder = [
+          ...existingIds.slice(0, afterIndex + 1),
+          node.id,
+          ...existingIds.slice(afterIndex + 1),
+        ];
+        await api.nodes.reorder(storyId, sceneId, newOrder);
+      }
+    }
+
     const refreshed = await mutateScene();
     const newNodes = refreshed?.nodes ?? [];
     const newIndex = newNodes.findIndex((n) => n.id === node.id);
@@ -306,6 +309,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                 onAdd={addNode}
                 onMove={moveNode}
               />
+
             )}
             {tab === "perso" && (
               <SceneCharacterSelector
@@ -411,42 +415,20 @@ function NodesTab({
   characters: Character[];
   selectedNodeId: number | null;
   onSelect: (n: StoryNode) => void;
-  onAdd: (type: NodeType) => void;
+  onAdd: () => void;
   onMove: (id: number, dir: "up" | "down") => void;
 }) {
-  const [addOpen, setAddOpen] = useState(false);
-
   return (
     <div className="flex flex-col gap-2">
-      <div className="relative">
-        <button
-          onClick={() => setAddOpen((o) => !o)}
-          className="w-full py-2 rounded-lg border border-dashed border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-300 text-sm transition-colors flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Ajouter un nœud
-        </button>
-        {addOpen && (
-          <div className="absolute top-full mt-1 left-0 right-0 bg-slate-800 border border-slate-700 rounded-xl overflow-hidden z-10 shadow-xl">
-            {(["dialogue", "text", "quiz"] as NodeType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => { onAdd(t); setAddOpen(false); }}
-                className="w-full px-4 py-2.5 text-left text-sm hover:bg-slate-700 transition-colors flex items-center gap-3"
-              >
-                <span className={`px-2 py-0.5 rounded text-xs border ${NODE_TYPE_COLORS[t]}`}>
-                  {NODE_TYPE_LABELS[t]}
-                </span>
-                <span className="text-slate-300">
-                  {t === "dialogue" ? "Un personnage parle" : t === "text" ? "Texte narratif" : "Question QCM/QCU"}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <button
+        onClick={onAdd}
+        className="w-full py-2 rounded-lg border border-dashed border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-300 text-sm transition-colors flex items-center justify-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        Ajouter un nœud
+      </button>
 
       {nodes.length === 0 ? (
         <p className="text-center text-slate-500 text-xs py-6">
