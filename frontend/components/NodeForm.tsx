@@ -8,6 +8,7 @@ import type {
   QuizNodeData,
   QuizOption,
 } from "@/types";
+import { resolveAsset } from "@/lib/api";
 
 interface Props {
   node: StoryNode;
@@ -132,44 +133,107 @@ function DialogueFields({
   characters: Character[];
   onChange: (d: Record<string, unknown>) => void;
 }) {
+  const spriteKeys = (data.sprite_keys as Record<string, string> | undefined) ?? {};
+
+  const setSpriteKey = (charId: number, poseKey: string) => {
+    const updated = { ...spriteKeys, [String(charId)]: poseKey };
+    onChange({ ...data, sprite_keys: updated });
+  };
+
   return (
-    <>
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
-          Personnage
-        </label>
-        <select
-          value={(data.character_id as number | null) ?? ""}
-          onChange={(e) =>
-            onChange({
-              ...data,
-              character_id: e.target.value ? Number(e.target.value) : null,
-            })
-          }
-          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
-        >
-          <option value="">— Aucun personnage —</option>
-          {characters.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+    <div className="grid grid-cols-2 gap-3">
+      {/* Left column: character selector + text */}
+      <div className="flex flex-col gap-3">
+        <div>
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+            Personnage
+          </label>
+          <select
+            value={(data.character_id as number | null) ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...data,
+                character_id: e.target.value ? Number(e.target.value) : null,
+              })
+            }
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+          >
+            <option value="">— Aucun personnage —</option>
+            {characters.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col flex-1">
+          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+            Texte
+          </label>
+          <textarea
+            rows={5}
+            value={(data.text as string) ?? ""}
+            onChange={(e) => onChange({ ...data, text: e.target.value })}
+            placeholder="Ce que dit le personnage..."
+            className="w-full flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none"
+          />
+        </div>
       </div>
 
+      {/* Right column: expression picker */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
-          Texte
+        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+          Expressions
         </label>
-        <textarea
-          rows={4}
-          value={(data.text as string) ?? ""}
-          onChange={(e) => onChange({ ...data, text: e.target.value })}
-          placeholder="Ce que dit le personnage..."
-          className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none"
-        />
+        {characters.length === 0 ? (
+          <p className="text-xs text-slate-500 italic">Aucun personnage dans la scène.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {characters.map((c) => {
+              const poseKeys = Object.keys(c.sprites);
+              const activePose = spriteKeys[String(c.id)] ?? "default";
+              const defaultSprite = c.sprites["default"] ?? Object.values(c.sprites)[0];
+
+              return (
+                <div key={c.id} className="bg-slate-800/50 rounded-xl p-2 border border-slate-700">
+                  {/* Character name + current sprite thumbnail */}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    {defaultSprite && (
+                      <img
+                        src={resolveAsset(c.sprites[activePose] ?? defaultSprite)}
+                        alt={c.name}
+                        className="h-8 w-6 object-contain rounded bg-slate-700 flex-shrink-0"
+                      />
+                    )}
+                    <span className="text-xs font-medium text-slate-300 truncate">{c.name}</span>
+                  </div>
+                  {/* Pose badges */}
+                  <div className="flex flex-wrap gap-1">
+                    {poseKeys.map((key) => {
+                      const isActive = activePose === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => setSpriteKey(c.id, key)}
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${
+                            isActive
+                              ? "bg-blue-600 border-blue-500 text-white"
+                              : "bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white"
+                          }`}
+                        >
+                          {key === "default" ? "défaut" : key}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
 

@@ -139,6 +139,72 @@ describe("ScenePlayer — positionnement personnages", () => {
   });
 });
 
+describe("ScenePlayer — expressions (sprite_keys)", () => {
+  it("utilise le sprite de la pose spécifiée pour le personnage", () => {
+    const happyRef: AssetRef = {
+      type: "local",
+      url: "/sprites/alice_question.png",
+      opfs_key: null,
+      job_id: null,
+      mime_type: null,
+      width: null,
+      height: null,
+    };
+    const char = makeChar({
+      id: 1,
+      sprites: {
+        default: { type: "local", url: "/sprite_woman.png", opfs_key: null, job_id: null, mime_type: null, width: null, height: null },
+        question: happyRef,
+      },
+    });
+    const node = makeNode({
+      type: "dialogue",
+      data: { character_id: 1, text: "Bonjour", sprite_keys: { "1": "question" } } as StoryNode["data"],
+    });
+    render(<ScenePlayer nodes={[node]} characters={[char]} backgroundAsset={null} />);
+    const img = screen.getByAltText("Alice") as HTMLImageElement;
+    expect(img.src).toContain("alice_question.png");
+  });
+
+  it("utilise le sprite par défaut si aucune pose n'est définie pour le personnage", () => {
+    const char = makeChar({ id: 1 });
+    const node = makeNode({
+      type: "dialogue",
+      data: { character_id: 1, text: "Bonjour" } as StoryNode["data"],
+    });
+    render(<ScenePlayer nodes={[node]} characters={[char]} backgroundAsset={null} />);
+    const img = screen.getByAltText("Alice") as HTMLImageElement;
+    expect(img.src).toContain("sprite_woman.png");
+  });
+
+  it("utilise le sprite par défaut si la clé de pose est introuvable (pose supprimée)", () => {
+    const char = makeChar({ id: 1 });
+    const node = makeNode({
+      type: "dialogue",
+      data: { character_id: 1, text: "Bonjour", sprite_keys: { "1": "missing_pose" } } as StoryNode["data"],
+    });
+    render(<ScenePlayer nodes={[node]} characters={[char]} backgroundAsset={null} />);
+    const img = screen.getByAltText("Alice") as HTMLImageElement;
+    expect(img.src).toContain("sprite_woman.png");
+  });
+});
+
+describe("ScenePlayer — quiz masquage des personnages", () => {
+  it("masque les personnages sur un nœud quiz", () => {
+    const quizNode = makeNode({
+      type: "quiz",
+      data: {
+        question: "Question ?",
+        type: "qcu",
+        feedback: "",
+        options: [{ text: "A", is_correct: true }],
+      } as StoryNode["data"],
+    });
+    render(<ScenePlayer nodes={[quizNode]} characters={[makeChar({ name: "Alice" })]} backgroundAsset={null} />);
+    expect(screen.queryByAltText("Alice")).not.toBeInTheDocument();
+  });
+});
+
 describe("ScenePlayer — quiz", () => {
   const quizNode = makeNode({
     type: "quiz",

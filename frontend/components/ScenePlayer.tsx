@@ -161,11 +161,13 @@ export default function ScenePlayer({
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
   // ── Character display logic ────────────────────────────────────────────
-  // Text nodes: no characters shown — narrative text only.
-  // Dialogue/quiz nodes: all scene characters are visible (ordered by caller).
+  // Text nodes: dark background, no characters.
+  // Quiz nodes: regular background, no characters.
+  // Dialogue nodes: all scene characters are visible (ordered by caller).
   // The speaking character gets the white outline on dialogue nodes.
   const isTextNode = !isPreviewMode && node?.type === "text";
-  const displayChars = isTextNode ? [] : characters;
+  const hideChars = !isPreviewMode && (node?.type === "text" || node?.type === "quiz");
+  const displayChars = hideChars ? [] : characters;
 
   // Resolve a character's position: use stored position if available,
   // otherwise fall back to the slot default based on the character's index
@@ -228,11 +230,17 @@ export default function ScenePlayer({
         {displayChars.map((c) => {
           const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
           const pos = getCharPosition(c);
-          const firstSprite = Object.values(c.sprites)[0];
+          const spriteKeys = node?.type === "dialogue"
+            ? (data.sprite_keys as Record<string, string> | undefined)
+            : undefined;
+          const poseKey = spriteKeys?.[String(c.id)];
+          const resolvedSprite = (poseKey && c.sprites[poseKey])
+            ? c.sprites[poseKey]
+            : Object.values(c.sprites)[0];
           return (
             <img
               key={c.id}
-              src={firstSprite ? resolveAsset(firstSprite) : ""}
+              src={resolvedSprite ? resolveAsset(resolvedSprite) : ""}
               alt={c.name}
               className="absolute object-contain transition-all duration-200"
               style={{
