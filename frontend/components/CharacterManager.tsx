@@ -60,6 +60,8 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
       }
     : {};
 
+  const showDrawer = (mode === "edit" || mode === "poses") && selected !== null;
+
   // ── Add mode ────────────────────────────────────────────────────────────────
   if (mode === "add") {
     return (
@@ -76,6 +78,9 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
   if (mode === "edit" && selected) {
     return (
       <>
+        {showDrawer && (
+          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 pointer-events-none" />
+        )}
         {confirmDelete && (
           <ConfirmModal
             message={`Supprimer "${selected.name}" ? Cette action est irréversible.`}
@@ -100,19 +105,8 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
             onCancel={goList}
             onDelete={() => setConfirmDelete(true)}
             onPreviewAsset={setPreviewDefaultSprite}
+            onManagePoses={() => goPoses(selected)}
           />
-
-          {/* Manage poses shortcut */}
-          <button
-            onClick={() => goPoses(selected)}
-            className="w-full py-2 rounded-lg border border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-300 text-sm transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Gérer les poses ({Object.keys(selected.sprites).length})
-          </button>
         </div>
 
         <CharacterPosesDrawer
@@ -127,6 +121,9 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
   if (mode === "poses" && selected) {
     return (
       <>
+        {showDrawer && (
+          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 pointer-events-none" />
+        )}
         <CharacterPosesManager
           storyId={storyId}
           character={selected}

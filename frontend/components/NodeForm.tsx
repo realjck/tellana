@@ -8,7 +8,7 @@ import type {
   QuizNodeData,
   QuizOption,
 } from "@/types";
-import { resolveAsset } from "@/lib/api";
+;
 
 interface Props {
   node: StoryNode;
@@ -141,7 +141,7 @@ function DialogueFields({
   };
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-[3fr_1fr] gap-3">
       {/* Left column: character selector + text */}
       <div className="flex flex-col gap-3">
         <div>
@@ -193,21 +193,10 @@ function DialogueFields({
             {characters.map((c) => {
               const poseKeys = Object.keys(c.sprites);
               const activePose = spriteKeys[String(c.id)] ?? "default";
-              const defaultSprite = c.sprites["default"] ?? Object.values(c.sprites)[0];
 
               return (
                 <div key={c.id} className="bg-slate-800/50 rounded-xl p-2 border border-slate-700">
-                  {/* Character name + current sprite thumbnail */}
-                  <div className="flex items-center gap-2 mb-1.5">
-                    {defaultSprite && (
-                      <img
-                        src={resolveAsset(c.sprites[activePose] ?? defaultSprite)}
-                        alt={c.name}
-                        className="h-8 w-6 object-contain rounded bg-slate-700 flex-shrink-0"
-                      />
-                    )}
-                    <span className="text-xs font-medium text-slate-300 truncate">{c.name}</span>
-                  </div>
+                  <div className="text-[10px] font-semibold text-slate-400 truncate mb-1.5">{c.name}</div>
                   {/* Pose badges */}
                   <div className="flex flex-wrap gap-1">
                     {poseKeys.map((key) => {

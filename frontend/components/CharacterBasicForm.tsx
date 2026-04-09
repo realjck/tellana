@@ -12,6 +12,7 @@ interface Props {
   onCancel: () => void;
   onDelete?: () => void;
   onPreviewAsset?: (ref: AssetRef) => void;
+  onManagePoses?: () => void;
 }
 
 export default function CharacterBasicForm({
@@ -22,6 +23,7 @@ export default function CharacterBasicForm({
   onCancel,
   onDelete,
   onPreviewAsset,
+  onManagePoses,
 }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
 
@@ -117,7 +119,7 @@ export default function CharacterBasicForm({
       {/* Back */}
       <button
         onClick={onCancel}
-        className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors self-start"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 hover:border-slate-400 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm transition-colors self-start"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -132,7 +134,7 @@ export default function CharacterBasicForm({
       {/* Default sprite picker */}
       <div>
         <div className="text-xs text-slate-400 mb-2">Sprite par défaut</div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="grid grid-cols-3 gap-2">
           {DEFAULT_SPRITES.map((s) => {
             const isActive = activeAsset.url === s.url;
             return (
@@ -154,7 +156,7 @@ export default function CharacterBasicForm({
                 }`}
                 title={s.label}
               >
-                <img src={s.url} alt={s.label} className="h-14 w-10 object-contain" />
+                <img src={s.url} alt={s.label} className="w-full h-20 object-contain" />
               </button>
             );
           })}
@@ -163,15 +165,15 @@ export default function CharacterBasicForm({
           {customUploads.map((ref) => (
             <div key={ref.url} className="relative">
               <button
-                onClick={() => setActiveAsset(ref)}
-                className={`p-1 rounded-lg border-2 transition-colors ${
+                onClick={() => selectAsset(ref)}
+                className={`w-full p-1 rounded-lg border-2 transition-colors ${
                   activeAsset.url === ref.url
                     ? "border-blue-500"
                     : "border-transparent hover:border-slate-500"
                 }`}
                 title="Sprite importé"
               >
-                <img src={resolveAsset(ref)} alt="Custom" className="h-14 w-10 object-contain" />
+                <img src={resolveAsset(ref)} alt="Custom" className="w-full h-20 object-contain" />
               </button>
               <button
                 onClick={() => removeCustomUpload(ref)}
@@ -188,7 +190,7 @@ export default function CharacterBasicForm({
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
-            className="h-16 w-12 rounded-lg border-2 border-dashed border-slate-600 hover:border-slate-400 text-slate-400 hover:text-white text-xl flex items-center justify-center transition-colors"
+            className="h-20 rounded-lg border-2 border-dashed border-slate-600 hover:border-slate-400 text-slate-400 hover:text-white text-xl flex items-center justify-center transition-colors"
             title="Uploader une image"
           >
             {uploading ? "…" : "+"}
@@ -206,6 +208,20 @@ export default function CharacterBasicForm({
           />
         </div>
       </div>
+
+      {/* Manage poses shortcut (only when editing) */}
+      {onManagePoses && (
+        <button
+          onClick={onManagePoses}
+          className="w-full py-2 rounded-lg border border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-300 text-sm transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Gérer les poses ({Object.keys(initial?.sprites ?? {}).length})
+        </button>
+      )}
 
       {/* Name */}
       <input

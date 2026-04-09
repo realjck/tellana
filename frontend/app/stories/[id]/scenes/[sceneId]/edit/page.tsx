@@ -105,6 +105,11 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   const addNode = async () => {
     const defaultData: DialogueNodeData = { character_id: null, text: "" };
+    // Inherit sprite_keys from the currently selected dialogue node
+    if (selectedNode?.type === "dialogue") {
+      const d = selectedNode.data as unknown as DialogueNodeData;
+      if (d.sprite_keys) defaultData.sprite_keys = d.sprite_keys;
+    }
     const node = await api.nodes.create(storyId, sceneId, {
       type: "dialogue",
       data: defaultData,

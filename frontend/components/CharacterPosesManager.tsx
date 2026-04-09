@@ -73,7 +73,7 @@ function SpritePicker({
         <div className="text-xs text-slate-400 mb-2 font-semibold">Choisir un sprite</div>
 
         {/* Default sprites */}
-        <div className="flex flex-wrap gap-1.5 mb-2">
+        <div className="grid grid-cols-3 gap-1.5 mb-2">
           {DEFAULT_SPRITES.map((s) => (
             <button
               key={s.url}
@@ -86,7 +86,7 @@ function SpritePicker({
               }`}
               title={s.label}
             >
-              <img src={s.url} alt={s.label} className="h-10 w-7 object-contain" />
+              <img src={s.url} alt={s.label} className="w-full h-16 object-contain" />
             </button>
           ))}
         </div>
@@ -95,7 +95,7 @@ function SpritePicker({
         {customUploads.length > 0 && (
           <>
             <div className="text-[10px] text-slate-500 uppercase tracking-wide mb-1.5">Déjà uploadées</div>
-            <div className="flex flex-wrap gap-1.5 mb-2">
+            <div className="grid grid-cols-3 gap-1.5 mb-2">
               {customUploads.map((ref) => (
                 <button
                   key={ref.url}
@@ -105,7 +105,7 @@ function SpritePicker({
                   }`}
                   title="Image uploadée"
                 >
-                  <img src={resolveAsset(ref)} alt="Uploaded" className="h-10 w-7 object-contain" />
+                  <img src={resolveAsset(ref)} alt="Uploaded" className="w-full h-16 object-contain" />
                 </button>
               ))}
             </div>
@@ -230,7 +230,7 @@ export default function CharacterPosesManager({
       {/* Header */}
       <button
         onClick={onBack}
-        className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm transition-colors self-start"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 hover:border-slate-400 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm transition-colors self-start"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

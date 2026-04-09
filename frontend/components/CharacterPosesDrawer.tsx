@@ -24,7 +24,7 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
 
   return (
     <div
-      className="fixed left-72 top-0 h-full w-72 bg-[#0b1120] border-r border-slate-700/60 z-50 shadow-2xl flex flex-col"
+      className="fixed left-72 top-0 h-full w-72 bg-[#0b1120] border-r border-slate-700/60 z-30 shadow-2xl flex flex-col"
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
