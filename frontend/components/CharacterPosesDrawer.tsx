@@ -62,8 +62,8 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
                   onClick={() => setActiveKey(key)}
                   className={`flex flex-col items-center gap-1 p-1.5 rounded-xl border-2 transition-all ${
                     isActive
-                      ? "border-blue-500 bg-blue-900/20"
-                      : "border-transparent hover:border-slate-600 hover:bg-slate-800/60"
+                      ? "border-amber-500 bg-amber-900/20"
+                      : "border-transparent hover:border-amber-700 hover:bg-amber-900/10"
                   }`}
                   title={key === "default" ? "Défaut" : key}
                 >
@@ -73,7 +73,7 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
                     className="h-12 w-8 object-contain rounded"
                   />
                   <span className={`text-[9px] font-medium leading-none ${
-                    isActive ? "text-blue-300" : "text-slate-500"
+                    isActive ? "text-amber-400" : "text-slate-500"
                   }`}>
                     {key === "default" ? "défaut" : key}
                   </span>

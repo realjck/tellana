@@ -213,7 +213,7 @@ export default function CharacterBasicForm({
       {onManagePoses && (
         <button
           onClick={onManagePoses}
-          className="w-full py-2 rounded-lg border border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-300 text-sm transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 rounded-lg border border-amber-600/60 hover:border-amber-500 bg-amber-900/20 hover:bg-amber-900/40 text-amber-400 hover:text-amber-300 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}

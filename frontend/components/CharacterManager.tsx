@@ -12,11 +12,12 @@ interface Props {
   storyId: number;
   characters: Character[];
   onRefresh: () => void;
+  onEditingCharacter?: (editing: boolean) => void;
 }
 
 type Mode = "list" | "add" | "edit" | "poses";
 
-export default function CharacterManager({ storyId, characters, onRefresh }: Props) {
+export default function CharacterManager({ storyId, characters, onRefresh, onEditingCharacter }: Props) {
   const [mode, setMode] = useState<Mode>("list");
   const [selected, setSelected] = useState<Character | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -27,24 +28,28 @@ export default function CharacterManager({ storyId, characters, onRefresh }: Pro
     setSelected(null);
     setMode("list");
     setPreviewDefaultSprite(null);
+    onEditingCharacter?.(false);
   };
 
   const goEdit = (c: Character) => {
     setSelected(c);
     setMode("edit");
     setPreviewDefaultSprite(null);
+    onEditingCharacter?.(true);
   };
 
   const goAdd = () => {
     setSelected(null);
     setMode("add");
     setPreviewDefaultSprite(null);
+    onEditingCharacter?.(true);
   };
 
   const goPoses = (c: Character) => {
     setSelected(c);
     setMode("poses");
     setPreviewDefaultSprite(null);
+    onEditingCharacter?.(true);
   };
 
   const refreshAndGoList = () => {

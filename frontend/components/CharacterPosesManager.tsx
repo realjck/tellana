@@ -255,7 +255,7 @@ export default function CharacterPosesManager({
           return (
             <div
               key={row.savedKey || idx}
-              className="bg-slate-800/60 border border-slate-700 rounded-xl p-2.5 flex items-center gap-2.5"
+              className="bg-amber-900/10 border border-amber-700/40 rounded-xl p-2.5 flex items-center gap-2.5"
             >
               {/* Thumbnail — click to change image */}
               <div className="relative flex-shrink-0">
@@ -290,7 +290,7 @@ export default function CharacterPosesManager({
               <div className="flex-1 min-w-0">
                 {isDefault ? (
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-blue-300 px-2 py-0.5 bg-blue-900/30 border border-blue-700/40 rounded-full">
+                    <span className="text-xs font-semibold text-amber-400 px-2 py-0.5 bg-amber-900/30 border border-amber-700/40 rounded-full">
                       défaut
                     </span>
                   </div>
@@ -339,7 +339,7 @@ export default function CharacterPosesManager({
       <div className="relative">
         <button
           onClick={() => setAddPickerOpen((v) => !v)}
-          className="w-full py-2 rounded-lg border border-dashed border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-300 text-sm transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 rounded-lg border border-dashed border-amber-700/50 hover:border-amber-500 text-amber-600 hover:text-amber-400 text-sm transition-colors flex items-center justify-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

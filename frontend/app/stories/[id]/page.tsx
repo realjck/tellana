@@ -27,6 +27,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   const [linkCopied, setLinkCopied] = useState(false);
   const [confirmDeleteSceneId, setConfirmDeleteSceneId] = useState<number | null>(null);
   const [addingScene, setAddingScene] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState(false);
   const [newSceneTitle, setNewSceneTitle] = useState("");
   const [creatingScene, setCreatingScene] = useState(false);
 
@@ -118,6 +119,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
       {/* Header */}
       <header className="flex-shrink-0 border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 px-4 py-3">
+          <div className={`flex items-center gap-4 min-w-0 transition-opacity duration-200 ${editingCharacter ? "opacity-20 pointer-events-none select-none" : ""}`}>
           <Link
             href="/"
             className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
@@ -155,6 +157,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                 </svg>
               </button>
             )}
+          </div>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
@@ -225,6 +228,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
               storyId={storyId}
               characters={characters}
               onRefresh={() => mutate()}
+              onEditingCharacter={setEditingCharacter}
             />
           </div>
         </aside>
