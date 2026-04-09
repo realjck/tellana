@@ -146,6 +146,7 @@ export default function CharacterPosesManager({
   const [pickerForKey, setPickerForKey] = useState<string | null>(null);
   const [addPickerOpen, setAddPickerOpen] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const customUploads = collectUploads(characters);
 
@@ -186,7 +187,7 @@ export default function CharacterPosesManager({
       setRows((prev) =>
         prev.map((r, i) => (i === idx ? { ...r, key: row.savedKey } : r))
       );
-      alert(`La pose "${trimmed}" existe déjà.`);
+      setErrorMessage(`La pose "${trimmed}" existe déjà.`);
       return;
     }
 
@@ -227,6 +228,27 @@ export default function CharacterPosesManager({
 
   return (
     <div className="flex flex-col gap-4">
+      {errorMessage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setErrorMessage(null)}
+        >
+          <div
+            className="bg-[#0f172a] border border-white/10 rounded-2xl shadow-2xl px-6 py-5 w-full max-w-sm mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-white text-sm mb-5 leading-relaxed">{errorMessage}</p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <button
         onClick={onBack}
