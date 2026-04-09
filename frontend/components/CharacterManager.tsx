@@ -84,7 +84,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     return (
       <>
         {showDrawer && (
-          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 pointer-events-none" />
+          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer" onClick={goList} />
         )}
         {confirmDelete && (
           <ConfirmModal
@@ -127,7 +127,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     return (
       <>
         {showDrawer && (
-          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 pointer-events-none" />
+          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer" onClick={goList} />
         )}
         <CharacterPosesManager
           storyId={storyId}
