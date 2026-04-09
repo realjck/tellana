@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Character, Scene } from "@/types";
 import ScenePlayer from "@/components/ScenePlayer";
 
@@ -13,6 +13,22 @@ interface Props {
 export default function MultiScenePlayer({ scenes, characters, title }: Props) {
   const [sceneIndex, setSceneIndex] = useState(0);
   const [ended, setEnded] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  };
 
   if (!scenes.length) {
     return (
@@ -50,20 +66,24 @@ export default function MultiScenePlayer({ scenes, characters, title }: Props) {
     .filter((c): c is Character => !!c);
 
   return (
-    <ScenePlayer
-      key={currentScene.id}
-      nodes={currentScene.nodes}
-      characters={sceneCharacters}
-      characterPositions={currentScene.character_positions}
-      backgroundAsset={currentScene.background_asset}
-      backgroundLoop={currentScene.background_loop}
-      onEnd={() => {
-        if (sceneIndex < scenes.length - 1) {
-          setSceneIndex((i) => i + 1);
-        } else {
-          setEnded(true);
-        }
-      }}
-    />
+    <div ref={containerRef}>
+      <ScenePlayer
+        key={currentScene.id}
+        nodes={currentScene.nodes}
+        characters={sceneCharacters}
+        characterPositions={currentScene.character_positions}
+        backgroundAsset={currentScene.background_asset}
+        backgroundLoop={currentScene.background_loop}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
+        onEnd={() => {
+          if (sceneIndex < scenes.length - 1) {
+            setSceneIndex((i) => i + 1);
+          } else {
+            setEnded(true);
+          }
+        }}
+      />
+    </div>
   );
 }

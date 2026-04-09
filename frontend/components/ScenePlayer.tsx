@@ -32,6 +32,9 @@ interface Props {
   showMode?: "normal" | "characters-only" | "background-only";
   /** called whenever the displayed node index changes (for editor sync) */
   onIndexChange?: (index: number) => void;
+  /** External fullscreen control — used by MultiScenePlayer to survive scene remounts */
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 type QuizState = {
@@ -50,6 +53,8 @@ export default function ScenePlayer({
   compact = false,
   showMode,
   onIndexChange,
+  isFullscreen: externalFullscreen,
+  onToggleFullscreen: externalToggle,
 }: Props) {
   const [index, setIndex] = useState(startIndex);
   const [quizState, setQuizState] = useState<QuizState | null>(null);
@@ -99,7 +104,14 @@ export default function ScenePlayer({
   }, [node, quizState, showFeedback, index, nodes.length, onEnd]);
 
 
+  const externallyControlled = externalFullscreen !== undefined;
+  const activeFullscreen = externallyControlled ? externalFullscreen : isFullscreen;
+
   const toggleFullscreen = () => {
+    if (externallyControlled) {
+      externalToggle?.();
+      return;
+    }
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen();
       setIsFullscreen(true);
@@ -110,10 +122,11 @@ export default function ScenePlayer({
   };
 
   useEffect(() => {
+    if (externallyControlled) return;
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
-  }, []);
+  }, [externallyControlled]);
 
   // End screen
   if (isEndState) {
@@ -334,9 +347,9 @@ export default function ScenePlayer({
         <button
           onClick={toggleFullscreen}
           className="absolute top-3 left-3 text-white/50 hover:text-white transition-colors"
-          title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+          title={activeFullscreen ? "Quitter le plein écran" : "Plein écran"}
         >
-          {isFullscreen ? (
+          {activeFullscreen ? (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
