@@ -48,6 +48,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [previewPatch, setPreviewPatch] = useState<{ type: NodeType; data: Record<string, unknown> } | null>(null);
+  const [autoSaving, setAutoSaving] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
@@ -141,8 +142,13 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   const saveNode = async (patch: Partial<StoryNode>) => {
     if (!selectedNodeId) return;
-    await api.nodes.update(storyId, sceneId, selectedNodeId, patch);
-    await mutateScene();
+    setAutoSaving(true);
+    try {
+      await api.nodes.update(storyId, sceneId, selectedNodeId, patch);
+      await mutateScene();
+    } finally {
+      setAutoSaving(false);
+    }
   };
 
   const deleteNode = async () => {
@@ -389,7 +395,13 @@ export default function SceneEditorPage({ params }: { params: Params }) {
             <div className="flex-1 overflow-y-auto p-6">
               {selectedNode ? (
                 <div className="max-w-2xl mx-auto">
-                  <div className="mb-4 text-xs text-slate-500 uppercase tracking-wide font-semibold">
+                  <div className="mb-4 flex items-center gap-2 text-xs text-slate-500 uppercase tracking-wide font-semibold">
+                    {autoSaving && (
+                      <svg className="animate-spin w-3 h-3 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                    )}
                     Édition du nœud #{nodes.findIndex((n) => n.id === selectedNode.id) + 1}
                   </div>
                   <NodeForm
@@ -399,6 +411,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                     onSave={saveNode}
                     onDelete={deleteNode}
                     onPreview={(type, data) => setPreviewPatch({ type, data })}
+                    onAdd={addNode}
                   />
                 </div>
               ) : (
