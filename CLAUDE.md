@@ -68,16 +68,43 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 
 `ScenePlayer.tsx` est le moteur de rendu VN. Props clés :
 - `characters` : liste pré-filtrée par l'appelant depuis `scene.character_ids` — ScenePlayer affiche tous les persos reçus.
+- `characterPositions?: Record<string, CharacterPosition>` — positions par perso (clé = `string(id)`). Priorité sur les defaults par slot.
 - `showMode?: "normal" | "characters-only" | "background-only"` — pour les previews de l'éditeur.
 - `onIndexChange?: (index: number) => void` — callback pour synchroniser la sidebar. Implémenté via ref pattern (pas de dep array supprimé).
-- Positionnement personnages : 1 perso dialogue → `left:36%`, 2 persos → `left/right:16%`, 3+ → `left:4%+22%×i`.
-- **Nœuds texte** : affichent au maximum un personnage (celui associé via `character_id`, ou aucun) — pas toute la troupe.
-- Outline blanc sur perso actif : filtre SVG `feMorphology operator="dilate"` (pas `drop-shadow`).
+- Positionnement personnages : `DEFAULT_POSITIONS[0..3]` (slots) + `FALLBACK_POSITION`. CSS : `height:100%`, `bottom: calc(-10% + y*50%)`, `left: ((x+1)/2)*100%`, `transform: translateX(-50%) scale(s) scaleX(flip)`. Pivot centré (transform-origin par défaut).
+- **Nœuds texte** : aucun personnage affiché — fond `#0b1120`, rendu Markdown via `react-markdown` + `remark-gfm`, encadré `border-4 border-blue-500 rounded-2xl`. `TextNodeData` n'a plus de `character_id`.
+- **Nœuds dialogue** : tous les persos de scène visibles. Outline blanc sur perso actif : filtre SVG `feMorphology operator="dilate"` (pas `drop-shadow`).
+- Pas de raccourcis clavier (Space/Enter/ArrowRight supprimés).
 - Écran de fin : `index >= nodes.length` → affiche bouton Recommencer.
 
-`MultiScenePlayer.tsx` enchaîne plusieurs `ScenePlayer` (une scene à la fois, `key={scene.id}` force le remontage). Avance automatiquement sur `onEnd`. Affiche un écran de fin avec bouton Rejouer.
+`MultiScenePlayer.tsx` enchaîne plusieurs `ScenePlayer` (une scene à la fois, `key={scene.id}` force le remontage). Avance automatiquement sur `onEnd`. Affiche un écran de fin avec bouton Rejouer. Passe `characterPositions={scene.character_positions}`.
 
-`SceneCharacterSelector.tsx` — onglet Perso de l'éditeur de scène : toggle/réordonnancement des persos visibles (max 4), appelle `onChange(ids[])`.
+`SceneCharacterSelector.tsx` — onglet Perso de l'éditeur de scène : toggle des persos visibles (max 4), blocs dépliables par perso avec sliders de position (X, Y, Échelle) et toggle orientation. Callbacks : `onChange(ids, positions)` (persist), `onPositionChange(charId, pos)` (real-time), `onPositionCommit(charId, pos)` (persist au relâchement du slider).
+
+## Positionnement des personnages (TEL-14)
+
+- `Scene.character_positions: Dict[str, CharacterPosition]` (JSON, backend) / `Record<string, CharacterPosition>` (frontend). Clé = `str(character_id)`.
+- `CharacterPosition` : `{ x: float [-1,1], y: float [-3,1], scale: float [0.1,2.5], flip_x: bool }`.
+- Migration SQLite au démarrage : `ALTER TABLE scenes ADD COLUMN character_positions JSON DEFAULT '{}'` dans try/except.
+- Éditeur : `localPositions` (state React) pour la preview temps réel, API PATCH uniquement sur `onPointerUp` du slider.
+- Suppression d'un personnage story : le backend nettoie `character_ids` et `character_positions` dans toutes les scènes de la story.
+
+## Éditeur de scène (page edit)
+
+- Tab "Script" (ex "Noeuds") : liste des nœuds + formulaire d'édition.
+- Ajout de nœud : toujours type "dialogue", inséré après le nœud courant (reorder API après création). Pas de menu déroulant.
+- `NodeForm` : `DialogueFields` (personnage + texte) et `TextFields` (texte Markdown seul) séparés.
+- Titre de scène éditable inline dans la navbar.
+- Nouvelle scène → redirect vers l'éditeur à l'onglet `?tab=background`.
+- `sceneCharacters` passé à `NodeForm` (persos de la scène uniquement, pas tous les persos de la story).
+
+## UI générale
+
+- `ConfirmModal` : remplace tous les `confirm()` natifs (suppression story, scène, personnage).
+- Story page navbar : libellé "Éditer votre story" (petit, grisé) + titre en gras `text-lg` éditable.
+- Story publiée : bouton "Voir la page publique" (icône lien externe) dans la navbar, à gauche du bouton copier le lien.
+- Bouton copier le lien : coche verte 2 s au lieu de l'alert système.
+- Limite 4 personnages : s'applique uniquement à la scène (`character_ids`), pas à la story.
 
 ## Tests
 

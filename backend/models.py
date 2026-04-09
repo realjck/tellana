@@ -35,6 +35,7 @@ class Scene(Base):
     background_loop = Column(Boolean, default=True)
     bg_custom_uploads = Column(JSON, nullable=False, default=list)
     character_ids = Column(JSON, nullable=False, default=list)
+    character_positions = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

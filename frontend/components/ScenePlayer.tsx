@@ -1,12 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AssetRef, Character, QuizNodeData, StoryNode } from "@/types";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { AssetRef, Character, CharacterPosition, QuizNodeData, StoryNode } from "@/types";
 import { resolveAsset } from "@/lib/api";
+
+// Default positions by slot (0–3) when no stored position is available.
+// 1st: centre-gauche facing right, 2nd: centre-droit facing left,
+// 3rd: far left facing right, 4th: far right facing left.
+const DEFAULT_POSITIONS: CharacterPosition[] = [
+  { x: -0.35, y: 0, scale: 1, flip_x: false },
+  { x:  0.35, y: 0, scale: 1, flip_x: true  },
+  { x: -0.7,  y: 0, scale: 1, flip_x: false },
+  { x:  0.7,  y: 0, scale: 1, flip_x: true  },
+];
+const FALLBACK_POSITION: CharacterPosition = { x: 0, y: 0, scale: 1, flip_x: false };
 
 interface Props {
   nodes: StoryNode[];
   characters: Character[];
+  /** Per-character position overrides keyed by character id (as string). */
+  characterPositions?: Record<string, CharacterPosition>;
   backgroundAsset: AssetRef | null;
   backgroundLoop?: boolean;
   startIndex?: number;
@@ -17,6 +32,9 @@ interface Props {
   showMode?: "normal" | "characters-only" | "background-only";
   /** called whenever the displayed node index changes (for editor sync) */
   onIndexChange?: (index: number) => void;
+  /** External fullscreen control — used by MultiScenePlayer to survive scene remounts */
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 type QuizState = {
@@ -28,12 +46,15 @@ type QuizState = {
 export default function ScenePlayer({
   nodes,
   characters,
+  characterPositions,
   backgroundAsset,
   startIndex = 0,
   onEnd,
   compact = false,
   showMode,
   onIndexChange,
+  isFullscreen: externalFullscreen,
+  onToggleFullscreen: externalToggle,
 }: Props) {
   const [index, setIndex] = useState(startIndex);
   const [quizState, setQuizState] = useState<QuizState | null>(null);
@@ -82,32 +103,15 @@ export default function ScenePlayer({
     }
   }, [node, quizState, showFeedback, index, nodes.length, onEnd]);
 
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      // Don't intercept keystrokes when the user is typing in a form element
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-      if (e.key === " " || e.key === "Enter" || e.key === "ArrowRight") {
-        e.preventDefault();
-        advance();
-      }
-    },
-    [advance]
-  );
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  const externallyControlled = externalFullscreen !== undefined;
+  const activeFullscreen = externallyControlled ? externalFullscreen : isFullscreen;
 
   const toggleFullscreen = () => {
+    if (externallyControlled) {
+      externalToggle?.();
+      return;
+    }
     if (!document.fullscreenElement) {
       containerRef.current?.requestFullscreen();
       setIsFullscreen(true);
@@ -118,10 +122,11 @@ export default function ScenePlayer({
   };
 
   useEffect(() => {
+    if (externallyControlled) return;
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handler);
     return () => document.removeEventListener("fullscreenchange", handler);
-  }, []);
+  }, [externallyControlled]);
 
   // End screen
   if (isEndState) {
@@ -152,34 +157,25 @@ export default function ScenePlayer({
   }
 
   const data = node ? (node.data as unknown as Record<string, unknown>) : {};
-  const charId = data.character_id as number | null;
+  const charId = node?.type === "dialogue" ? (data.character_id as number | null) : null;
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
   // ── Character display logic ────────────────────────────────────────────
+  // Text nodes: no characters shown — narrative text only.
   // Dialogue/quiz nodes: all scene characters are visible (ordered by caller).
-  // Text nodes: show only the associated character (or none) — no full cast.
   // The speaking character gets the white outline on dialogue nodes.
   const isTextNode = !isPreviewMode && node?.type === "text";
-  const displayChars = isTextNode ? (speakingChar ? [speakingChar] : []) : characters;
+  const displayChars = isTextNode ? [] : characters;
 
-  const total = displayChars.length;
-
-  // Dynamic positioning — no stored position field:
-  //   1 char  → left: 36% (centered)
-  //   2 chars → char[0]: left:16%, char[1]: right:16% (mirrored)
-  //   3+      → left: (4 + 22×i)%  (all from left, no mirror)
-  const charLeft = (i: number): string | undefined => {
-    if (isTextNode) return `${4 + i * 22}%`; // text node: always from far left
-    if (total === 1) return "36%";
-    if (total === 2 && i === 0) return "16%";
-    if (total >= 3) return `${4 + i * 22}%`;
-    return undefined;
+  // Resolve a character's position: use stored position if available,
+  // otherwise fall back to the slot default based on the character's index
+  // in the full cast (not the displayChars subset).
+  const getCharPosition = (c: Character): CharacterPosition => {
+    const stored = characterPositions?.[String(c.id)];
+    if (stored) return stored;
+    const slotIndex = characters.findIndex((ch) => ch.id === c.id);
+    return DEFAULT_POSITIONS[slotIndex >= 0 ? slotIndex : 0] ?? FALLBACK_POSITION;
   };
-  const charRight = (i: number): string | undefined => {
-    if (total === 2 && i === 1) return "16%";
-    return undefined;
-  };
-  const charMirror = (i: number): boolean => total === 2 && i === 1;
 
   return (
     <div
@@ -229,21 +225,21 @@ export default function ScenePlayer({
           Hidden in background-only preview mode. */}
       {showMode !== "background-only" && (
       <div className="absolute inset-0 pointer-events-none">
-        {displayChars.map((c, i) => {
+        {displayChars.map((c) => {
           const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
-          const mirrored = charMirror(i);
+          const pos = getCharPosition(c);
           const firstSprite = Object.values(c.sprites)[0];
           return (
             <img
               key={c.id}
               src={firstSprite ? resolveAsset(firstSprite) : ""}
               alt={c.name}
-              className={`absolute object-contain transition-all duration-200${mirrored ? " scale-x-[-1]" : ""}`}
+              className="absolute object-contain transition-all duration-200"
               style={{
                 height: "100%",
-                bottom: "-10%",
-                left: charLeft(i),
-                right: charRight(i),
+                bottom: `calc(-10% + ${pos.y * 50}%)`,
+                left: `${((pos.x + 1) / 2) * 100}%`,
+                transform: `translateX(-50%) scale(${pos.scale}) scaleX(${pos.flip_x ? -1 : 1})`,
                 filter: isSpeaking ? "url(#outline-white)" : "none",
               }}
             />
@@ -278,26 +274,33 @@ export default function ScenePlayer({
         </div>
       )}
 
-      {/* ── Text node: centered block, left-aligned, no background ── */}
+      {/* ── Text node: centered narrative block with thick blue border ── */}
       {!isPreviewMode && node?.type === "text" && (
         <div
-          className="absolute inset-0 flex items-center justify-center cursor-pointer"
+          className="absolute inset-0 flex items-center justify-center cursor-pointer p-8"
           onClick={advance}
         >
-          {/* Offset right if a character is shown on the left */}
-          <div
-            className="w-[55%] max-w-lg"
-            style={{ marginLeft: speakingChar ? "20%" : "0" }}
-          >
-            <p className="text-white text-base leading-relaxed text-left">
-              {data.text as string}
-            </p>
-            <button className="mt-4 text-blue-300 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5l10 7-10 7V5z" />
-              </svg>
-              Continuer
-            </button>
+          <div className="border-4 border-blue-500 rounded-2xl px-8 py-6 max-w-xl w-full flex flex-col gap-4">
+            <div className="prose prose-invert prose-sm max-w-none text-white leading-relaxed
+              prose-p:my-1 prose-headings:text-white prose-headings:font-bold
+              prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
+              prose-strong:text-white prose-em:text-slate-200
+              prose-ul:my-1 prose-ol:my-1 prose-li:my-0
+              prose-blockquote:border-blue-400 prose-blockquote:text-slate-300
+              prose-code:text-blue-200 prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded
+              prose-a:text-blue-300">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {data.text as string}
+              </ReactMarkdown>
+            </div>
+            <div className="flex justify-end">
+              <button className="text-blue-300 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M8 5l10 7-10 7V5z" />
+                </svg>
+                Continuer
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -344,9 +347,9 @@ export default function ScenePlayer({
         <button
           onClick={toggleFullscreen}
           className="absolute top-3 left-3 text-white/50 hover:text-white transition-colors"
-          title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
+          title={activeFullscreen ? "Quitter le plein écran" : "Plein écran"}
         >
-          {isFullscreen ? (
+          {activeFullscreen ? (
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>

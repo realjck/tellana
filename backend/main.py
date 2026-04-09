@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 import models
 from database import engine
@@ -10,6 +11,13 @@ from routers import assets, characters, nodes, scenes, stories
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
+
+# Safe migration: add character_positions column if it doesn't exist yet
+with engine.begin() as _conn:
+    try:
+        _conn.execute(text("ALTER TABLE scenes ADD COLUMN character_positions JSON DEFAULT '{}'"))
+    except Exception:
+        pass  # Column already exists
 
 # Ensure uploads dir exists
 Path("uploads").mkdir(exist_ok=True)

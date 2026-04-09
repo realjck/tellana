@@ -71,5 +71,19 @@ def delete_character(
     )
     if not char:
         raise HTTPException(status_code=404, detail="Character not found")
+
+    # Remove the character from all scenes in this story
+    scenes = (
+        db.query(models.Scene)
+        .filter(models.Scene.story_id == story_id)
+        .all()
+    )
+    for scene in scenes:
+        if character_id in (scene.character_ids or []):
+            scene.character_ids = [cid for cid in scene.character_ids if cid != character_id]
+        positions = scene.character_positions or {}
+        if str(character_id) in positions:
+            scene.character_positions = {k: v for k, v in positions.items() if k != str(character_id)}
+
     db.delete(char)
     db.commit()

@@ -31,7 +31,6 @@ export interface DialogueNodeData {
 }
 
 export interface TextNodeData {
-  character_id: number | null;
   text: string;
 }
 
@@ -63,10 +62,18 @@ export interface SceneSummary {
   updated_at: string;
 }
 
+export interface CharacterPosition {
+  x: number;       // -1 to +1, 0 = center
+  y: number;       // -1 to +1, 0 = default vertical
+  scale: number;   // 0 (excl.) to 2.5, 1 = 100% of scene height
+  flip_x: boolean;
+}
+
 export interface Scene extends SceneSummary {
   nodes: StoryNode[];
   character_ids: number[];
   bg_custom_uploads: string[];
+  character_positions: Record<string, CharacterPosition>;
 }
 
 export interface Story {

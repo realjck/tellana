@@ -70,6 +70,13 @@ class Node(NodeBase):
 
 # ── Scene ──────────────────────────────────────────────────────────────────
 
+class CharacterPosition(BaseModel):
+    x: float = 0.0
+    y: float = 0.0
+    scale: float = 1.0
+    flip_x: bool = False
+
+
 class SceneCreate(BaseModel):
     title: str
 
@@ -80,6 +87,7 @@ class SceneUpdate(BaseModel):
     background_loop: Optional[bool] = None
     bg_custom_uploads: Optional[List[str]] = None
     character_ids: Optional[List[int]] = None
+    character_positions: Optional[Dict[str, CharacterPosition]] = None
 
 
 class SceneSummary(BaseModel):
@@ -99,6 +107,7 @@ class Scene(SceneSummary):
     nodes: List[Node] = []
     character_ids: List[int] = []
     bg_custom_uploads: List[str] = []
+    character_positions: Dict[str, CharacterPosition] = {}
 
 
 # ── Story ──────────────────────────────────────────────────────────────────

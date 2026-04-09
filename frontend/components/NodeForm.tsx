@@ -14,6 +14,7 @@ interface Props {
   characters: Character[];
   onSave: (data: Partial<StoryNode>) => void;
   onDelete: () => void;
+  onPreview?: (type: NodeType, data: Record<string, unknown>) => void;
 }
 
 const NODE_LABELS: Record<NodeType, string> = {
@@ -22,7 +23,7 @@ const NODE_LABELS: Record<NodeType, string> = {
   quiz: "Quiz",
 };
 
-export default function NodeForm({ node, characters, onSave, onDelete }: Props) {
+export default function NodeForm({ node, characters, onSave, onDelete, onPreview }: Props) {
   const [type, setType] = useState<NodeType>(node.type);
   const [data, setData] = useState<Record<string, unknown>>(
     node.data as unknown as Record<string, unknown>
@@ -34,16 +35,19 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
     setData(node.data as unknown as Record<string, unknown>);
   }, [node.id, node.type, node.data]);
 
+  const updateData = (newData: Record<string, unknown>) => {
+    setData(newData);
+    onPreview?.(type, newData);
+  };
+
   const handleTypeChange = (newType: NodeType) => {
     setType(newType);
     // Restore original saved data when switching back to the node's persisted type
+    let newData: Record<string, unknown>;
     if (newType === node.type) {
-      setData(node.data as unknown as Record<string, unknown>);
-      return;
-    }
-    // Default empty data for a different type
-    if (newType === "quiz") {
-      setData({
+      newData = node.data as unknown as Record<string, unknown>;
+    } else if (newType === "quiz") {
+      newData = {
         question: "",
         type: "qcu",
         feedback: "",
@@ -51,10 +55,14 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
           { text: "", is_correct: true },
           { text: "", is_correct: false },
         ],
-      } as unknown as Record<string, unknown>);
+      };
+    } else if (newType === "dialogue") {
+      newData = { character_id: null, text: "" };
     } else {
-      setData({ character_id: null, text: "" });
+      newData = { text: "" };
     }
+    setData(newData);
+    onPreview?.(newType, newData);
   };
 
   const save = () => onSave({ type, data: data as unknown as StoryNode["data"] });
@@ -84,16 +92,14 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
       </div>
 
       {/* Fields */}
-      {(type === "dialogue" || type === "text") && (
-        <DialogueTextFields
-          type={type}
-          data={data}
-          characters={characters}
-          onChange={setData}
-        />
+      {type === "dialogue" && (
+        <DialogueFields data={data} characters={characters} onChange={updateData} />
+      )}
+      {type === "text" && (
+        <TextFields data={data} onChange={updateData} />
       )}
       {type === "quiz" && (
-        <QuizFields data={data} onChange={setData} />
+        <QuizFields data={data} onChange={updateData} />
       )}
 
       {/* Actions */}
@@ -115,15 +121,13 @@ export default function NodeForm({ node, characters, onSave, onDelete }: Props) 
   );
 }
 
-// ── Dialogue / Text fields ─────────────────────────────────────────────────
+// ── Dialogue fields ────────────────────────────────────────────────────────
 
-function DialogueTextFields({
-  type,
+function DialogueFields({
   data,
   characters,
   onChange,
 }: {
-  type: "dialogue" | "text";
   data: Record<string, unknown>;
   characters: Character[];
   onChange: (d: Record<string, unknown>) => void;
@@ -132,7 +136,7 @@ function DialogueTextFields({
     <>
       <div>
         <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
-          Personnage{type === "text" ? " (optionnel)" : ""}
+          Personnage
         </label>
         <select
           value={(data.character_id as number | null) ?? ""}
@@ -161,15 +165,36 @@ function DialogueTextFields({
           rows={4}
           value={(data.text as string) ?? ""}
           onChange={(e) => onChange({ ...data, text: e.target.value })}
-          placeholder={
-            type === "dialogue"
-              ? "Ce que dit le personnage..."
-              : "Texte narratif..."
-          }
+          placeholder="Ce que dit le personnage..."
           className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none"
         />
       </div>
     </>
+  );
+}
+
+// ── Text (narrative) fields ────────────────────────────────────────────────
+
+function TextFields({
+  data,
+  onChange,
+}: {
+  data: Record<string, unknown>;
+  onChange: (d: Record<string, unknown>) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">
+        Texte
+      </label>
+      <textarea
+        rows={8}
+        value={(data.text as string) ?? ""}
+        onChange={(e) => onChange({ ...data, text: e.target.value })}
+        placeholder={"Texte narratif en Markdown...\n\n**gras**, *italique*, # Titre, - liste, > citation"}
+        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-y font-mono"
+      />
+    </div>
   );
 }
 

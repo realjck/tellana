@@ -2,16 +2,19 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { api, resolveAsset } from "@/lib/api";
 import type { SceneSummary, Story } from "@/types";
 import CharacterManager from "@/components/CharacterManager";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type Params = Promise<{ id: string }>;
 
 export default function StoryEditorPage({ params }: { params: Params }) {
   const { id } = use(params);
   const storyId = Number(id);
+  const router = useRouter();
 
   const { data: story, mutate, isLoading } = useSWR<Story>(
     `story-${storyId}`,
@@ -21,6 +24,8 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [confirmDeleteSceneId, setConfirmDeleteSceneId] = useState<number | null>(null);
   const [addingScene, setAddingScene] = useState(false);
   const [newSceneTitle, setNewSceneTitle] = useState("");
   const [creatingScene, setCreatingScene] = useState(false);
@@ -69,10 +74,11 @@ export default function StoryEditorPage({ params }: { params: Params }) {
     if (!newSceneTitle.trim()) return;
     setCreatingScene(true);
     try {
-      await api.scenes.create(storyId, newSceneTitle.trim());
+      const newScene = await api.scenes.create(storyId, newSceneTitle.trim());
       await mutate();
       setAddingScene(false);
       setNewSceneTitle("");
+      router.push(`/stories/${storyId}/scenes/${newScene.id}/edit?tab=background`);
     } catch {
       alert("Erreur lors de la création");
     } finally {
@@ -81,7 +87,6 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   };
 
   const deleteScene = async (sceneId: number) => {
-    if (!confirm("Supprimer cette scène et tous ses nœuds ?")) return;
     try {
       await api.scenes.delete(storyId, sceneId);
       await mutate();
@@ -103,42 +108,54 @@ export default function StoryEditorPage({ params }: { params: Params }) {
 
   return (
     <div className="min-h-screen bg-[#0b1120] flex flex-col">
+      {confirmDeleteSceneId !== null && (
+        <ConfirmModal
+          message="Supprimer cette scène et tous ses nœuds ? Cette action est irréversible."
+          onConfirm={() => { deleteScene(confirmDeleteSceneId); setConfirmDeleteSceneId(null); }}
+          onCancel={() => setConfirmDeleteSceneId(null)}
+        />
+      )}
       {/* Header */}
       <header className="flex-shrink-0 border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 px-4 py-3">
           <Link
             href="/"
-            className="text-slate-400 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
             title="Retour au dashboard"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
 
-          {editingTitle ? (
-            <input
-              autoFocus
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveTitle();
-                if (e.key === "Escape") setEditingTitle(false);
-              }}
-              className="flex-1 bg-slate-700 border border-blue-500 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none max-w-sm"
-            />
-          ) : (
-            <button
-              onClick={() => { setTitleDraft(story.title); setEditingTitle(true); }}
-              className="text-white font-semibold hover:text-blue-300 transition-colors text-sm flex items-center gap-1.5"
-            >
-              {story.title}
-              <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
-            </button>
-          )}
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wide font-medium leading-none mb-1">
+              Éditer votre story
+            </span>
+            {editingTitle ? (
+              <input
+                autoFocus
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") saveTitle();
+                  if (e.key === "Escape") setEditingTitle(false);
+                }}
+                className="bg-slate-700 border border-blue-500 rounded-lg px-3 py-1 text-white text-lg font-bold focus:outline-none max-w-sm"
+              />
+            ) : (
+              <button
+                onClick={() => { setTitleDraft(story.title); setEditingTitle(true); }}
+                className="text-white font-bold hover:text-blue-300 transition-colors text-lg flex items-center gap-1.5 truncate"
+              >
+                {story.title}
+                <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+              </button>
+            )}
+          </div>
 
           <div className="ml-auto flex items-center gap-2">
             <button
@@ -153,18 +170,41 @@ export default function StoryEditorPage({ params }: { params: Params }) {
               {publishing ? "…" : story.published ? "Dépublier" : "Publier"}
             </button>
             {story.published && (
+              <Link
+                href={`/s/${story.slug}`}
+                target="_blank"
+                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors"
+                title="Voir la page publique"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </Link>
+            )}
+            {story.published && (
               <button
                 onClick={() => {
                   const url = `${window.location.origin}/s/${story.slug}`;
                   navigator.clipboard.writeText(url);
-                  alert("Lien copié !");
+                  setLinkCopied(true);
+                  setTimeout(() => setLinkCopied(false), 2000);
                 }}
-                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors"
+                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  linkCopied
+                    ? "bg-green-600/30 text-green-400 border border-green-500/40"
+                    : "bg-slate-700 hover:bg-slate-600 text-slate-300"
+                }`}
                 title="Copier le lien public"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                </svg>
+                {linkCopied ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  </svg>
+                )}
               </button>
             )}
           </div>
@@ -221,7 +261,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                     total={scenes.length}
                     storyId={storyId}
                     onMove={moveScene}
-                    onDelete={() => deleteScene(scene.id)}
+                    onDelete={() => setConfirmDeleteSceneId(scene.id)}
                   />
                 ))}
               </div>
@@ -285,11 +325,29 @@ function SceneCard({
   onMove: (id: number, dir: "up" | "down") => void;
   onDelete: () => void;
 }) {
+  const router = useRouter();
   const bg = scene.background_asset;
   const bgUrl = bg ? resolveAsset(bg) : null;
 
   return (
-    <div className="flex gap-4 items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all p-3">
+    <div
+      onClick={() => router.push(`/stories/${storyId}/scenes/${scene.id}/edit`)}
+      className="flex gap-3 items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all p-3 cursor-pointer"
+    >
+      {/* Order arrows — left */}
+      <div className="flex flex-col gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={() => onMove(scene.id, "up")}
+          disabled={index === 0}
+          className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-xs"
+        >▲</button>
+        <button
+          onClick={() => onMove(scene.id, "down")}
+          disabled={index === total - 1}
+          className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-xs"
+        >▼</button>
+      </div>
+
       {/* Thumbnail */}
       {bgUrl ? (
         <div
@@ -311,32 +369,10 @@ function SceneCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <div className="flex flex-col gap-0.5">
-          <button
-            onClick={() => onMove(scene.id, "up")}
-            disabled={index === 0}
-            className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors text-xs"
-          >
-            ▲
-          </button>
-          <button
-            onClick={() => onMove(scene.id, "down")}
-            disabled={index === total - 1}
-            className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors text-xs"
-          >
-            ▼
-          </button>
-        </div>
-        <Link
-          href={`/stories/${storyId}/scenes/${scene.id}/edit`}
-          className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-sm font-medium transition-colors border border-blue-500/20"
-        >
-          Éditer
-        </Link>
+      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onDelete}
-          className="p-2 rounded-lg bg-slate-700 hover:bg-red-900/40 text-slate-400 hover:text-red-300 transition-colors"
+          className="p-2 rounded-lg bg-slate-700 hover:bg-red-900/40 text-slate-400 hover:text-red-300 transition-colors cursor-pointer"
           title="Supprimer la scène"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
