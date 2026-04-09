@@ -8,6 +8,9 @@ const config: Config = {
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
+    // Mock ESM-only packages that Jest cannot transform
+    "^react-markdown$": "<rootDir>/__mocks__/react-markdown.tsx",
+    "^remark-gfm$": "<rootDir>/__mocks__/remark-gfm.ts",
   },
   testMatch: ["**/__tests__/**/*.test.(ts|tsx)"],
   testPathIgnorePatterns: ["/node_modules/", "/e2e/"],

@@ -118,23 +118,24 @@ describe("ScenePlayer — showMode", () => {
 });
 
 describe("ScenePlayer — positionnement personnages", () => {
-  it("1 personnage en dialogue : left=36%", () => {
+  // DEFAULT_POSITIONS: slot 0 → x=-0.35 → left=32.5%, slot 1 → x=0.35 → left=67.5%
+  it("1 personnage en dialogue : left=32.5% (slot 0)", () => {
     const nodes = [makeNode({ type: "dialogue", data: { character_id: 1, text: "Hi" } as StoryNode["data"] })];
     const characters = [makeChar({ id: 1 })];
     render(<ScenePlayer nodes={nodes} characters={characters} backgroundAsset={null} />);
     const img = screen.getByAltText("Alice");
-    expect(img).toHaveStyle({ left: "36%" });
+    expect(img).toHaveStyle({ left: "32.5%" });
   });
 
-  it("2 personnages : char[0] left=16%, char[1] right=16%", () => {
+  it("2 personnages : char[0] left=32.5% (slot 0), char[1] left=67.5% (slot 1)", () => {
     const nodes = [makeNode({ type: "dialogue", data: { character_id: 1, text: "Hi" } as StoryNode["data"] })];
     const characters = [
       makeChar({ id: 1, name: "Alice" }),
       makeChar({ id: 2, name: "Bob" }),
     ];
     render(<ScenePlayer nodes={nodes} characters={characters} backgroundAsset={null} />);
-    expect(screen.getByAltText("Alice")).toHaveStyle({ left: "16%" });
-    expect(screen.getByAltText("Bob")).toHaveStyle({ right: "16%" });
+    expect(screen.getByAltText("Alice")).toHaveStyle({ left: "32.5%" });
+    expect(screen.getByAltText("Bob")).toHaveStyle({ left: "67.5%" });
   });
 });
 
