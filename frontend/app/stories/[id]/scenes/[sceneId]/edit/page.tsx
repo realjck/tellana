@@ -134,6 +134,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
     const newNodes = refreshed?.nodes ?? [];
     const newIndex = newNodes.findIndex((n) => n.id === node.id);
     setSelectedNodeId(node.id);
+    setPreviewPatch(null);
     setPreviewIndex(newIndex >= 0 ? newIndex : newNodes.length - 1);
     setTab("nodes");
   };
