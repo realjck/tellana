@@ -28,11 +28,11 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
       onClick={(e) => e.stopPropagation()}
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-700/60 flex-shrink-0">
-        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-0.5">
+      <div className="px-4 py-4 border-b border-slate-700/60 flex-shrink-0">
+        <div className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold mb-1">
           Aperçu
         </div>
-        <div className="text-sm font-bold text-white truncate">{characterName}</div>
+        <div className="text-2xl font-bold text-white truncate">{characterName}</div>
       </div>
 
       {/* Large sprite display */}
