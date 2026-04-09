@@ -234,7 +234,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#0b1120] flex flex-col">
+    <div className="h-screen bg-[#0b1120] flex flex-col overflow-hidden">
       {/* Top bar */}
       <header className="flex-shrink-0 border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 px-4 py-3">
@@ -313,7 +313,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
           </div>
 
           {/* Tab content */}
-          <div className="flex-1 overflow-y-auto p-3">
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             {tab === "nodes" && (
               <NodesTab
                 nodes={nodes}
@@ -327,28 +327,31 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                 onAdd={addNode}
                 onMove={moveNode}
               />
-
             )}
             {tab === "perso" && (
-              <SceneCharacterSelector
-                allCharacters={allCharacters}
-                selectedIds={scene.character_ids}
-                characterPositions={localPositions}
-                onChange={updateCharacters}
-                onPositionChange={handlePositionChange}
-                onPositionCommit={handlePositionCommit}
-              />
+              <div className="flex-1 overflow-y-auto p-3">
+                <SceneCharacterSelector
+                  allCharacters={allCharacters}
+                  selectedIds={scene.character_ids}
+                  characterPositions={localPositions}
+                  onChange={updateCharacters}
+                  onPositionChange={handlePositionChange}
+                  onPositionCommit={handlePositionCommit}
+                />
+              </div>
             )}
             {tab === "background" && (
-              <BackgroundTab
-                currentAsset={scene.background_asset}
-                uploading={uploadingBg}
-                fileRef={bgFileRef}
-                onSelect={setBackground}
-                onUpload={uploadBackground}
-                customUploads={bgCustomUploads}
-                onRemoveCustom={removeBgCustom}
-              />
+              <div className="flex-1 overflow-y-auto p-3">
+                <BackgroundTab
+                  currentAsset={scene.background_asset}
+                  uploading={uploadingBg}
+                  fileRef={bgFileRef}
+                  onSelect={setBackground}
+                  onUpload={uploadBackground}
+                  customUploads={bgCustomUploads}
+                  onRemoveCustom={removeBgCustom}
+                />
+              </div>
             )}
           </div>
         </aside>
@@ -445,17 +448,22 @@ function NodesTab({
   onMove: (id: number, dir: "up" | "down") => void;
 }) {
   return (
-    <div className="flex flex-col gap-2">
-      <button
-        onClick={onAdd}
-        className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        Ajouter un nœud
-      </button>
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Fixed button */}
+      <div className="flex-shrink-0 p-3 pb-2">
+        <button
+          onClick={onAdd}
+          className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Ajouter un nœud
+        </button>
+      </div>
 
+      {/* Scrollable nodes list */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 flex flex-col gap-2">
       {nodes.length === 0 ? (
         <p className="text-center text-slate-500 text-xs py-6">
           Aucun nœud. Cliquez sur &quot;Ajouter&quot; pour commencer.
@@ -468,7 +476,7 @@ function NodesTab({
             tabIndex={0}
             onClick={() => onSelect(node)}
             onKeyDown={(e) => e.key === "Enter" && onSelect(node)}
-            className={`w-full text-left px-3 rounded-xl border transition-all group cursor-pointer ${
+            className={`w-full flex-shrink-0 text-left px-3 rounded-xl border transition-all group cursor-pointer ${
               selectedNodeId === node.id
                 ? "bg-blue-600/10 border-blue-500/40"
                 : "bg-slate-800/40 border-slate-700/50 hover:border-slate-600"
@@ -519,6 +527,7 @@ function NodesTab({
           </div>
         ))
       )}
+      </div>
     </div>
   );
 }
