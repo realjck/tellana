@@ -136,8 +136,12 @@ function StoryCard({
   story: StorySummary;
   onDelete: () => void;
 }) {
+  const router = useRouter();
   return (
-    <div className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-black/20">
+    <div
+      onClick={() => router.push(`/stories/${story.id}`)}
+      className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-black/20 cursor-pointer"
+    >
       {/* Background preview — uses first scene's background */}
       {story.first_scene_background ? (
         <div
@@ -170,13 +174,7 @@ function StoryCard({
           })}
         </p>
 
-        <div className="flex gap-2">
-          <Link
-            href={`/stories/${story.id}`}
-            className="flex-1 py-2 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-sm font-medium text-center transition-colors border border-blue-500/20"
-          >
-            Éditer
-          </Link>
+        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           {story.published && (
             <Link
               href={`/s/${story.slug}`}

@@ -228,10 +228,10 @@ export default function SceneEditorPage({ params }: { params: Params }) {
         <div className="flex items-center gap-4 px-4 py-3">
           <Link
             href={`/stories/${storyId}`}
-            className="text-slate-400 hover:text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
             title="Retour à la story"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
@@ -468,11 +468,11 @@ function NodesTab({
                       : d.text || "…";
                   })()}
                 </p>
-                <div className="flex gap-0.5 invisible group-hover:visible flex-shrink-0">
+                <div className="flex gap-1 invisible group-hover:visible flex-shrink-0">
                   <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
-                    className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▲</button>
+                    className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▲</button>
                   <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
-                    className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▼</button>
+                    className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▼</button>
                 </div>
               </div>
             ) : (
@@ -483,11 +483,11 @@ function NodesTab({
                   <span className={`px-1.5 py-0.5 rounded text-[10px] border font-medium ${NODE_TYPE_COLORS[node.type]}`}>
                     {NODE_TYPE_LABELS[node.type]}
                   </span>
-                  <div className="ml-auto flex gap-0.5 invisible group-hover:visible">
+                  <div className="ml-auto flex gap-1 invisible group-hover:visible">
                     <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
-                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▲</button>
+                      className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▲</button>
                     <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
-                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors">▼</button>
+                      className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▼</button>
                   </div>
                 </div>
                 <p className="text-xs text-slate-400 truncate pl-5.5">

@@ -120,10 +120,10 @@ export default function StoryEditorPage({ params }: { params: Params }) {
         <div className="flex items-center gap-4 px-4 py-3">
           <Link
             href="/"
-            className="text-slate-400 hover:text-white transition-colors flex-shrink-0"
+            className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
             title="Retour au dashboard"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
@@ -325,11 +325,29 @@ function SceneCard({
   onMove: (id: number, dir: "up" | "down") => void;
   onDelete: () => void;
 }) {
+  const router = useRouter();
   const bg = scene.background_asset;
   const bgUrl = bg ? resolveAsset(bg) : null;
 
   return (
-    <div className="flex gap-4 items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all p-3">
+    <div
+      onClick={() => router.push(`/stories/${storyId}/scenes/${scene.id}/edit`)}
+      className="flex gap-3 items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all p-3 cursor-pointer"
+    >
+      {/* Order arrows — left */}
+      <div className="flex flex-col gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={() => onMove(scene.id, "up")}
+          disabled={index === 0}
+          className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-xs"
+        >▲</button>
+        <button
+          onClick={() => onMove(scene.id, "down")}
+          disabled={index === total - 1}
+          className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-xs"
+        >▼</button>
+      </div>
+
       {/* Thumbnail */}
       {bgUrl ? (
         <div
@@ -351,32 +369,10 @@ function SceneCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <div className="flex flex-col gap-0.5">
-          <button
-            onClick={() => onMove(scene.id, "up")}
-            disabled={index === 0}
-            className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors text-xs"
-          >
-            ▲
-          </button>
-          <button
-            onClick={() => onMove(scene.id, "down")}
-            disabled={index === total - 1}
-            className="p-1 text-slate-500 hover:text-white disabled:opacity-20 transition-colors text-xs"
-          >
-            ▼
-          </button>
-        </div>
-        <Link
-          href={`/stories/${storyId}/scenes/${scene.id}/edit`}
-          className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-sm font-medium transition-colors border border-blue-500/20"
-        >
-          Éditer
-        </Link>
+      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onDelete}
-          className="p-2 rounded-lg bg-slate-700 hover:bg-red-900/40 text-slate-400 hover:text-red-300 transition-colors"
+          className="p-2 rounded-lg bg-slate-700 hover:bg-red-900/40 text-slate-400 hover:text-red-300 transition-colors cursor-pointer"
           title="Supprimer la scène"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
