@@ -395,6 +395,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                   }
                   onIndexChange={tab === "nodes" ? (idx) => {
                     setPreviewIndex(idx);
+                    setPreviewPatch(null);
                     if (idx < nodes.length) setSelectedNodeId(nodes[idx].id);
                   } : undefined}
                 />
@@ -414,14 +415,14 @@ export default function SceneEditorPage({ params }: { params: Params }) {
             <div className="flex-1 overflow-y-auto p-6">
               {selectedNode ? (
                 <div className="max-w-2xl mx-auto">
-                  <div className="mb-4 flex items-center gap-2 text-xs text-slate-500 uppercase tracking-wide font-semibold">
+                  <div className="mb-4 flex items-center justify-between text-xs text-slate-500 uppercase tracking-wide font-semibold">
+                    Édition du nœud #{nodes.findIndex((n) => n.id === selectedNode.id) + 1}
                     {autoSaving && (
                       <svg className="animate-spin w-3 h-3 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
                     )}
-                    Édition du nœud #{nodes.findIndex((n) => n.id === selectedNode.id) + 1}
                   </div>
                   <NodeForm
                     key={selectedNode.id}

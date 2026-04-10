@@ -97,6 +97,8 @@ class SceneSummary(BaseModel):
     order: int
     background_asset: Optional[AssetRef] = None
     background_loop: bool
+    character_ids: List[int] = []
+    character_positions: Dict[str, CharacterPosition] = {}
     created_at: datetime
     updated_at: datetime
 
@@ -105,9 +107,7 @@ class SceneSummary(BaseModel):
 
 class Scene(SceneSummary):
     nodes: List[Node] = []
-    character_ids: List[int] = []
     bg_custom_uploads: List[str] = []
-    character_positions: Dict[str, CharacterPosition] = {}
 
 
 # ── Story ──────────────────────────────────────────────────────────────────
@@ -131,8 +131,13 @@ class StorySummary(BaseModel):
     slug: str
     published: bool
     first_scene_background: Optional[AssetRef] = None
+    first_scene_character_ids: List[int] = []
+    first_scene_character_positions: Dict[str, CharacterPosition] = {}
+    characters: List[Character] = []
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class Story(StoryBase):

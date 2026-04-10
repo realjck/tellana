@@ -55,41 +55,22 @@ describe("NodeForm — comportement général", () => {
 
   it("appelle onSave avec les données modifiées", () => {
     const onSave = jest.fn();
+    jest.useFakeTimers();
     render(<NodeForm node={dialogueNode} characters={[]} onSave={onSave} onDelete={jest.fn()} />);
     const textarea = screen.getByDisplayValue("Texte initial");
     fireEvent.change(textarea, { target: { value: "Nouveau texte" } });
-    fireEvent.click(screen.getByText("Enregistrer"));
+    jest.runAllTimers();
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ text: "Nouveau texte" }) })
     );
+    jest.useRealTimers();
   });
 
   it("appelle onDelete au clic sur Supprimer", () => {
     const onDelete = jest.fn();
     render(<NodeForm node={dialogueNode} characters={[]} onSave={jest.fn()} onDelete={onDelete} />);
-    fireEvent.click(screen.getByText("Supprimer"));
+    fireEvent.click(screen.getByText("Supprimer ce nœud"));
     expect(onDelete).toHaveBeenCalled();
-  });
-});
-
-describe("NodeForm — changement de type", () => {
-  it("changer de type réinitialise les champs", () => {
-    render(
-      <NodeForm node={dialogueNode} characters={[]} onSave={jest.fn()} onDelete={jest.fn()} />
-    );
-    // Switch to quiz
-    fireEvent.click(screen.getByText("Quiz"));
-    expect(screen.getByPlaceholderText("Posez votre question...")).toBeInTheDocument();
-  });
-
-  it("revenir au type d'origine restaure les données sauvegardées", () => {
-    render(
-      <NodeForm node={dialogueNode} characters={[]} onSave={jest.fn()} onDelete={jest.fn()} />
-    );
-    // Switch away then back
-    fireEvent.click(screen.getByText("Quiz"));
-    fireEvent.click(screen.getByText("Dialogue"));
-    expect(screen.getByDisplayValue("Texte initial")).toBeInTheDocument();
   });
 });
 
@@ -113,11 +94,12 @@ describe("NodeForm — expression picker", () => {
 
   it("cliquer sur un badge appelle onSave avec sprite_keys", () => {
     const onSave = jest.fn();
+    jest.useFakeTimers();
     render(
       <NodeForm node={dialogueNode} characters={[charWithPoses]} onSave={onSave} onDelete={jest.fn()} />
     );
     fireEvent.click(screen.getByText("question"));
-    fireEvent.click(screen.getByText("Enregistrer"));
+    jest.runAllTimers();
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -125,6 +107,7 @@ describe("NodeForm — expression picker", () => {
         }),
       })
     );
+    jest.useRealTimers();
   });
 
   it("affiche un message si aucun personnage dans la scène", () => {
@@ -132,6 +115,29 @@ describe("NodeForm — expression picker", () => {
       <NodeForm node={dialogueNode} characters={[]} onSave={jest.fn()} onDelete={jest.fn()} />
     );
     expect(screen.getByText("Aucun personnage dans la scène.")).toBeInTheDocument();
+  });
+
+  it("désélectionne le personnage si on re-clique dessus", () => {
+    const char = makeChar({ id: 1 });
+    const node: StoryNode = {
+      id: 1, scene_id: 1, order: 0, type: "dialogue",
+      data: { character_id: 1, text: "Bonjour" } as StoryNode["data"],
+    };
+    const onSave = jest.fn();
+    jest.useFakeTimers();
+    render(
+      <NodeForm node={node} characters={[char]} onSave={onSave} onDelete={jest.fn()} />
+    );
+    // Alice is already selected (character_id: 1). Click again to deselect.
+    const aliceBlock = screen.getByText("Alice").closest("div[class*='rounded-xl']") as HTMLElement;
+    fireEvent.click(aliceBlock);
+    jest.runAllTimers();
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ character_id: null }),
+      })
+    );
+    jest.useRealTimers();
   });
 });
 

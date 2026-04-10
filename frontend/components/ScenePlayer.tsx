@@ -1,21 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AssetRef, Character, CharacterPosition, QuizNodeData, StoryNode } from "@/types";
 import { resolveAsset } from "@/lib/api";
+import { DEFAULT_POSITIONS, FALLBACK_POSITION } from "@/lib/scenePositions";
 
-// Default positions by slot (0–3) when no stored position is available.
-// 1st: centre-gauche facing right, 2nd: centre-droit facing left,
-// 3rd: far left facing right, 4th: far right facing left.
-const DEFAULT_POSITIONS: CharacterPosition[] = [
-  { x: -0.35, y: 0, scale: 1, flip_x: false },
-  { x:  0.35, y: 0, scale: 1, flip_x: true  },
-  { x: -0.7,  y: 0, scale: 1, flip_x: false },
-  { x:  0.7,  y: 0, scale: 1, flip_x: true  },
-];
-const FALLBACK_POSITION: CharacterPosition = { x: 0, y: 0, scale: 1, flip_x: false };
+const BASE_W = 1920;
+const BASE_H = 1080;
 
 interface Props {
   nodes: StoryNode[];
@@ -61,6 +54,18 @@ export default function ScenePlayer({
   const [showFeedback, setShowFeedback] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    setScale(el.getBoundingClientRect().width / BASE_W);
+    const ro = new ResizeObserver(([entry]) => {
+      setScale(entry.contentRect.width / BASE_W);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const node = nodes[index];
   const isPreviewMode = !!showMode && showMode !== "normal";
@@ -128,34 +133,6 @@ export default function ScenePlayer({
     return () => document.removeEventListener("fullscreenchange", handler);
   }, [externallyControlled]);
 
-  // End screen
-  if (isEndState) {
-    return (
-      <div
-        className="relative w-full overflow-hidden rounded-xl select-none flex items-center justify-center bg-[#0b1120]"
-        style={{ aspectRatio: "16/9" }}
-      >
-        <button
-          onClick={restart}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors text-sm"
-        >
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
-          </svg>
-          Recommencer
-        </button>
-      </div>
-    );
-  }
-
-  if (!node && !isPreviewMode) {
-    return (
-      <div className="flex items-center justify-center h-full bg-slate-900 text-slate-400 text-sm rounded-xl">
-        Aucun nœud à afficher
-      </div>
-    );
-  }
-
   const data = node ? (node.data as unknown as Record<string, unknown>) : {};
   const charId = node?.type === "dialogue" ? (data.character_id as number | null) : null;
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
@@ -184,183 +161,216 @@ export default function ScenePlayer({
       className="relative w-full overflow-hidden rounded-xl select-none"
       style={{ aspectRatio: "16/9" }}
     >
-      {/* Background */}
-      <div
-        className="absolute inset-0 bg-slate-800"
-        style={
-          backgroundAsset
-            ? {
-                backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : {}
-        }
-      />
-      <div className="absolute inset-0 bg-black/20" />
-
-      {/* SVG filter: sharp white outline via morphological dilation of the alpha channel */}
-      <svg style={{ position: "absolute", width: 0, height: 0 }}>
-        <defs>
-          <filter id="outline-white" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
-            <feMorphology in="SourceAlpha" operator="dilate" radius="4" result="dilated" />
-            <feFlood floodColor="white" floodOpacity="1" result="white" />
-            <feComposite in="white" in2="dilated" operator="in" result="outline" />
-            <feMerge>
-              <feMergeNode in="outline" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-      </svg>
-
-      {/* Characters
-          height: 100% of scene + bottom: -10% → exactly 90% visible, cut at lower leg.
-          All % values are relative to the scene container, so it scales at any resolution.
-          White outline only on the speaking character during dialogue nodes.
-          Hidden in background-only preview mode. */}
-      {showMode !== "background-only" && (
-      <div className="absolute inset-0 pointer-events-none">
-        {displayChars.map((c) => {
-          const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
-          const pos = getCharPosition(c);
-          const spriteKeys = node?.type === "dialogue"
-            ? (data.sprite_keys as Record<string, string> | undefined)
-            : undefined;
-          const poseKey = spriteKeys?.[String(c.id)];
-          const resolvedSprite = (poseKey && c.sprites[poseKey])
-            ? c.sprites[poseKey]
-            : Object.values(c.sprites)[0];
-          return (
-            <img
-              key={c.id}
-              src={resolvedSprite ? resolveAsset(resolvedSprite) : ""}
-              alt={c.name}
-              className="absolute object-contain transition-all duration-200"
-              style={{
-                height: "100%",
-                bottom: `calc(-10% + ${pos.y * 50}%)`,
-                left: `${((pos.x + 1) / 2) * 100}%`,
-                transform: `translateX(-50%) scale(${pos.scale}) scaleX(${pos.flip_x ? -1 : 1})`,
-                filter: isSpeaking ? "url(#outline-white)" : "none",
-              }}
-            />
-          );
-        })}
-      </div>
-      )}
-
-      {/* ── Dialogue box (bottom) ── */}
-      {!isPreviewMode && node?.type === "dialogue" && (
-        <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[90%] cursor-pointer"
-          onClick={advance}
-        >
-          <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-4 shadow-2xl">
-            {speakingChar && (
-              <div className="text-sm font-semibold text-blue-300 mb-1">
-                {speakingChar.name}
-              </div>
-            )}
-            <div className="flex items-end justify-between gap-4">
-              <p className="text-white text-sm leading-relaxed flex-1">
-                {data.text as string}
-              </p>
-              <button className="flex-shrink-0 text-blue-300 hover:text-white transition-colors">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5l10 7-10 7V5z" />
-                </svg>
-              </button>
-            </div>
-          </div>
+      {isEndState ? (
+        /* ── Écran de fin ── */
+        <div className="absolute inset-0 flex items-center justify-center bg-[#0b1120]">
+          <button
+            onClick={restart}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors text-sm"
+          >
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+            </svg>
+            Recommencer
+          </button>
         </div>
-      )}
-
-      {/* ── Text node: centered narrative block with thick blue border ── */}
-      {!isPreviewMode && node?.type === "text" && (
-        <div
-          className="absolute inset-0 flex items-center justify-center cursor-pointer p-8"
-          onClick={advance}
-        >
-          <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-8 py-6 max-w-xl w-full flex flex-col gap-4">
-            <div className="prose prose-invert prose-sm max-w-none text-white leading-relaxed
-              prose-p:my-1 prose-headings:text-white prose-headings:font-bold
-              prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
-              prose-strong:text-white prose-em:text-slate-200
-              prose-ul:my-1 prose-ol:my-1 prose-li:my-0
-              prose-blockquote:border-blue-400 prose-blockquote:text-slate-300
-              prose-code:text-blue-200 prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded
-              prose-a:text-blue-300">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {data.text as string}
-              </ReactMarkdown>
-            </div>
-            <div className="flex justify-end">
-              <button className="text-blue-300 hover:text-white transition-colors flex items-center gap-1.5 text-sm">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5l10 7-10 7V5z" />
-                </svg>
-                Continuer
-              </button>
-            </div>
-          </div>
+      ) : !node && !isPreviewMode ? (
+        /* ── Aucun nœud ── */
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-slate-400 text-sm">
+          Aucun nœud à afficher
         </div>
-      )}
-
-      {/* Quiz box */}
-      {!isPreviewMode && node?.type === "quiz" && quizState && (
-        <QuizPanel
-          data={data as unknown as QuizNodeData}
-          quizState={quizState}
-          showFeedback={showFeedback}
-          onSelect={(idx) => {
-            if (quizState.confirmed) return;
-            const qd = data as unknown as QuizNodeData;
-            if (qd.type === "qcu") {
-              setQuizState({ selectedIndices: [idx], confirmed: false });
-            } else {
-              const already = quizState.selectedIndices.includes(idx);
-              setQuizState({
-                selectedIndices: already
-                  ? quizState.selectedIndices.filter((i) => i !== idx)
-                  : [...quizState.selectedIndices, idx],
-                confirmed: false,
-              });
+      ) : (
+        /* ── Contenu scalé 1920×1080 ── */
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: BASE_W,
+            height: BASE_H,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        >
+          {/* Background */}
+          <div
+            className="absolute inset-0 bg-slate-800"
+            style={
+              backgroundAsset
+                ? {
+                    backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }
+                : {}
             }
-          }}
-          onConfirm={() => {
-            if (quizState.selectedIndices.length === 0) return;
-            setQuizState((s) => s && { ...s, confirmed: true });
-            setShowFeedback(true);
-          }}
-          onContinue={advance}
-        />
-      )}
+          />
+          <div className="absolute inset-0 bg-black/20" />
 
-      {/* Progress indicator — hidden in preview modes */}
-      {!isPreviewMode && (
-        <div className="absolute top-3 right-3 text-xs text-white/50">
-          {index + 1} / {nodes.length}
-        </div>
-      )}
+          {/* SVG filter: sharp white outline via morphological dilation of the alpha channel */}
+          <svg style={{ position: "absolute", width: 0, height: 0 }}>
+            <defs>
+              <filter id="outline-white" x="-20%" y="-20%" width="140%" height="140%" colorInterpolationFilters="sRGB">
+                <feMorphology in="SourceAlpha" operator="dilate" radius="4" result="dilated" />
+                <feFlood floodColor="white" floodOpacity="1" result="white" />
+                <feComposite in="white" in2="dilated" operator="in" result="outline" />
+                <feMerge>
+                  <feMergeNode in="outline" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+          </svg>
 
-      {/* Fullscreen toggle */}
-      {!compact && (
-        <button
-          onClick={toggleFullscreen}
-          className="absolute top-3 left-3 text-white/50 hover:text-white transition-colors"
-          title={activeFullscreen ? "Quitter le plein écran" : "Plein écran"}
-        >
-          {activeFullscreen ? (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M16 4h4v4M4 16v4h4M16 20h4v-4" />
-            </svg>
+          {/* Characters
+              height: 100% of scene + bottom: -10% → exactly 90% visible, cut at lower leg.
+              All % values are relative to the scene container, so it scales at any resolution.
+              White outline only on the speaking character during dialogue nodes.
+              Hidden in background-only preview mode. */}
+          {showMode !== "background-only" && (
+          <div className="absolute inset-0 pointer-events-none">
+            {displayChars.map((c) => {
+              const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
+              const pos = getCharPosition(c);
+              const spriteKeys = node?.type === "dialogue"
+                ? (data.sprite_keys as Record<string, string> | undefined)
+                : undefined;
+              const poseKey = spriteKeys?.[String(c.id)];
+              const resolvedSprite = (poseKey && c.sprites[poseKey])
+                ? c.sprites[poseKey]
+                : Object.values(c.sprites)[0];
+              return (
+                <img
+                  key={c.id}
+                  src={resolvedSprite ? resolveAsset(resolvedSprite) : ""}
+                  alt={c.name}
+                  className="absolute object-contain transition-all duration-200"
+                  style={{
+                    height: "100%",
+                    bottom: `calc(-10% + ${pos.y * 50}%)`,
+                    left: `${((pos.x + 1) / 2) * 100}%`,
+                    transform: `translateX(-50%) scale(${pos.scale}) scaleX(${pos.flip_x ? -1 : 1})`,
+                    filter: isSpeaking ? "url(#outline-white)" : "none",
+                  }}
+                />
+              );
+            })}
+          </div>
           )}
-        </button>
+
+          {/* ── Dialogue box (bottom) ── */}
+          {!isPreviewMode && node?.type === "dialogue" && (
+            <div
+              className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[90%] cursor-pointer"
+              onClick={advance}
+            >
+              <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-16 py-10 shadow-2xl">
+                {speakingChar && (
+                  <div className="text-[52px] font-semibold text-blue-300 mb-3">
+                    {speakingChar.name}
+                  </div>
+                )}
+                <div className="flex items-end justify-between gap-10">
+                  <p className="text-white text-[48px] leading-relaxed flex-1">
+                    {data.text as string}
+                  </p>
+                  <button className="flex-shrink-0 text-blue-300 hover:text-white transition-colors">
+                    <svg className="w-20 h-20" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5l10 7-10 7V5z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Text node: centered narrative block with thick blue border ── */}
+          {!isPreviewMode && node?.type === "text" && (
+            <div
+              className="absolute inset-0 flex items-center justify-center cursor-pointer p-24"
+              onClick={advance}
+            >
+              <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-24 py-16 max-w-5xl w-full flex flex-col gap-10">
+                <div className="prose prose-invert max-w-none text-white leading-relaxed
+                  prose-p:my-2 prose-headings:text-white prose-headings:font-bold
+                  prose-strong:text-white prose-em:text-slate-200
+                  prose-ul:my-2 prose-ol:my-2 prose-li:my-0
+                  prose-blockquote:border-blue-400 prose-blockquote:text-slate-300
+                  prose-code:text-blue-200 prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded
+                  prose-a:text-blue-300"
+                  style={{ fontSize: "48px" }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {data.text as string}
+                  </ReactMarkdown>
+                </div>
+                <div className="flex justify-end">
+                  <button className="text-blue-300 hover:text-white transition-colors flex items-center gap-6 text-[48px]">
+                    <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M8 5l10 7-10 7V5z" />
+                    </svg>
+                    Continuer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quiz box */}
+          {!isPreviewMode && node?.type === "quiz" && quizState && (
+            <QuizPanel
+              data={data as unknown as QuizNodeData}
+              quizState={quizState}
+              showFeedback={showFeedback}
+              onSelect={(idx) => {
+                if (quizState.confirmed) return;
+                const qd = data as unknown as QuizNodeData;
+                if (qd.type === "qcu") {
+                  setQuizState({ selectedIndices: [idx], confirmed: false });
+                } else {
+                  const already = quizState.selectedIndices.includes(idx);
+                  setQuizState({
+                    selectedIndices: already
+                      ? quizState.selectedIndices.filter((i) => i !== idx)
+                      : [...quizState.selectedIndices, idx],
+                    confirmed: false,
+                  });
+                }
+              }}
+              onConfirm={() => {
+                if (quizState.selectedIndices.length === 0) return;
+                setQuizState((s) => s && { ...s, confirmed: true });
+                setShowFeedback(true);
+              }}
+              onContinue={advance}
+            />
+          )}
+
+          {/* Progress indicator — hidden in preview modes */}
+          {!isPreviewMode && (
+            <div className="absolute top-10 right-10 text-[44px] text-white/50">
+              {index + 1} / {nodes.length}
+            </div>
+          )}
+
+          {/* Fullscreen toggle */}
+          {!compact && (
+            <button
+              onClick={toggleFullscreen}
+              className="absolute top-10 left-10 text-white/50 hover:text-white transition-colors"
+              title={activeFullscreen ? "Quitter le plein écran" : "Plein écran"}
+            >
+              {activeFullscreen ? (
+                <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M16 4h4v4M4 16v4h4M16 20h4v-4" />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -384,22 +394,22 @@ function QuizPanel({
   onContinue: () => void;
 }) {
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[90%]">
-      <div className="bg-slate-900/90 backdrop-blur-sm border border-white/10 rounded-2xl px-6 py-5 shadow-2xl">
-        <p className="text-white font-semibold mb-4 text-sm">{data.question}</p>
+    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[90%]">
+      <div className="bg-slate-900/90 backdrop-blur-sm border border-white/10 rounded-2xl px-16 py-12 shadow-2xl">
+        <p className="text-white font-semibold mb-10 text-[52px]">{data.question}</p>
 
         {data.type === "qcm" && (
-          <p className="text-xs text-slate-400 mb-2">
+          <p className="text-[40px] text-slate-400 mb-6">
             Plusieurs réponses possibles
           </p>
         )}
 
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-6">
           {data.options.map((opt, i) => {
             const selected = quizState.selectedIndices.includes(i);
             const revealed = showFeedback;
             let optClass =
-              "px-4 py-2 rounded-xl text-sm font-medium border transition-all cursor-pointer text-left ";
+              "px-10 py-6 rounded-xl text-[44px] font-medium border transition-all cursor-pointer text-left ";
             if (revealed) {
               if (opt.is_correct) {
                 optClass += "bg-green-500/20 border-green-500 text-green-300";
@@ -435,27 +445,27 @@ function QuizPanel({
 
         {/* Feedback */}
         {showFeedback && data.feedback && (
-          <div className="mt-3 p-3 rounded-xl bg-white/5 text-sm text-slate-300">
+          <div className="mt-8 p-8 rounded-xl bg-white/5 text-[44px] text-slate-300">
             {data.feedback}
           </div>
         )}
 
-        <div className="flex justify-end mt-4">
+        <div className="flex justify-end mt-10">
           {!showFeedback ? (
             <button
               onClick={onConfirm}
               disabled={quizState.selectedIndices.length === 0}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+              className="px-12 py-6 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[44px] font-semibold transition-colors"
             >
               Valider
             </button>
           ) : (
             <button
               onClick={onContinue}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors flex items-center gap-2"
+              className="px-12 py-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[44px] font-semibold transition-colors flex items-center gap-6"
             >
               Continuer
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-14 h-14" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5l10 7-10 7V5z" />
               </svg>
             </button>

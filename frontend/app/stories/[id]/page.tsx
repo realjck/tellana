@@ -4,9 +4,10 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { api, resolveAsset } from "@/lib/api";
-import type { SceneSummary, Story } from "@/types";
+import { api } from "@/lib/api";
+import type { Character, SceneSummary, Story } from "@/types";
 import CharacterManager from "@/components/CharacterManager";
+import ScenePreviewThumbnail from "@/components/ScenePreviewThumbnail";
 import ConfirmModal from "@/components/ConfirmModal";
 
 type Params = Promise<{ id: string }>;
@@ -264,6 +265,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                     index={i}
                     total={scenes.length}
                     storyId={storyId}
+                    characters={characters}
                     onMove={moveScene}
                     onDelete={() => setConfirmDeleteSceneId(scene.id)}
                   />
@@ -319,6 +321,7 @@ function SceneCard({
   index,
   total,
   storyId,
+  characters,
   onMove,
   onDelete,
 }: {
@@ -326,12 +329,15 @@ function SceneCard({
   index: number;
   total: number;
   storyId: number;
+  characters: Character[];
   onMove: (id: number, dir: "up" | "down") => void;
   onDelete: () => void;
 }) {
   const router = useRouter();
-  const bg = scene.background_asset;
-  const bgUrl = bg ? resolveAsset(bg) : null;
+
+  const sceneCharacters: Character[] = scene.character_ids
+    .map((id) => characters.find((c) => c.id === id))
+    .filter((c): c is Character => !!c);
 
   return (
     <div
@@ -353,18 +359,12 @@ function SceneCard({
       </div>
 
       {/* Thumbnail */}
-      {bgUrl ? (
-        <div
-          className="w-24 h-16 flex-shrink-0 rounded-xl bg-cover bg-center"
-          style={{ backgroundImage: `url(${bgUrl})` }}
-        />
-      ) : (
-        <div className="w-24 h-16 flex-shrink-0 rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
-          <svg className="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-          </svg>
-        </div>
-      )}
+      <ScenePreviewThumbnail
+        backgroundAsset={scene.background_asset}
+        characters={sceneCharacters}
+        characterPositions={scene.character_positions}
+        className="w-40 h-[90px] flex-shrink-0 rounded-xl"
+      />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
