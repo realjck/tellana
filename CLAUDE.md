@@ -8,10 +8,10 @@ Plateforme Visual Novel : éditeur de stories composées de scènes (dialogues, 
 
 **Intégration prévue** avec **Media Creator** (projet compagnon : génération/édition d'images et vidéos par IA, local-first + cloud). Phase 1 : import d'assets. Spec : `docs/superpowers/specs/2026-04-07-media-creator-integration-design.md`.
 
-### Hiérarchie des objets (V2)
+### Hiérarchie des objets
 
-- **Story** (parent) : titre, slug, published, personnages — une story = plusieurs scènes ordonnées
-- **Scene** : séquence de nœuds avec son propre décor, titre, `character_ids` (persos visibles, ordonnés, max 4), ordonnée au sein d'une story
+- **Story** : titre, slug, published, personnages — une story = plusieurs scènes ordonnées
+- **Scene** : séquence de nœuds avec son propre décor, titre, `character_ids` (persos visibles, ordonnés, max 4), `character_positions`
 - **Character** : attaché à la Story (partagé entre toutes les scènes), sans champ `position` (positionné dynamiquement par ScenePlayer)
 - **Node** : attaché à une Scene via `scene_id`
 
@@ -56,78 +56,89 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 
 ### Backend
 - Schémas Pydantic : `type: Literal["dialogue","text","quiz"]` — ne pas élargir en `str`, mais documenter les types futurs prévus (`"image"`, `"video"`, `"image_text"`) en commentaire.
-- `Character` n'a pas de champ `position` (positionnement dynamique dans ScenePlayer).
-- `Character` cible V2 : `sprites: dict[str, AssetRef]` (implémenté).
-- `Scene` : `background_asset: AssetRef | None` + `background_loop: bool` + `bg_custom_uploads: list[str]` + `character_ids: list[int]`.
+- `Character` n'a pas de champ `position` (positionnement dynamique dans ScenePlayer). `sprites: dict[str, AssetRef]`.
+- `Scene` hérite de `SceneSummary` — ne pas dupliquer les champs. `SceneSummary` inclut `character_ids: list[int]` et `character_positions: Dict[str, CharacterPosition]`.
+- `StorySummary` inclut `first_scene_character_ids`, `first_scene_character_positions`, `characters: list[Character]` — construits manuellement dans `list_stories` avec `selectinload(Story.scenes)` + `selectinload(Story.characters)`.
 - `exclude_unset=True` sur tous les PATCH pour n'écraser que les champs fournis.
 - Reorder : valider tous les IDs avant de committer (lever `HTTPException(400)` si ID inconnu).
 - Slug : `unicodedata.normalize("NFKD")` + encode ASCII avant le regex pour translittérer les accents.
 - `character_ids` sur Scene : max 4, doivent appartenir à la story (validé dans PATCH scenes).
-
-## Architecture ScenePlayer
-
-`ScenePlayer.tsx` est le moteur de rendu VN. Props clés :
-- `characters` : liste pré-filtrée par l'appelant depuis `scene.character_ids` — ScenePlayer affiche tous les persos reçus.
-- `characterPositions?: Record<string, CharacterPosition>` — positions par perso (clé = `string(id)`). Priorité sur les defaults par slot.
-- `showMode?: "normal" | "characters-only" | "background-only"` — pour les previews de l'éditeur.
-- `onIndexChange?: (index: number) => void` — callback pour synchroniser la sidebar. Implémenté via ref pattern (pas de dep array supprimé).
-- Positionnement personnages : `DEFAULT_POSITIONS[0..3]` (slots) + `FALLBACK_POSITION`. CSS : `height:100%`, `bottom: calc(-10% + y*50%)`, `left: ((x+1)/2)*100%`, `transform: translateX(-50%) scale(s) scaleX(flip)`. Pivot centré (transform-origin par défaut).
-- **Nœuds texte** : aucun personnage affiché — affiche le décor de scène (même background que les dialogues). Rendu Markdown via `react-markdown` + `remark-gfm`, encadré `bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl`. `TextNodeData` n'a plus de `character_id`.
-- **Nœuds dialogue** : tous les persos de scène visibles. Outline blanc sur perso actif : filtre SVG `feMorphology operator="dilate"` (pas `drop-shadow`).
-- Pas de raccourcis clavier (Space/Enter/ArrowRight supprimés).
-- Écran de fin : `index >= nodes.length` → affiche bouton Recommencer.
-
-`MultiScenePlayer.tsx` enchaîne plusieurs `ScenePlayer` (une scene à la fois, `key={scene.id}` force le remontage). Avance automatiquement sur `onEnd`. Affiche un écran de fin avec bouton Rejouer. Passe `characterPositions={scene.character_positions}`.
-
-`SceneCharacterSelector.tsx` — onglet Perso de l'éditeur de scène : toggle des persos visibles (max 4), blocs dépliables par perso avec sliders de position (X, Y, Échelle) et toggle orientation. Callbacks : `onChange(ids, positions)` (persist), `onPositionChange(charId, pos)` (real-time), `onPositionCommit(charId, pos)` (persist au relâchement du slider).
-
-## Positionnement des personnages (TEL-14)
-
-- `Scene.character_positions: Dict[str, CharacterPosition]` (JSON, backend) / `Record<string, CharacterPosition>` (frontend). Clé = `str(character_id)`.
-- `CharacterPosition` : `{ x: float [-1,1], y: float [-3,1], scale: float [0.1,2.5], flip_x: bool }`.
-- Migration SQLite au démarrage : `ALTER TABLE scenes ADD COLUMN character_positions JSON DEFAULT '{}'` dans try/except.
-- Éditeur : `localPositions` (state React) pour la preview temps réel, API PATCH uniquement sur `onPointerUp` du slider.
 - Suppression d'un personnage story : le backend nettoie `character_ids` et `character_positions` dans toutes les scènes de la story.
+
+## Architecture ScenePlayer / rendu visuel
+
+### Scale uniforme 1920×1080
+
+`ScenePlayer.tsx` rend un inner div fixe 1920×1080 px, scalé via `transform: scale(ratio)` avec `transformOrigin: "top left"`. `ratio = containerWidth / 1920` mesuré par `useLayoutEffect` + `ResizeObserver` (sur `containerRef`). L'outer div maintient `aspectRatio: 16/9`. **Utiliser `useLayoutEffect` (pas `useEffect`) pour éviter le flash au premier render.**
+
+Les tailles de texte et icônes dans le inner div sont définies pour 1920px base (~48-52px pour le corps de texte, ~20px pour les icônes).
+
+### ScenePlayer props
+
+- `characters` : liste pré-filtrée par l'appelant depuis `scene.character_ids`.
+- `characterPositions?: Record<string, CharacterPosition>` — positions par perso (clé = `string(id)`).
+- `showMode?: "normal" | "characters-only" | "background-only"` — pour les previews de l'éditeur.
+- `onIndexChange?: (index: number) => void` — callback sidebar, via ref pattern.
+- Pas de raccourcis clavier. Écran de fin : `index >= nodes.length` → bouton Recommencer.
+
+### Positionnement personnages
+
+Constantes partagées dans `frontend/lib/scenePositions.ts` : `DEFAULT_POSITIONS[0..3]` + `FALLBACK_POSITION`. Importées par `ScenePlayer` et `ScenePreviewThumbnail`.
+
+CSS : `height:100%`, `bottom: calc(-10% + y*50%)`, `left: ((x+1)/2)*100%`, `transform: translateX(-50%) scale(s) scaleX(flip)`.
+
+`CharacterPosition` : `{ x: float [-1,1], y: float [-3,1], scale: float [0.1,2.5], flip_x: bool }`. Clé = `str(character_id)`.
+
+### ScenePreviewThumbnail
+
+`frontend/components/ScenePreviewThumbnail.tsx` — composant statique (pas d'interaction) affichant fond + sprites positionnés. Même logique de scale 1920×1080 que `ScenePlayer`. Props : `backgroundAsset`, `characters`, `characterPositions`, `className`. Utilisé dans la page story (`w-40 h-[90px]`) et la page d'accueil (`w-full aspect-video`).
+
+### MultiScenePlayer
+
+`MultiScenePlayer.tsx` enchaîne plusieurs `ScenePlayer` (`key={scene.id}` force le remontage). Avance automatiquement sur `onEnd`. Passe `characterPositions={scene.character_positions}`.
+
+### SceneCharacterSelector
+
+Onglet Perso de l'éditeur : toggle des persos visibles (max 4), sliders de position (X, Y, Échelle) et toggle orientation. Callbacks : `onChange(ids, positions)` (persist), `onPositionChange(charId, pos)` (real-time), `onPositionCommit(charId, pos)` (persist au relâchement).
 
 ## Éditeur de scène (page edit)
 
-- Tab "Script" (ex "Noeuds") : liste des nœuds + formulaire d'édition.
-- Ajout de nœud : bouton "+ Ajouter un nœud" ouvre un sous-menu (Dialogue / Texte narratif / Quiz). Type choisi à la création, non modifiable ensuite. Nœud inséré après le nœud courant (reorder API après création).
-- `NodeForm` : type fixé, pas de sélecteur. `DialogueFields` (personnage + texte), `TextFields` (Markdown), `QuizFields` séparés.
-  - `DialogueFields` : sélection du personnage par clic sur les blocs poses (bouton radio visuel bleu à droite du bloc). Colonne poses/personnage à gauche (1fr), texte à droite (2fr). Bouton "Ajouter un nœud dialogue" sous le textarea.
-  - Auto-save 1 s avec spinner. Pas de bouton Enregistrer. Bouton "Supprimer" réduit, aligné à droite.
-- Titre de scène éditable inline dans la navbar.
-- Nouvelle scène → redirect vers l'éditeur à l'onglet `?tab=background`.
-- `sceneCharacters` passé à `NodeForm` (persos de la scène uniquement, pas tous les persos de la story).
-- Root div : `h-screen overflow-hidden` (critique pour le scroll des nœuds). Liste des nœuds scrollable (`flex-1 min-h-0 overflow-y-auto`), bouton Ajouter fixe (`flex-shrink-0`).
-- `onEditingCharacter` callback de `CharacterManager` → masque la navbar story (`opacity-20 pointer-events-none`) pendant l'édition de personnage.
+- Tab "Script" : liste des nœuds + formulaire d'édition.
+- Ajout de nœud : sous-menu (Dialogue / Texte narratif / Quiz). Type fixé à la création. Nœud inséré après le nœud courant.
+- `NodeForm` : `DialogueFields` (personnage + texte), `TextFields` (Markdown), `QuizFields`.
+  - `DialogueFields` : clic sur un bloc personnage le sélectionne ; re-clic sur le même le désélectionne (`character_id → null`).
+  - Auto-save 1 s avec spinner affiché à droite du titre "Édition du nœud". Pas de bouton Enregistrer.
+- `previewPatch` : patch live pour la preview lors de l'édition. Réinitialisé à `null` dans `onIndexChange` pour éviter la contamination lors de l'avance dans la preview.
+- `sceneCharacters` passé à `NodeForm` (persos de la scène uniquement).
+- Root div : `h-screen overflow-hidden`. Liste des nœuds scrollable (`flex-1 min-h-0 overflow-y-auto`), bouton Ajouter fixe (`flex-shrink-0`).
+- `onEditingCharacter` callback → masque la navbar story (`opacity-20 pointer-events-none`) pendant l'édition.
 
-## Personnages et poses (TEL-11)
+## Personnages et poses
 
-- `CharacterManager` : modes list / add / edit / poses. `onEditingCharacter?(editing: boolean)` remonte l'état d'édition à la page story.
-- `CharacterBasicForm` : grille sprites 3 colonnes, bouton "Gérer les poses" amber (`bg-amber-900/20 border-amber-600/60 text-amber-400`).
-- `CharacterPosesManager` : gestion des poses (add, rename, delete, change image). Overlay modale propre pour les noms dupliqués (pas d'alert navigateur). Blocs amber (`bg-amber-900/10 border-amber-700/40`). Badge "défaut" non renommable.
-- `CharacterPosesDrawer` : preview des sprites à droite (z-30). Sélecteur de pose amber actif.
-- Overlay backdrop `fixed left-[36rem] inset-y-0 right-0` (couvre uniquement la zone main, pas la sidebar) avec `bg-black/50 backdrop-blur-sm`. Clic ferme l'édition.
+- `CharacterManager` : modes list / add / edit / poses. `onEditingCharacter?(editing: boolean)` remonte l'état.
+- `CharacterBasicForm` : grille sprites 3 colonnes, bouton "Gérer les poses" amber.
+- `CharacterPosesManager` : gestion des poses (add, rename, delete, change image). Overlay modale pour noms dupliqués. Badge "défaut" non renommable.
+- `CharacterPosesDrawer` : preview des sprites à droite (z-30).
+- Overlay backdrop `fixed left-[36rem] inset-y-0 right-0` avec `bg-black/50 backdrop-blur-sm`.
 
 ## UI générale
 
-- `ConfirmModal` : remplace tous les `confirm()` natifs (suppression story, scène, personnage).
-- Story page navbar : libellé "Éditer votre story" (petit, grisé) + titre en gras `text-lg` éditable.
-- Story publiée : bouton "Voir la page publique" (icône lien externe) dans la navbar, à gauche du bouton copier le lien.
-- Bouton copier le lien : coche verte 2 s au lieu de l'alert système.
+- `ConfirmModal` : remplace tous les `confirm()` natifs.
+- Story page navbar : libellé "Éditer votre story" (petit, grisé) + titre éditable.
+- Story publiée : bouton "Voir la page publique" dans la navbar + bouton copier le lien (coche verte 2 s).
 - Limite 4 personnages : s'applique uniquement à la scène (`character_ids`), pas à la story.
 
 ## Tests
 
-### Backend (43 tests)
+### Backend (45 tests)
 - Fixture `client` dans `tests/conftest.py` : SQLite in-memory avec `StaticPool` + override `get_db`.
 - Uploads redirigés vers `tmp_path` via `monkeypatch`.
 - Lancer depuis `backend/` : `python -m pytest`.
 
-### Frontend Jest (28 tests)
+### Frontend Jest (39 tests)
 - Config dans `jest.config.ts` avec `next/jest.js`.
 - `testMatch` limité à `__tests__/` pour exclure les fichiers Playwright `e2e/`.
+- `jest.setup.ts` : mock `ResizeObserver` (requis pour ScenePlayer et ScenePreviewThumbnail).
 - Mocker `@/lib/api` dans chaque fichier de test.
 
 ### Playwright E2E
