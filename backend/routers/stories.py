@@ -24,16 +24,24 @@ def _generate_slug(title: str) -> str:
 
 @router.get("/", response_model=List[schemas.StorySummary])
 def list_stories(db: Session = Depends(get_db)):
-    stories = db.query(models.Story).order_by(models.Story.updated_at.desc()).all()
+    stories = (
+        db.query(models.Story)
+        .options(selectinload(models.Story.characters), selectinload(models.Story.scenes))
+        .order_by(models.Story.updated_at.desc())
+        .all()
+    )
     result = []
     for story in stories:
-        first_bg = story.scenes[0].background_asset if story.scenes else None
+        first_scene = story.scenes[0] if story.scenes else None
         result.append(schemas.StorySummary(
             id=story.id,
             title=story.title,
             slug=story.slug,
             published=story.published,
-            first_scene_background=first_bg,
+            first_scene_background=first_scene.background_asset if first_scene else None,
+            first_scene_character_ids=first_scene.character_ids if first_scene else [],
+            first_scene_character_positions=first_scene.character_positions if first_scene else {},
+            characters=[schemas.Character.model_validate(c) for c in story.characters],
             created_at=story.created_at,
             updated_at=story.updated_at,
         ))

@@ -108,3 +108,58 @@ def test_delete_story(client):
     res = client.delete(f"/api/stories/{story_id}")
     assert res.status_code == 204
     assert client.get(f"/api/stories/{story_id}").status_code == 404
+
+
+def test_story_scenes_include_character_ids_and_positions(client):
+    story_id = client.post("/api/stories/", json={"title": "S"}).json()["id"]
+    scene_id = client.post(
+        f"/api/stories/{story_id}/scenes/", json={"title": "Sc1"}
+    ).json()["id"]
+    # Create a character
+    char_id = client.post(
+        f"/api/stories/{story_id}/characters/",
+        json={"name": "Alice", "sprites": {}},
+    ).json()["id"]
+    # Assign character to scene with a position
+    client.patch(
+        f"/api/stories/{story_id}/scenes/{scene_id}",
+        json={
+            "character_ids": [char_id],
+            "character_positions": {str(char_id): {"x": 0.5, "y": 0.0, "scale": 1.0, "flip_x": False}},
+        },
+    )
+    res = client.get(f"/api/stories/{story_id}")
+    assert res.status_code == 200
+    scene = res.json()["scenes"][0]
+    assert "character_ids" in scene
+    assert char_id in scene["character_ids"]
+    assert "character_positions" in scene
+    assert str(char_id) in scene["character_positions"]
+    assert scene["character_positions"][str(char_id)]["x"] == 0.5
+
+
+def test_list_stories_includes_first_scene_chars_and_characters(client):
+    story_id = client.post("/api/stories/", json={"title": "S"}).json()["id"]
+    scene_id = client.post(
+        f"/api/stories/{story_id}/scenes/", json={"title": "Sc1"}
+    ).json()["id"]
+    char_id = client.post(
+        f"/api/stories/{story_id}/characters/",
+        json={"name": "Alice", "sprites": {}},
+    ).json()["id"]
+    client.patch(
+        f"/api/stories/{story_id}/scenes/{scene_id}",
+        json={
+            "character_ids": [char_id],
+            "character_positions": {str(char_id): {"x": -0.3, "y": 0.0, "scale": 1.0, "flip_x": False}},
+        },
+    )
+    res = client.get("/api/stories/")
+    assert res.status_code == 200
+    s = res.json()[0]
+    assert "first_scene_character_ids" in s
+    assert char_id in s["first_scene_character_ids"]
+    assert "first_scene_character_positions" in s
+    assert str(char_id) in s["first_scene_character_positions"]
+    assert "characters" in s
+    assert any(c["id"] == char_id for c in s["characters"])

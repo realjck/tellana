@@ -53,17 +53,6 @@ export interface StoryNode {
   data: NodeData;
 }
 
-export interface SceneSummary {
-  id: number;
-  story_id: number;
-  title: string;
-  order: number;
-  background_asset: AssetRef | null;
-  background_loop: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface CharacterPosition {
   x: number;       // -1 to +1, 0 = center
   y: number;       // -1 to +1, 0 = default vertical
@@ -71,11 +60,22 @@ export interface CharacterPosition {
   flip_x: boolean;
 }
 
+export interface SceneSummary {
+  id: number;
+  story_id: number;
+  title: string;
+  order: number;
+  background_asset: AssetRef | null;
+  background_loop: boolean;
+  character_ids: number[];
+  character_positions: Record<string, CharacterPosition>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Scene extends SceneSummary {
   nodes: StoryNode[];
-  character_ids: number[];
   bg_custom_uploads: string[];
-  character_positions: Record<string, CharacterPosition>;
 }
 
 export interface Story {
@@ -95,6 +95,9 @@ export interface StorySummary {
   slug: string;
   published: boolean;
   first_scene_background: AssetRef | null;
+  first_scene_character_ids: number[];
+  first_scene_character_positions: Record<string, CharacterPosition>;
+  characters: Character[];
   created_at: string;
   updated_at: string;
 }

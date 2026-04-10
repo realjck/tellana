@@ -4,9 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { api, resolveAsset } from "@/lib/api";
-import type { StorySummary } from "@/types";
+import { api } from "@/lib/api";
+import type { StorySummary, Character } from "@/types";
 import ConfirmModal from "@/components/ConfirmModal";
+import ScenePreviewThumbnail from "@/components/ScenePreviewThumbnail";
 
 const fetcher = () => api.stories.list();
 
@@ -137,24 +138,23 @@ function StoryCard({
   onDelete: () => void;
 }) {
   const router = useRouter();
+
+  const firstSceneChars: Character[] = story.first_scene_character_ids
+    .map((id) => story.characters.find((c) => c.id === id))
+    .filter((c): c is Character => !!c);
+
   return (
     <div
       onClick={() => router.push(`/stories/${story.id}`)}
       className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-black/20 cursor-pointer"
     >
-      {/* Background preview — uses first scene's background */}
-      {story.first_scene_background ? (
-        <div
-          className="h-28 bg-cover bg-center"
-          style={{ backgroundImage: `url(${resolveAsset(story.first_scene_background)})` }}
-        />
-      ) : (
-        <div className="h-28 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
-          <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-          </svg>
-        </div>
-      )}
+      {/* Preview 16:9 avec personnages */}
+      <ScenePreviewThumbnail
+        backgroundAsset={story.first_scene_background}
+        characters={firstSceneChars}
+        characterPositions={story.first_scene_character_positions}
+        className="w-full aspect-video"
+      />
 
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-3">

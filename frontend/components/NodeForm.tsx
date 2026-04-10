@@ -125,7 +125,7 @@ function DialogueFields({
               return (
                 <div
                   key={c.id}
-                  onClick={() => onChange({ ...data, character_id: c.id })}
+                  onClick={() => onChange({ ...data, character_id: selectedCharId === c.id ? null : c.id })}
                   className={`rounded-xl p-2 border cursor-pointer transition-colors flex items-start gap-2 ${
                     isSelected
                       ? "bg-blue-900/20 border-blue-600/70"
