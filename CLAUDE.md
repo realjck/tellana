@@ -72,7 +72,7 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 - `showMode?: "normal" | "characters-only" | "background-only"` — pour les previews de l'éditeur.
 - `onIndexChange?: (index: number) => void` — callback pour synchroniser la sidebar. Implémenté via ref pattern (pas de dep array supprimé).
 - Positionnement personnages : `DEFAULT_POSITIONS[0..3]` (slots) + `FALLBACK_POSITION`. CSS : `height:100%`, `bottom: calc(-10% + y*50%)`, `left: ((x+1)/2)*100%`, `transform: translateX(-50%) scale(s) scaleX(flip)`. Pivot centré (transform-origin par défaut).
-- **Nœuds texte** : aucun personnage affiché — fond `#0b1120`, rendu Markdown via `react-markdown` + `remark-gfm`, encadré `border-4 border-blue-500 rounded-2xl`. `TextNodeData` n'a plus de `character_id`.
+- **Nœuds texte** : aucun personnage affiché — affiche le décor de scène (même background que les dialogues). Rendu Markdown via `react-markdown` + `remark-gfm`, encadré `bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl`. `TextNodeData` n'a plus de `character_id`.
 - **Nœuds dialogue** : tous les persos de scène visibles. Outline blanc sur perso actif : filtre SVG `feMorphology operator="dilate"` (pas `drop-shadow`).
 - Pas de raccourcis clavier (Space/Enter/ArrowRight supprimés).
 - Écran de fin : `index >= nodes.length` → affiche bouton Recommencer.
@@ -92,11 +92,23 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 ## Éditeur de scène (page edit)
 
 - Tab "Script" (ex "Noeuds") : liste des nœuds + formulaire d'édition.
-- Ajout de nœud : toujours type "dialogue", inséré après le nœud courant (reorder API après création). Pas de menu déroulant.
-- `NodeForm` : `DialogueFields` (personnage + texte) et `TextFields` (texte Markdown seul) séparés.
+- Ajout de nœud : bouton "+ Ajouter un nœud" ouvre un sous-menu (Dialogue / Texte narratif / Quiz). Type choisi à la création, non modifiable ensuite. Nœud inséré après le nœud courant (reorder API après création).
+- `NodeForm` : type fixé, pas de sélecteur. `DialogueFields` (personnage + texte), `TextFields` (Markdown), `QuizFields` séparés.
+  - `DialogueFields` : sélection du personnage par clic sur les blocs poses (bouton radio visuel bleu à droite du bloc). Colonne poses/personnage à gauche (1fr), texte à droite (2fr). Bouton "Ajouter un nœud dialogue" sous le textarea.
+  - Auto-save 1 s avec spinner. Pas de bouton Enregistrer. Bouton "Supprimer" réduit, aligné à droite.
 - Titre de scène éditable inline dans la navbar.
 - Nouvelle scène → redirect vers l'éditeur à l'onglet `?tab=background`.
 - `sceneCharacters` passé à `NodeForm` (persos de la scène uniquement, pas tous les persos de la story).
+- Root div : `h-screen overflow-hidden` (critique pour le scroll des nœuds). Liste des nœuds scrollable (`flex-1 min-h-0 overflow-y-auto`), bouton Ajouter fixe (`flex-shrink-0`).
+- `onEditingCharacter` callback de `CharacterManager` → masque la navbar story (`opacity-20 pointer-events-none`) pendant l'édition de personnage.
+
+## Personnages et poses (TEL-11)
+
+- `CharacterManager` : modes list / add / edit / poses. `onEditingCharacter?(editing: boolean)` remonte l'état d'édition à la page story.
+- `CharacterBasicForm` : grille sprites 3 colonnes, bouton "Gérer les poses" amber (`bg-amber-900/20 border-amber-600/60 text-amber-400`).
+- `CharacterPosesManager` : gestion des poses (add, rename, delete, change image). Overlay modale propre pour les noms dupliqués (pas d'alert navigateur). Blocs amber (`bg-amber-900/10 border-amber-700/40`). Badge "défaut" non renommable.
+- `CharacterPosesDrawer` : preview des sprites à droite (z-30). Sélecteur de pose amber actif.
+- Overlay backdrop `fixed left-[36rem] inset-y-0 right-0` (couvre uniquement la zone main, pas la sidebar) avec `bg-black/50 backdrop-blur-sm`. Clic ferme l'édition.
 
 ## UI générale
 
