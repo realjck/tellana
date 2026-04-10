@@ -68,6 +68,9 @@ docker-compose.override.yml
 CLAUDE.local.md
 .claude/settings.local.json
 
+# Git worktrees
+.worktrees/
+
 # Database & uploads
 backend/tellana.db
 backend/uploads/
