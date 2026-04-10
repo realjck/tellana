@@ -8,7 +8,6 @@ import type {
   QuizNodeData,
   QuizOption,
 } from "@/types";
-;
 
 interface Props {
   node: StoryNode;
@@ -26,7 +25,6 @@ const NODE_LABELS: Record<NodeType, string> = {
 };
 
 export default function NodeForm({ node, characters, onSave, onDelete, onPreview, onAdd }: Props) {
-  const [type, setType] = useState<NodeType>(node.type);
   const [data, setData] = useState<Record<string, unknown>>(
     node.data as unknown as Record<string, unknown>
   );
@@ -35,90 +33,42 @@ export default function NodeForm({ node, characters, onSave, onDelete, onPreview
   // Sync when node changes, cancel any pending save
   useEffect(() => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    setType(node.type);
     setData(node.data as unknown as Record<string, unknown>);
-  }, [node.id, node.type, node.data]);
+  }, [node.id, node.data]);
 
-  const scheduleAutoSave = (currentType: NodeType, currentData: Record<string, unknown>) => {
+  const scheduleAutoSave = (currentData: Record<string, unknown>) => {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
-      onSave({ type: currentType, data: currentData as unknown as StoryNode["data"] });
+      onSave({ type: node.type, data: currentData as unknown as StoryNode["data"] });
     }, 1000);
   };
 
   const updateData = (newData: Record<string, unknown>) => {
     setData(newData);
-    onPreview?.(type, newData);
-    scheduleAutoSave(type, newData);
+    onPreview?.(node.type, newData);
+    scheduleAutoSave(newData);
   };
 
-  const handleTypeChange = (newType: NodeType) => {
-    setType(newType);
-    let newData: Record<string, unknown>;
-    if (newType === node.type) {
-      newData = node.data as unknown as Record<string, unknown>;
-    } else if (newType === "quiz") {
-      newData = {
-        question: "",
-        type: "qcu",
-        feedback: "",
-        options: [
-          { text: "", is_correct: true },
-          { text: "", is_correct: false },
-        ],
-      };
-    } else if (newType === "dialogue") {
-      newData = { character_id: null, text: "" };
-    } else {
-      newData = { text: "" };
-    }
-    setData(newData);
-    onPreview?.(newType, newData);
-    scheduleAutoSave(newType, newData);
-  };
-
-  const saveNow = (currentType: NodeType, currentData: Record<string, unknown>) => {
+  const saveNow = (currentData: Record<string, unknown>) => {
     if (autoSaveTimer.current) { clearTimeout(autoSaveTimer.current); autoSaveTimer.current = null; }
-    onSave({ type: currentType, data: currentData as unknown as StoryNode["data"] });
+    onSave({ type: node.type, data: currentData as unknown as StoryNode["data"] });
   };
 
   const handleAdd = () => {
-    saveNow(type, data);
+    saveNow(data);
     onAdd?.();
   };
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Type selector */}
-      <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
-          Type de nœud
-        </label>
-        <div className="flex gap-2">
-          {(["dialogue", "text", "quiz"] as NodeType[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => handleTypeChange(t)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                type === t
-                  ? "bg-blue-600 border-blue-500 text-white"
-                  : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"
-              }`}
-            >
-              {NODE_LABELS[t]}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Fields */}
-      {type === "dialogue" && (
+      {node.type === "dialogue" && (
         <DialogueFields data={data} characters={characters} onChange={updateData} onAdd={handleAdd} />
       )}
-      {type === "text" && (
+      {node.type === "text" && (
         <TextFields data={data} onChange={updateData} />
       )}
-      {type === "quiz" && (
+      {node.type === "quiz" && (
         <QuizFields data={data} onChange={updateData} />
       )}
 
@@ -239,7 +189,7 @@ function DialogueFields({
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Ajouter un nœud
+            Ajouter un nœud dialogue
           </button>
         )}
       </div>

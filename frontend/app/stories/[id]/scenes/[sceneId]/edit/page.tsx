@@ -104,15 +104,31 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  const addNode = async () => {
-    const defaultData: DialogueNodeData = { character_id: null, text: "" };
-    // Inherit sprite_keys from the currently selected dialogue node
-    if (selectedNode?.type === "dialogue") {
-      const d = selectedNode.data as unknown as DialogueNodeData;
-      if (d.sprite_keys) defaultData.sprite_keys = d.sprite_keys;
+  const addNode = async (type: NodeType = "dialogue") => {
+    let defaultData: StoryNode["data"];
+    if (type === "dialogue") {
+      const dialogueData: DialogueNodeData = { character_id: null, text: "" };
+      // Inherit sprite_keys from the currently selected dialogue node
+      if (selectedNode?.type === "dialogue") {
+        const d = selectedNode.data as unknown as DialogueNodeData;
+        if (d.sprite_keys) dialogueData.sprite_keys = d.sprite_keys;
+      }
+      defaultData = dialogueData as unknown as StoryNode["data"];
+    } else if (type === "quiz") {
+      defaultData = {
+        question: "",
+        type: "qcu",
+        feedback: "",
+        options: [
+          { text: "", is_correct: true },
+          { text: "", is_correct: false },
+        ],
+      } as unknown as StoryNode["data"];
+    } else {
+      defaultData = { text: "" } as unknown as StoryNode["data"];
     }
     const node = await api.nodes.create(storyId, sceneId, {
-      type: "dialogue",
+      type,
       data: defaultData,
       order: nodes.length,
     });
@@ -414,7 +430,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                     onSave={saveNode}
                     onDelete={deleteNode}
                     onPreview={(type, data) => setPreviewPatch({ type, data })}
-                    onAdd={addNode}
+                    onAdd={() => addNode("dialogue")}
                   />
                 </div>
               ) : (
@@ -444,15 +460,39 @@ function NodesTab({
   characters: Character[];
   selectedNodeId: number | null;
   onSelect: (n: StoryNode) => void;
-  onAdd: () => void;
+  onAdd: (type: NodeType) => void;
   onMove: (id: number, dir: "up" | "down") => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const NODE_TYPE_OPTIONS: { type: NodeType; label: string; color: string }[] = [
+    { type: "dialogue", label: "Dialogue", color: "text-blue-300 hover:bg-blue-900/30" },
+    { type: "text", label: "Texte narratif", color: "text-purple-300 hover:bg-purple-900/30" },
+    { type: "quiz", label: "Quiz", color: "text-amber-300 hover:bg-amber-900/30" },
+  ];
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Fixed button */}
-      <div className="flex-shrink-0 p-3 pb-2">
+      {/* Fixed button with submenu */}
+      <div className="flex-shrink-0 p-3 pb-2 relative">
+        {menuOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+            <div className="absolute left-3 right-3 top-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl z-20 overflow-hidden">
+              {NODE_TYPE_OPTIONS.map(({ type, label, color }) => (
+                <button
+                  key={type}
+                  onClick={() => { onAdd(type); setMenuOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors ${color}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
         <button
-          onClick={onAdd}
+          onClick={() => setMenuOpen((v) => !v)}
           className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
