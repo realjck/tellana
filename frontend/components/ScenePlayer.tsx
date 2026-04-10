@@ -161,11 +161,12 @@ export default function ScenePlayer({
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
   // ── Character display logic ────────────────────────────────────────────
-  // Text nodes: no characters shown — narrative text only.
-  // Dialogue/quiz nodes: all scene characters are visible (ordered by caller).
+  // Text nodes: dark background, no characters.
+  // Quiz nodes: regular background, no characters.
+  // Dialogue nodes: all scene characters are visible (ordered by caller).
   // The speaking character gets the white outline on dialogue nodes.
-  const isTextNode = !isPreviewMode && node?.type === "text";
-  const displayChars = isTextNode ? [] : characters;
+  const hideChars = !isPreviewMode && (node?.type === "text" || node?.type === "quiz");
+  const displayChars = hideChars ? [] : characters;
 
   // Resolve a character's position: use stored position if available,
   // otherwise fall back to the slot default based on the character's index
@@ -183,25 +184,20 @@ export default function ScenePlayer({
       className="relative w-full overflow-hidden rounded-xl select-none"
       style={{ aspectRatio: "16/9" }}
     >
-      {/* Background — hidden for text nodes */}
-      {!isTextNode && (
-        <>
-          <div
-            className="absolute inset-0 bg-slate-800"
-            style={
-              backgroundAsset
-                ? {
-                    backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }
-                : {}
-            }
-          />
-          <div className="absolute inset-0 bg-black/20" />
-        </>
-      )}
-      {isTextNode && <div className="absolute inset-0 bg-[#0b1120]" />}
+      {/* Background */}
+      <div
+        className="absolute inset-0 bg-slate-800"
+        style={
+          backgroundAsset
+            ? {
+                backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : {}
+        }
+      />
+      <div className="absolute inset-0 bg-black/20" />
 
       {/* SVG filter: sharp white outline via morphological dilation of the alpha channel */}
       <svg style={{ position: "absolute", width: 0, height: 0 }}>
@@ -228,11 +224,17 @@ export default function ScenePlayer({
         {displayChars.map((c) => {
           const isSpeaking = !isPreviewMode && node?.type === "dialogue" && speakingChar?.id === c.id;
           const pos = getCharPosition(c);
-          const firstSprite = Object.values(c.sprites)[0];
+          const spriteKeys = node?.type === "dialogue"
+            ? (data.sprite_keys as Record<string, string> | undefined)
+            : undefined;
+          const poseKey = spriteKeys?.[String(c.id)];
+          const resolvedSprite = (poseKey && c.sprites[poseKey])
+            ? c.sprites[poseKey]
+            : Object.values(c.sprites)[0];
           return (
             <img
               key={c.id}
-              src={firstSprite ? resolveAsset(firstSprite) : ""}
+              src={resolvedSprite ? resolveAsset(resolvedSprite) : ""}
               alt={c.name}
               className="absolute object-contain transition-all duration-200"
               style={{
@@ -280,7 +282,7 @@ export default function ScenePlayer({
           className="absolute inset-0 flex items-center justify-center cursor-pointer p-8"
           onClick={advance}
         >
-          <div className="border-4 border-blue-500 rounded-2xl px-8 py-6 max-w-xl w-full flex flex-col gap-4">
+          <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-8 py-6 max-w-xl w-full flex flex-col gap-4">
             <div className="prose prose-invert prose-sm max-w-none text-white leading-relaxed
               prose-p:my-1 prose-headings:text-white prose-headings:font-bold
               prose-h1:text-xl prose-h2:text-lg prose-h3:text-base

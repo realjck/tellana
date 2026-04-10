@@ -159,6 +159,12 @@ export const api = {
 export const DEFAULT_SPRITES = [
   { label: "Personnage homme", url: "/sprite_man.png" },
   { label: "Personnage femme", url: "/sprite_woman.png" },
+  { label: "Alice — Défaut", url: "/sprites/alice_default.png" },
+  { label: "Alice — Question", url: "/sprites/alice_question.png" },
+  { label: "Alice — Bras croisés", url: "/sprites/alice_crossed.png" },
+  { label: "Bob — Défaut", url: "/sprites/bob_default.png" },
+  { label: "Bob — Question", url: "/sprites/bob_question.png" },
+  { label: "Bob — Bras croisés", url: "/sprites/bob_crossed.png" },
 ];
 
 /** Default backgrounds */

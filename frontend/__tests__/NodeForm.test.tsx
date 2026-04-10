@@ -1,7 +1,25 @@
 import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import NodeForm from "@/components/NodeForm";
-import type { StoryNode } from "@/types";
+import type { AssetRef, Character, StoryNode } from "@/types";
+
+jest.mock("@/lib/api", () => ({
+  resolveAsset: (ref: string | AssetRef | null | undefined) => {
+    if (!ref) return "";
+    if (typeof ref === "string") return ref;
+    return ref.url ?? "";
+  },
+}));
+
+const makeChar = (overrides: Partial<Character> = {}): Character => ({
+  id: 1,
+  story_id: 1,
+  name: "Alice",
+  sprites: {
+    default: { type: "local", url: "/sprite_woman.png", opfs_key: null, job_id: null, mime_type: null, width: null, height: null },
+  },
+  ...overrides,
+});
 
 const dialogueNode: StoryNode = {
   id: 1,
@@ -72,6 +90,48 @@ describe("NodeForm — changement de type", () => {
     fireEvent.click(screen.getByText("Quiz"));
     fireEvent.click(screen.getByText("Dialogue"));
     expect(screen.getByDisplayValue("Texte initial")).toBeInTheDocument();
+  });
+});
+
+describe("NodeForm — expression picker", () => {
+  const charWithPoses = makeChar({
+    id: 1,
+    name: "Alice",
+    sprites: {
+      default: { type: "local", url: "/sprite_woman.png", opfs_key: null, job_id: null, mime_type: null, width: null, height: null },
+      question: { type: "local", url: "/sprites/alice_question.png", opfs_key: null, job_id: null, mime_type: null, width: null, height: null },
+    },
+  });
+
+  it("affiche les badges de poses quand le personnage a des sprites", () => {
+    render(
+      <NodeForm node={dialogueNode} characters={[charWithPoses]} onSave={jest.fn()} onDelete={jest.fn()} />
+    );
+    expect(screen.getByText("défaut")).toBeInTheDocument();
+    expect(screen.getByText("question")).toBeInTheDocument();
+  });
+
+  it("cliquer sur un badge appelle onSave avec sprite_keys", () => {
+    const onSave = jest.fn();
+    render(
+      <NodeForm node={dialogueNode} characters={[charWithPoses]} onSave={onSave} onDelete={jest.fn()} />
+    );
+    fireEvent.click(screen.getByText("question"));
+    fireEvent.click(screen.getByText("Enregistrer"));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sprite_keys: { "1": "question" },
+        }),
+      })
+    );
+  });
+
+  it("affiche un message si aucun personnage dans la scène", () => {
+    render(
+      <NodeForm node={dialogueNode} characters={[]} onSave={jest.fn()} onDelete={jest.fn()} />
+    );
+    expect(screen.getByText("Aucun personnage dans la scène.")).toBeInTheDocument();
   });
 });
 

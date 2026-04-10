@@ -28,6 +28,8 @@ export interface QuizOption {
 export interface DialogueNodeData {
   character_id: number | null;
   text: string;
+  /** Per-character pose key: Record<charId (string), pose name> */
+  sprite_keys?: Record<string, string>;
 }
 
 export interface TextNodeData {
