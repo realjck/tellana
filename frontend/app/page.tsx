@@ -42,7 +42,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1120]">
+    <div className="min-h-screen bg-bg">
       {confirmDeleteId !== null && (
         <ConfirmModal
           message="Supprimer cette story ? Cette action est irréversible."
@@ -51,18 +51,17 @@ export default function DashboardPage() {
         />
       )}
       {/* Header */}
-      <header className="border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-10">
+      <header className="border-b border-white/5 bg-sidebar/80 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
-          {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-blue-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded bg-gradient-to-br from-purple-500 to-blue-400 flex items-center justify-center">
               <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.882v6.236a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
               </svg>
             </div>
             <div>
-              <div className="font-bold text-white leading-none">Tellana</div>
-              <div className="text-[10px] text-slate-400 leading-none mt-0.5">Animated Web Scenes</div>
+              <div className="font-bold text-fore leading-none">Tellana</div>
+              <div className="text-[10px] text-subtle leading-none mt-0.5">Animated Web Scenes</div>
             </div>
           </div>
         </div>
@@ -71,8 +70,8 @@ export default function DashboardPage() {
       <main className="max-w-6xl mx-auto px-6 py-10">
         {/* Hero */}
         <div className="mb-10">
-          <h1 className="text-3xl font-bold text-white mb-2">Mes Stories</h1>
-          <p className="text-slate-400">Créez et gérez vos scènes interactives au format Visual Novel.</p>
+          <h1 className="text-3xl font-bold text-fore mb-2">Mes Stories</h1>
+          <p className="text-muted">Créez et gérez vos scènes interactives au format Visual Novel.</p>
         </div>
 
         {/* Create form */}
@@ -82,12 +81,12 @@ export default function DashboardPage() {
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             placeholder="Titre de la nouvelle story..."
-            className="flex-1 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+            className="flex-1 bg-elevated/60 border border-white/7 rounded-md px-4 py-3 text-fore placeholder-subtle focus:outline-none focus:border-white/30 transition-colors"
           />
           <button
             type="submit"
             disabled={creating || !newTitle.trim()}
-            className="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold transition-colors flex items-center gap-2"
+            className="px-6 py-3 rounded-md bg-neutral-100 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-zinc-900 font-semibold transition-colors flex items-center gap-2"
           >
             {creating ? (
               <span className="opacity-60">Création…</span>
@@ -106,11 +105,11 @@ export default function DashboardPage() {
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-40 rounded-2xl bg-slate-800/40 animate-pulse" />
+              <div key={i} className="h-40 rounded-lg bg-elevated/40 animate-pulse" />
             ))}
           </div>
         ) : !stories?.length ? (
-          <div className="text-center py-20 text-slate-500">
+          <div className="text-center py-20 text-subtle">
             <div className="text-5xl mb-4">🎬</div>
             <p>Aucune story pour l&apos;instant. Créez-en une ci-dessus !</p>
           </div>
@@ -146,9 +145,8 @@ function StoryCard({
   return (
     <div
       onClick={() => router.push(`/stories/${story.id}`)}
-      className="group relative bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all hover:shadow-lg hover:shadow-black/20 cursor-pointer"
+      className="group relative bg-elevated/40 border border-white/7 rounded-lg overflow-hidden hover:border-white/15 transition-all hover:shadow-lg hover:shadow-black/30 cursor-pointer"
     >
-      {/* Preview 16:9 avec personnages */}
       <ScenePreviewThumbnail
         backgroundAsset={story.first_scene_background}
         characters={firstSceneChars}
@@ -158,7 +156,7 @@ function StoryCard({
 
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-3">
-          <h2 className="font-semibold text-white leading-tight">{story.title}</h2>
+          <h2 className="font-semibold text-fore leading-tight">{story.title}</h2>
           {story.published && (
             <span className="flex-shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30 font-medium">
               Publié
@@ -166,7 +164,7 @@ function StoryCard({
           )}
         </div>
 
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-subtle mb-4">
           {new Date(story.updated_at).toLocaleDateString("fr-FR", {
             day: "numeric",
             month: "short",
@@ -179,7 +177,7 @@ function StoryCard({
             <Link
               href={`/s/${story.slug}`}
               target="_blank"
-              className="py-2 px-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors"
+              className="py-2 px-3 rounded bg-raised hover:bg-elevated/80 text-muted hover:text-fore text-sm transition-colors"
               title="Voir la page publique"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -189,7 +187,7 @@ function StoryCard({
           )}
           <button
             onClick={onDelete}
-            className="py-2 px-3 rounded-lg bg-slate-700 hover:bg-red-900/40 text-slate-400 hover:text-red-300 text-sm transition-colors"
+            className="py-2 px-3 rounded bg-raised hover:bg-red-900/40 text-muted hover:text-red-300 text-sm transition-colors"
             title="Supprimer"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

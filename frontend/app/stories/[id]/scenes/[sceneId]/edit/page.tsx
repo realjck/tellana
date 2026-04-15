@@ -20,7 +20,7 @@ const NODE_TYPE_LABELS: Record<NodeType, string> = {
   quiz: "Quiz",
 };
 const NODE_TYPE_COLORS: Record<NodeType, string> = {
-  dialogue: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  dialogue: "bg-zinc-700/40 text-zinc-300 border-zinc-600/40",
   text: "bg-purple-500/20 text-purple-300 border-purple-500/30",
   quiz: "bg-amber-500/20 text-amber-300 border-amber-500/30",
 };
@@ -57,7 +57,6 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   const bgFileRef = useRef<HTMLInputElement>(null);
   const [bgCustomUploads, setBgCustomUploads] = useState<string[]>([]);
   const bgCustomInitialized = useRef(false);
-  // Local character positions for real-time preview (no API call on every drag)
   const [localPositions, setLocalPositions] = useState<Record<string, CharacterPosition>>({});
   const positionsInitialized = useRef(false);
 
@@ -74,16 +73,16 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   if (sceneLoading) {
     return (
-      <div className="min-h-screen bg-[#0b1120] flex items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-bg flex items-center justify-center text-muted">
         Chargement…
       </div>
     );
   }
   if (!scene) {
     return (
-      <div className="min-h-screen bg-[#0b1120] flex items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-bg flex items-center justify-center text-muted">
         Scène introuvable.{" "}
-        <Link href={`/stories/${storyId}`} className="text-blue-400 ml-2">
+        <Link href={`/stories/${storyId}`} className="text-fore/60 hover:text-fore ml-2 transition-colors">
           Retour
         </Link>
       </div>
@@ -92,12 +91,10 @@ export default function SceneEditorPage({ params }: { params: Params }) {
 
   const nodes = scene.nodes ?? [];
   const allCharacters = story?.characters ?? [];
-  // ScenePlayer receives only scene-assigned characters, ordered by character_ids
   const sceneCharacters: Character[] = scene.character_ids
     .map((cid) => allCharacters.find((c) => c.id === cid))
     .filter((c): c is Character => !!c);
   const selectedNode = nodes.find((n) => n.id === selectedNodeId) ?? null;
-  // Nodes with live preview patch applied to the selected node (no API call)
   const previewNodes = previewPatch && selectedNodeId !== null
     ? nodes.map((n) => n.id === selectedNodeId ? { ...n, type: previewPatch.type, data: previewPatch.data as unknown as StoryNode["data"] } : n)
     : nodes;
@@ -108,7 +105,6 @@ export default function SceneEditorPage({ params }: { params: Params }) {
     let defaultData: StoryNode["data"];
     if (type === "dialogue") {
       const dialogueData: DialogueNodeData = { character_id: null, text: "" };
-      // Inherit sprite_keys from the currently selected dialogue node
       if (selectedNode?.type === "dialogue") {
         const d = selectedNode.data as unknown as DialogueNodeData;
         if (d.sprite_keys) dialogueData.sprite_keys = d.sprite_keys;
@@ -133,7 +129,6 @@ export default function SceneEditorPage({ params }: { params: Params }) {
       order: nodes.length,
     });
 
-    // Reorder: insert right after the currently selected node
     if (selectedNodeId !== null && nodes.length > 0) {
       const afterIndex = nodes.findIndex((n) => n.id === selectedNodeId);
       if (afterIndex >= 0) {
@@ -250,13 +245,13 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-screen bg-[#0b1120] flex flex-col overflow-hidden">
+    <div className="h-screen bg-bg flex flex-col overflow-hidden">
       {/* Top bar */}
-      <header className="flex-shrink-0 border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md z-10">
+      <header className="flex-shrink-0 border-b border-white/5 bg-sidebar/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 px-4 py-3">
           <Link
             href={`/stories/${storyId}`}
-            className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
+            className="w-8 h-8 rounded-full bg-raised hover:bg-elevated text-muted hover:text-fore transition-colors flex-shrink-0 flex items-center justify-center"
             title="Retour à la story"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -265,8 +260,8 @@ export default function SceneEditorPage({ params }: { params: Params }) {
           </Link>
 
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-slate-400">{story?.title}</span>
-            <span className="text-slate-600">/</span>
+            <span className="text-muted">{story?.title}</span>
+            <span className="text-subtle">/</span>
             {editingTitle ? (
               <input
                 autoFocus
@@ -277,15 +272,15 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                   if (e.key === "Enter") saveSceneTitle();
                   if (e.key === "Escape") setEditingTitle(false);
                 }}
-                className="bg-slate-700 border border-blue-500 rounded-lg px-3 py-1 text-white text-sm focus:outline-none max-w-48"
+                className="bg-raised border border-white/30 rounded px-3 py-1 text-fore text-sm focus:outline-none max-w-48"
               />
             ) : (
               <button
                 onClick={() => { setTitleDraft(scene.title); setEditingTitle(true); }}
-                className="text-white font-semibold hover:text-blue-300 transition-colors flex items-center gap-1.5"
+                className="text-fore font-semibold hover:text-fore/70 transition-colors flex items-center gap-1.5"
               >
                 {scene.title}
-                <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 text-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
@@ -296,7 +291,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
             <Link
               href={`/stories/${storyId}/scenes/${sceneId}/play`}
               target="_blank"
-              className="px-4 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm font-medium transition-colors flex items-center gap-2"
+              className="px-4 py-1.5 rounded bg-raised hover:bg-elevated text-fore/80 text-sm font-medium transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8 5l10 7-10 7V5z" />
@@ -310,7 +305,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
       {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar */}
-        <aside className="w-72 flex-shrink-0 border-r border-white/5 bg-[#0f172a] flex flex-col overflow-hidden">
+        <aside className="w-72 flex-shrink-0 border-r border-white/5 bg-sidebar flex flex-col overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-white/5">
             {(["nodes", "perso", "background"] as Tab[]).map((t) => (
@@ -319,8 +314,8 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                 onClick={() => setTab(t)}
                 className={`flex-1 py-2.5 text-xs font-medium transition-colors capitalize ${
                   tab === t
-                    ? "text-white border-b-2 border-blue-500"
-                    : "text-slate-500 hover:text-slate-300"
+                    ? "text-fore border-b-2 border-white/50"
+                    : "text-subtle hover:text-muted"
                 }`}
               >
                 {t === "nodes" ? "Script" : t === "perso" ? "Perso." : "Décor"}
@@ -375,7 +370,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
         {/* Main area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Scene preview */}
-          <div className={`flex-shrink-0 p-4 bg-[#0b1120] ${tab === "nodes" ? "border-b border-white/5" : ""}`}>
+          <div className={`flex-shrink-0 p-4 bg-bg ${tab === "nodes" ? "border-b border-white/5" : ""}`}>
             <div className="max-w-2xl mx-auto">
               {nodes.length > 0 || tab !== "nodes" ? (
                 <ScenePlayer
@@ -401,7 +396,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                 />
               ) : (
                 <div
-                  className="w-full bg-slate-800/40 border border-slate-700 rounded-xl flex items-center justify-center text-slate-500 text-sm"
+                  className="w-full bg-elevated/40 border border-white/7 rounded-md flex items-center justify-center text-subtle text-sm"
                   style={{ aspectRatio: "16/9" }}
                 >
                   Ajoutez des nœuds pour prévisualiser la scène
@@ -415,10 +410,10 @@ export default function SceneEditorPage({ params }: { params: Params }) {
             <div className="flex-1 overflow-y-auto p-6">
               {selectedNode ? (
                 <div className="max-w-2xl mx-auto">
-                  <div className="mb-4 flex items-center justify-between text-xs text-slate-500 uppercase tracking-wide font-semibold">
+                  <div className="mb-4 flex items-center justify-between text-xs text-subtle uppercase tracking-wide font-semibold">
                     Édition du nœud #{nodes.findIndex((n) => n.id === selectedNode.id) + 1}
                     {autoSaving && (
-                      <svg className="animate-spin w-3 h-3 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                      <svg className="animate-spin w-3 h-3 text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                       </svg>
@@ -435,7 +430,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                   />
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center text-slate-500 text-sm">
+                <div className="h-full flex items-center justify-center text-subtle text-sm">
                   Sélectionnez un nœud dans la liste pour l&apos;éditer
                 </div>
               )}
@@ -467,7 +462,7 @@ function NodesTab({
   const [menuOpen, setMenuOpen] = useState(false);
 
   const NODE_TYPE_OPTIONS: { type: NodeType; label: string; color: string }[] = [
-    { type: "dialogue", label: "Dialogue", color: "text-blue-300 hover:bg-blue-900/30" },
+    { type: "dialogue", label: "Dialogue", color: "text-zinc-300 hover:bg-raised" },
     { type: "text", label: "Texte narratif", color: "text-purple-300 hover:bg-purple-900/30" },
     { type: "quiz", label: "Quiz", color: "text-amber-300 hover:bg-amber-900/30" },
   ];
@@ -479,7 +474,7 @@ function NodesTab({
         {menuOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-            <div className="absolute left-3 right-3 top-full mt-1 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl z-20 overflow-hidden">
+            <div className="absolute left-3 right-3 top-full mt-1 bg-elevated border border-white/10 rounded-md shadow-2xl z-20 overflow-hidden">
               {NODE_TYPE_OPTIONS.map(({ type, label, color }) => (
                 <button
                   key={type}
@@ -494,7 +489,7 @@ function NodesTab({
         )}
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+          className="w-full py-2 rounded bg-neutral-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -506,7 +501,7 @@ function NodesTab({
       {/* Scrollable nodes list */}
       <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-3 flex flex-col gap-2">
       {nodes.length === 0 ? (
-        <p className="text-center text-slate-500 text-xs py-6">
+        <p className="text-center text-subtle text-xs py-6">
           Aucun nœud. Cliquez sur &quot;Ajouter&quot; pour commencer.
         </p>
       ) : (
@@ -517,48 +512,48 @@ function NodesTab({
             tabIndex={0}
             onClick={() => onSelect(node)}
             onKeyDown={(e) => e.key === "Enter" && onSelect(node)}
-            className={`w-full flex-shrink-0 text-left px-3 rounded-xl border transition-all group cursor-pointer ${
+            className={`w-full flex-shrink-0 text-left px-3 rounded-md border transition-all group cursor-pointer ${
               selectedNodeId === node.id
-                ? "bg-blue-600/10 border-blue-500/40"
-                : "bg-slate-800/40 border-slate-700/50 hover:border-slate-600"
+                ? "bg-white/8 border-white/20"
+                : "bg-elevated/40 border-white/7 hover:border-white/15"
             } ${node.type === "dialogue" ? "py-1.5" : "py-2 "}`}
           >
             {node.type === "dialogue" ? (
               /* ── Dialogue : single line, no label ── */
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-slate-500 font-mono w-4 flex-shrink-0">{i + 1}</span>
-                <p className="text-xs text-slate-400 truncate flex-1">
+                <span className="text-xs text-subtle font-mono w-4 flex-shrink-0">{i + 1}</span>
+                <p className="text-xs text-muted truncate flex-1">
                   {(() => {
                     const d = node.data as { character_id: number | null; text: string };
                     const char = d.character_id ? characters.find((c) => c.id === d.character_id) : null;
                     return char
-                      ? <><span className="font-semibold text-slate-300">{char.name}</span>{" : "}{d.text || "…"}</>
+                      ? <><span className="font-semibold text-fore/80">{char.name}</span>{" : "}{d.text || "…"}</>
                       : d.text || "…";
                   })()}
                 </p>
                 <div className="flex gap-1 invisible group-hover:visible flex-shrink-0">
                   <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
-                    className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▲</button>
+                    className="w-6 h-6 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-[10px]">▲</button>
                   <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
-                    className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▼</button>
+                    className="w-6 h-6 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-[10px]">▼</button>
                 </div>
               </div>
             ) : (
               /* ── Other types : label + text on second line ── */
               <>
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-xs text-slate-500 font-mono w-4">{i + 1}</span>
+                  <span className="text-xs text-subtle font-mono w-4">{i + 1}</span>
                   <span className={`px-1.5 py-0.5 rounded text-[10px] border font-medium ${NODE_TYPE_COLORS[node.type]}`}>
                     {NODE_TYPE_LABELS[node.type]}
                   </span>
                   <div className="ml-auto flex gap-1 invisible group-hover:visible">
                     <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "up"); }} disabled={i === 0}
-                      className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▲</button>
+                      className="w-6 h-6 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-[10px]">▲</button>
                     <button onClick={(e) => { e.stopPropagation(); onMove(node.id, "down"); }} disabled={i === nodes.length - 1}
-                      className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-[10px]">▼</button>
+                      className="w-6 h-6 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-[10px]">▼</button>
                   </div>
                 </div>
-                <p className="text-xs text-slate-400 truncate pl-5.5">
+                <p className="text-xs text-muted truncate pl-5.5">
                   {node.type === "quiz"
                     ? (node.data as { question: string }).question || "Question…"
                     : (node.data as { text: string }).text || "…"}
@@ -596,7 +591,7 @@ function BackgroundTab({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
+      <div className="text-xs font-semibold text-subtle uppercase tracking-wide mb-1">
         Décors disponibles
       </div>
 
@@ -606,15 +601,15 @@ function BackgroundTab({
           onClick={() =>
             onSelect({ type: "local", url: bg.url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null })
           }
-          className={`relative rounded-xl overflow-hidden border-2 transition-all ${
-            currentUrl === bg.url ? "border-blue-500" : "border-transparent hover:border-slate-500"
+          className={`relative rounded-md overflow-hidden border-2 transition-all ${
+            currentUrl === bg.url ? "border-white/50" : "border-transparent hover:border-white/20"
           }`}
         >
           <img src={bg.url} alt={bg.label} className="w-full h-24 object-cover" />
           <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">{bg.label}</div>
           {currentUrl === bg.url && (
-            <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+            <div className="absolute top-2 right-2 w-5 h-5 bg-white/90 rounded-full flex items-center justify-center">
+              <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
             </div>
@@ -630,15 +625,15 @@ function BackgroundTab({
               onClick={() =>
                 onSelect({ type: "upload", url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null })
               }
-              className={`relative w-full rounded-xl overflow-hidden border-2 transition-all ${
-                currentUrl === url ? "border-blue-500" : "border-transparent hover:border-slate-500"
+              className={`relative w-full rounded-md overflow-hidden border-2 transition-all ${
+                currentUrl === url ? "border-white/50" : "border-transparent hover:border-white/20"
               }`}
             >
               <img src={src} alt="Décor importé" className="w-full h-24 object-cover" />
               <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">Décor importé</div>
               {currentUrl === url && (
-                <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <div className="absolute top-2 right-2 w-5 h-5 bg-white/90 rounded-full flex items-center justify-center">
+                  <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                 </div>
@@ -660,7 +655,7 @@ function BackgroundTab({
       <button
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
-        className="w-full py-4 rounded-xl border-2 border-dashed border-slate-600 hover:border-slate-400 text-slate-400 hover:text-white text-sm transition-colors flex flex-col items-center gap-2"
+        className="w-full py-4 rounded-md border-2 border-dashed border-white/10 hover:border-white/25 text-muted hover:text-fore text-sm transition-colors flex flex-col items-center gap-2"
       >
         {uploading ? "Upload en cours…" : (
           <>

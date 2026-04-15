@@ -69,19 +69,14 @@ export default function ScenePlayer({
 
   const node = nodes[index];
   const isPreviewMode = !!showMode && showMode !== "normal";
-  // End state: past the last node in normal mode
   const isEndState = !isPreviewMode && nodes.length > 0 && index >= nodes.length;
 
-  // Notify parent when index changes (editor sidebar sync).
-  // Use a ref for the callback to avoid stale-closure issues without requiring
-  // the caller to memoize the function.
   const onIndexChangeRef = useRef(onIndexChange);
   useEffect(() => { onIndexChangeRef.current = onIndexChange; });
   useEffect(() => {
     onIndexChangeRef.current?.(index);
   }, [index]);
 
-  // Reset quiz state on node change
   useEffect(() => {
     if (node?.type === "quiz") {
       setQuizState({ selectedIndices: [], confirmed: false });
@@ -98,11 +93,10 @@ export default function ScenePlayer({
 
   const advance = useCallback(() => {
     if (!node) return;
-    if (node.type === "quiz" && quizState && !showFeedback) return; // must confirm first
+    if (node.type === "quiz" && quizState && !showFeedback) return;
     if (index < nodes.length - 1) {
       setIndex((i) => i + 1);
     } else {
-      // Move to end state instead of immediately calling onEnd
       setIndex(nodes.length);
       onEnd?.();
     }
@@ -137,17 +131,9 @@ export default function ScenePlayer({
   const charId = node?.type === "dialogue" ? (data.character_id as number | null) : null;
   const speakingChar = charId ? characters.find((c) => c.id === charId) : null;
 
-  // ── Character display logic ────────────────────────────────────────────
-  // Text nodes: dark background, no characters.
-  // Quiz nodes: regular background, no characters.
-  // Dialogue nodes: all scene characters are visible (ordered by caller).
-  // The speaking character gets the white outline on dialogue nodes.
   const hideChars = !isPreviewMode && (node?.type === "text" || node?.type === "quiz");
   const displayChars = hideChars ? [] : characters;
 
-  // Resolve a character's position: use stored position if available,
-  // otherwise fall back to the slot default based on the character's index
-  // in the full cast (not the displayChars subset).
   const getCharPosition = (c: Character): CharacterPosition => {
     const stored = characterPositions?.[String(c.id)];
     if (stored) return stored;
@@ -158,15 +144,15 @@ export default function ScenePlayer({
   return (
     <div
       ref={containerRef}
-      className="relative w-full overflow-hidden rounded-xl select-none"
+      className="relative w-full overflow-hidden rounded-md select-none"
       style={{ aspectRatio: "16/9" }}
     >
       {isEndState ? (
         /* ── Écran de fin ── */
-        <div className="absolute inset-0 flex items-center justify-center bg-[#0b1120]">
+        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "var(--player-end-bg)" }}>
           <button
             onClick={restart}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors text-sm"
+            className="flex items-center gap-2 px-6 py-3 rounded-md bg-neutral-100 hover:bg-white text-zinc-900 font-semibold transition-colors text-sm"
           >
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
               <path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
@@ -176,7 +162,7 @@ export default function ScenePlayer({
         </div>
       ) : !node && !isPreviewMode ? (
         /* ── Aucun nœud ── */
-        <div className="absolute inset-0 flex items-center justify-center bg-slate-900 text-slate-400 text-sm">
+        <div className="absolute inset-0 flex items-center justify-center bg-elevated text-muted text-sm">
           Aucun nœud à afficher
         </div>
       ) : (
@@ -194,7 +180,7 @@ export default function ScenePlayer({
         >
           {/* Background */}
           <div
-            className="absolute inset-0 bg-slate-800"
+            className="absolute inset-0 bg-elevated"
             style={
               backgroundAsset
                 ? {
@@ -222,11 +208,7 @@ export default function ScenePlayer({
             </defs>
           </svg>
 
-          {/* Characters
-              height: 100% of scene + bottom: -10% → exactly 90% visible, cut at lower leg.
-              All % values are relative to the scene container, so it scales at any resolution.
-              White outline only on the speaking character during dialogue nodes.
-              Hidden in background-only preview mode. */}
+          {/* Characters */}
           {showMode !== "background-only" && (
           <div className="absolute inset-0 pointer-events-none">
             {displayChars.map((c) => {
@@ -264,17 +246,20 @@ export default function ScenePlayer({
               className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[90%] cursor-pointer"
               onClick={advance}
             >
-              <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-16 py-10 shadow-2xl">
+              <div className="player-box px-16 py-10">
                 {speakingChar && (
-                  <div className="text-[52px] font-semibold text-blue-300 mb-3">
+                  <div
+                    className="text-[52px] font-semibold mb-3"
+                    style={{ color: "var(--player-name-color)" }}
+                  >
                     {speakingChar.name}
                   </div>
                 )}
                 <div className="flex items-end justify-between gap-10">
-                  <p className="text-white text-[48px] leading-relaxed flex-1">
+                  <p className="text-[48px] leading-relaxed flex-1" style={{ color: "var(--player-text-color)" }}>
                     {data.text as string}
                   </p>
-                  <button className="flex-shrink-0 text-blue-300 hover:text-white transition-colors">
+                  <button className="player-next-btn flex-shrink-0 transition-colors">
                     <svg className="w-20 h-20" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M8 5l10 7-10 7V5z" />
                     </svg>
@@ -284,27 +269,26 @@ export default function ScenePlayer({
             </div>
           )}
 
-          {/* ── Text node: centered narrative block with thick blue border ── */}
+          {/* ── Text node: centered narrative block ── */}
           {!isPreviewMode && node?.type === "text" && (
             <div
               className="absolute inset-0 flex items-center justify-center cursor-pointer p-24"
               onClick={advance}
             >
-              <div className="bg-slate-900/85 backdrop-blur-sm border border-white/10 rounded-2xl px-24 py-16 max-w-5xl w-full flex flex-col gap-10">
-                <div className="prose prose-invert max-w-none text-white leading-relaxed
-                  prose-p:my-2 prose-headings:text-white prose-headings:font-bold
-                  prose-strong:text-white prose-em:text-slate-200
-                  prose-ul:my-2 prose-ol:my-2 prose-li:my-0
-                  prose-blockquote:border-blue-400 prose-blockquote:text-slate-300
-                  prose-code:text-blue-200 prose-code:bg-slate-800 prose-code:px-1 prose-code:rounded
-                  prose-a:text-blue-300"
-                  style={{ fontSize: "48px" }}>
+              <div className="player-box px-24 py-16 max-w-5xl w-full flex flex-col gap-10">
+                <div
+                  className="prose prose-invert max-w-none leading-relaxed
+                    prose-p:my-2 prose-headings:font-bold
+                    prose-ul:my-2 prose-ol:my-2 prose-li:my-0
+                    prose-code:px-1 prose-code:rounded"
+                  style={{ fontSize: "48px", color: "var(--player-text-color)" }}
+                >
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {data.text as string}
                   </ReactMarkdown>
                 </div>
                 <div className="flex justify-end">
-                  <button className="text-blue-300 hover:text-white transition-colors flex items-center gap-6 text-[48px]">
+                  <button className="player-next-btn transition-colors flex items-center gap-6 text-[48px]">
                     <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
                       <path d="M8 5l10 7-10 7V5z" />
                     </svg>
@@ -347,7 +331,10 @@ export default function ScenePlayer({
 
           {/* Progress indicator — hidden in preview modes */}
           {!isPreviewMode && (
-            <div className="absolute top-10 right-10 text-[44px] text-white/50">
+            <div
+              className="absolute top-10 right-10 text-[44px]"
+              style={{ color: "var(--player-progress-color)" }}
+            >
               {index + 1} / {nodes.length}
             </div>
           )}
@@ -356,7 +343,7 @@ export default function ScenePlayer({
           {!compact && (
             <button
               onClick={toggleFullscreen}
-              className="absolute top-10 left-10 text-white/50 hover:text-white transition-colors"
+              className="player-next-btn absolute top-10 left-10 transition-colors"
               title={activeFullscreen ? "Quitter le plein écran" : "Plein écran"}
             >
               {activeFullscreen ? (
@@ -395,11 +382,13 @@ function QuizPanel({
 }) {
   return (
     <div className="absolute bottom-16 left-1/2 -translate-x-1/2 w-[90%]">
-      <div className="bg-slate-900/90 backdrop-blur-sm border border-white/10 rounded-2xl px-16 py-12 shadow-2xl">
-        <p className="text-white font-semibold mb-10 text-[52px]">{data.question}</p>
+      <div className="player-box px-16 py-12">
+        <p className="font-semibold mb-10 text-[52px]" style={{ color: "var(--player-text-color)" }}>
+          {data.question}
+        </p>
 
         {data.type === "qcm" && (
-          <p className="text-[40px] text-slate-400 mb-6">
+          <p className="text-[40px] mb-6" style={{ color: "var(--player-progress-color)" }}>
             Plusieurs réponses possibles
           </p>
         )}
@@ -408,20 +397,18 @@ function QuizPanel({
           {data.options.map((opt, i) => {
             const selected = quizState.selectedIndices.includes(i);
             const revealed = showFeedback;
-            let optClass =
-              "px-10 py-6 rounded-xl text-[44px] font-medium border transition-all cursor-pointer text-left ";
+            let optClass = "px-10 py-6 rounded-lg text-[44px] font-medium border transition-all cursor-pointer text-left ";
+
             if (revealed) {
               if (opt.is_correct) {
-                optClass += "bg-green-500/20 border-green-500 text-green-300";
+                optClass += "player-option-correct";
               } else if (selected && !opt.is_correct) {
-                optClass += "bg-red-500/20 border-red-500 text-red-300";
+                optClass += "player-option-wrong";
               } else {
-                optClass += "bg-white/5 border-white/10 text-slate-400";
+                optClass += "player-option-neutral";
               }
             } else {
-              optClass += selected
-                ? "bg-blue-500/30 border-blue-400 text-blue-200"
-                : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10";
+              optClass += selected ? "player-option-selected" : "player-option";
             }
 
             return (
@@ -445,7 +432,10 @@ function QuizPanel({
 
         {/* Feedback */}
         {showFeedback && data.feedback && (
-          <div className="mt-8 p-8 rounded-xl bg-white/5 text-[44px] text-slate-300">
+          <div
+            className="mt-8 p-8 rounded-lg text-[44px]"
+            style={{ background: "var(--player-option-bg)", color: "var(--player-text-color)" }}
+          >
             {data.feedback}
           </div>
         )}
@@ -455,14 +445,14 @@ function QuizPanel({
             <button
               onClick={onConfirm}
               disabled={quizState.selectedIndices.length === 0}
-              className="px-12 py-6 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[44px] font-semibold transition-colors"
+              className="player-confirm-btn px-12 py-6 text-[44px] font-semibold"
             >
               Valider
             </button>
           ) : (
             <button
               onClick={onContinue}
-              className="px-12 py-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[44px] font-semibold transition-colors flex items-center gap-6"
+              className="player-confirm-btn px-12 py-6 text-[44px] font-semibold flex items-center gap-6"
             >
               Continuer
               <svg className="w-14 h-14" fill="currentColor" viewBox="0 0 24 24">

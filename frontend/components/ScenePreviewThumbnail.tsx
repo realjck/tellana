@@ -57,7 +57,7 @@ export default function ScenePreviewThumbnail({
       >
         {/* Background */}
         <div
-          className="absolute inset-0 bg-slate-800"
+          className="absolute inset-0 bg-elevated"
           style={
             backgroundAsset
               ? {

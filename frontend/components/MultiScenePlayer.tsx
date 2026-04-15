@@ -33,7 +33,7 @@ export default function MultiScenePlayer({ scenes, characters, title }: Props) {
   if (!scenes.length) {
     return (
       <div
-        className="w-full bg-slate-800/40 border border-slate-700 rounded-xl flex items-center justify-center text-slate-500 text-sm"
+        className="w-full bg-elevated/40 border border-white/7 rounded-md flex items-center justify-center text-muted text-sm"
         style={{ aspectRatio: "16/9" }}
       >
         Aucune scène
@@ -46,15 +46,15 @@ export default function MultiScenePlayer({ scenes, characters, title }: Props) {
       <div className="flex flex-col items-center justify-center py-20 gap-6">
         <div className="text-5xl">🎬</div>
         <p className="text-white text-xl font-semibold">Fin de la story</p>
-        {title && <p className="text-slate-400 text-sm">{title}</p>}
+        {title && <p className="text-white/40 text-sm">{title}</p>}
         <button
           onClick={() => { setSceneIndex(0); setEnded(false); }}
-          className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors"
+          className="px-6 py-2.5 rounded-md bg-neutral-100 hover:bg-white text-zinc-900 font-medium transition-colors"
         >
           Rejouer depuis le début
         </button>
-        <div className="text-xs text-slate-600 mt-4">
-          Créé avec <span className="text-slate-400">Tellana</span>
+        <div className="text-xs text-white/20 mt-4">
+          Créé avec <span className="text-white/40">Tellana</span>
         </div>
       </div>
     );
