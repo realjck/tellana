@@ -129,7 +129,7 @@ describe("NodeForm — expression picker", () => {
       <NodeForm node={node} characters={[char]} onSave={onSave} onDelete={jest.fn()} />
     );
     // Alice is already selected (character_id: 1). Click again to deselect.
-    const aliceBlock = screen.getByText("Alice").closest("div[class*='rounded-xl']") as HTMLElement;
+    const aliceBlock = screen.getByText("Alice").closest("div[class*='rounded-md']") as HTMLElement;
     fireEvent.click(aliceBlock);
     jest.runAllTimers();
     expect(onSave).toHaveBeenCalledWith(

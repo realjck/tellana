@@ -21,7 +21,6 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   const [mode, setMode] = useState<Mode>("list");
   const [selected, setSelected] = useState<Character | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  /** Preview override for the default sprite (real-time, before save) */
   const [previewDefaultSprite, setPreviewDefaultSprite] = useState<AssetRef | null>(null);
 
   const goList = () => {
@@ -57,7 +56,6 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     goList();
   };
 
-  /** Sprites shown in the drawer: merge preview override into the saved sprites */
   const drawerSprites = selected
     ? {
         ...selected.sprites,
@@ -151,7 +149,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   return (
     <div className="flex flex-col gap-3">
       {characters.length === 0 ? (
-        <p className="text-center text-slate-500 text-xs py-4">
+        <p className="text-center text-subtle text-xs py-4">
           Aucun personnage. Ajoutez-en un ci-dessous.
         </p>
       ) : (
@@ -163,21 +161,21 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
               <button
                 key={c.id}
                 onClick={() => goEdit(c)}
-                className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 rounded-xl px-3 py-2 border border-slate-700 hover:border-slate-500 transition-colors text-left w-full group"
+                className="flex items-center gap-3 bg-elevated hover:bg-raised rounded-md px-3 py-2 border border-white/7 hover:border-white/15 transition-colors text-left w-full group"
               >
                 <img
                   src={firstSprite ? resolveAsset(firstSprite) : ""}
                   alt={c.name}
-                  className="w-10 h-12 object-contain rounded-lg bg-slate-700 flex-shrink-0"
+                  className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-white truncate">{c.name}</div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-sm font-medium text-fore truncate">{c.name}</div>
+                  <div className="text-[11px] text-subtle">
                     {poseCount} pose{poseCount > 1 ? "s" : ""}
                   </div>
                 </div>
                 <svg
-                  className="w-4 h-4 text-slate-500 group-hover:text-slate-300 flex-shrink-0 transition-colors"
+                  className="w-4 h-4 text-subtle group-hover:text-muted flex-shrink-0 transition-colors"
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -191,7 +189,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
 
       <button
         onClick={goAdd}
-        className="w-full py-2 rounded-lg border border-dashed border-slate-600 hover:border-blue-500 text-slate-400 hover:text-blue-300 text-sm transition-colors flex items-center justify-center gap-2"
+        className="w-full py-2 rounded border border-dashed border-white/10 hover:border-white/25 text-muted hover:text-fore text-sm transition-colors flex items-center justify-center gap-2"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

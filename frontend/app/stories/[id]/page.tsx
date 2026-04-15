@@ -34,16 +34,16 @@ export default function StoryEditorPage({ params }: { params: Params }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0b1120] flex items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-bg flex items-center justify-center text-muted">
         Chargement…
       </div>
     );
   }
   if (!story) {
     return (
-      <div className="min-h-screen bg-[#0b1120] flex items-center justify-center text-slate-400">
+      <div className="min-h-screen bg-bg flex items-center justify-center text-muted">
         Story introuvable.{" "}
-        <Link href="/" className="text-blue-400 ml-2">
+        <Link href="/" className="text-fore/60 hover:text-fore ml-2 transition-colors">
           Retour
         </Link>
       </div>
@@ -109,7 +109,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b1120] flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col">
       {confirmDeleteSceneId !== null && (
         <ConfirmModal
           message="Supprimer cette scène et tous ses nœuds ? Cette action est irréversible."
@@ -118,12 +118,12 @@ export default function StoryEditorPage({ params }: { params: Params }) {
         />
       )}
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-white/5 bg-[#0f172a]/80 backdrop-blur-md z-10">
+      <header className="flex-shrink-0 border-b border-white/5 bg-sidebar/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 px-4 py-3">
           <div className={`flex items-center gap-4 min-w-0 transition-opacity duration-200 ${editingCharacter ? "opacity-20 pointer-events-none select-none" : ""}`}>
           <Link
             href="/"
-            className="w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-slate-400 hover:text-white transition-colors flex-shrink-0 flex items-center justify-center"
+            className="w-8 h-8 rounded-full bg-raised hover:bg-elevated text-muted hover:text-fore transition-colors flex-shrink-0 flex items-center justify-center"
             title="Retour au dashboard"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,7 +132,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
           </Link>
 
           <div className="flex flex-col min-w-0">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wide font-medium leading-none mb-1">
+            <span className="text-[10px] text-subtle uppercase tracking-wide font-medium leading-none mb-1">
               Éditer votre story
             </span>
             {editingTitle ? (
@@ -145,15 +145,15 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                   if (e.key === "Enter") saveTitle();
                   if (e.key === "Escape") setEditingTitle(false);
                 }}
-                className="bg-slate-700 border border-blue-500 rounded-lg px-3 py-1 text-white text-lg font-bold focus:outline-none max-w-sm"
+                className="bg-raised border border-white/30 rounded px-3 py-1 text-fore text-lg font-bold focus:outline-none max-w-sm"
               />
             ) : (
               <button
                 onClick={() => { setTitleDraft(story.title); setEditingTitle(true); }}
-                className="text-white font-bold hover:text-blue-300 transition-colors text-lg flex items-center gap-1.5 truncate"
+                className="text-fore font-bold hover:text-fore/70 transition-colors text-lg flex items-center gap-1.5 truncate"
               >
                 {story.title}
-                <svg className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-3.5 h-3.5 text-subtle flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
               </button>
@@ -165,10 +165,10 @@ export default function StoryEditorPage({ params }: { params: Params }) {
             <button
               onClick={togglePublish}
               disabled={publishing}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                 story.published
                   ? "bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-red-900/20 hover:border-red-500/30 hover:text-red-300"
-                  : "bg-blue-600 hover:bg-blue-500 text-white"
+                  : "bg-neutral-100 hover:bg-white text-zinc-900"
               }`}
             >
               {publishing ? "…" : story.published ? "Dépublier" : "Publier"}
@@ -177,7 +177,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
               <Link
                 href={`/s/${story.slug}`}
                 target="_blank"
-                className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors"
+                className="px-3 py-1.5 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm transition-colors"
                 title="Voir la page publique"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,10 +193,10 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                   setLinkCopied(true);
                   setTimeout(() => setLinkCopied(false), 2000);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                className={`px-3 py-1.5 rounded text-sm transition-colors ${
                   linkCopied
                     ? "bg-green-600/30 text-green-400 border border-green-500/40"
-                    : "bg-slate-700 hover:bg-slate-600 text-slate-300"
+                    : "bg-raised hover:bg-elevated text-muted hover:text-fore"
                 }`}
                 title="Copier le lien public"
               >
@@ -218,9 +218,9 @@ export default function StoryEditorPage({ params }: { params: Params }) {
       {/* Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar: Characters */}
-        <aside className="w-72 flex-shrink-0 border-r border-white/5 bg-[#0f172a] flex flex-col overflow-hidden">
+        <aside className="w-72 flex-shrink-0 border-r border-white/5 bg-sidebar flex flex-col overflow-hidden">
           <div className="border-b border-white/5 px-4 py-3">
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <div className="text-xs font-semibold text-subtle uppercase tracking-wide">
               Personnages
             </div>
           </div>
@@ -238,10 +238,10 @@ export default function StoryEditorPage({ params }: { params: Params }) {
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-white font-semibold text-lg">Scènes</h2>
+              <h2 className="text-fore font-semibold text-lg">Scènes</h2>
               <button
                 onClick={() => setAddingScene(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded bg-neutral-100 hover:bg-white text-zinc-900 text-sm font-medium transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -251,7 +251,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
             </div>
 
             {scenes.length === 0 ? (
-              <div className="text-center py-16 text-slate-500">
+              <div className="text-center py-16 text-subtle">
                 <div className="text-4xl mb-4">🎬</div>
                 <p className="mb-1">Aucune scène pour l&apos;instant.</p>
                 <p className="text-xs">Créez une scène pour commencer à éditer votre story.</p>
@@ -279,8 +279,8 @@ export default function StoryEditorPage({ params }: { params: Params }) {
       {/* Add scene modal */}
       {addingScene && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-white font-semibold mb-4">Nouvelle scène</h3>
+          <div className="bg-elevated border border-white/10 rounded-lg p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-fore font-semibold mb-4">Nouvelle scène</h3>
             <form onSubmit={handleAddScene} className="flex flex-col gap-4">
               <input
                 autoFocus
@@ -288,20 +288,20 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                 value={newSceneTitle}
                 onChange={(e) => setNewSceneTitle(e.target.value)}
                 placeholder="Titre de la scène…"
-                className="bg-slate-700 border border-slate-600 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+                className="bg-raised border border-white/10 rounded px-4 py-3 text-fore placeholder-subtle focus:outline-none focus:border-white/30 transition-colors"
               />
               <div className="flex gap-3 justify-end">
                 <button
                   type="button"
                   onClick={() => { setAddingScene(false); setNewSceneTitle(""); }}
-                  className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors"
+                  className="px-4 py-2 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={creatingScene || !newSceneTitle.trim()}
-                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium transition-colors"
+                  className="px-4 py-2 rounded bg-neutral-100 hover:bg-white disabled:opacity-40 text-zinc-900 text-sm font-medium transition-colors"
                 >
                   {creatingScene ? "Création…" : "Créer"}
                 </button>
@@ -342,19 +342,19 @@ function SceneCard({
   return (
     <div
       onClick={() => router.push(`/stories/${storyId}/scenes/${scene.id}/edit`)}
-      className="flex gap-3 items-center bg-slate-800/40 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-all p-3 cursor-pointer"
+      className="flex gap-3 items-center bg-elevated/40 border border-white/7 rounded-lg overflow-hidden hover:border-white/15 transition-all p-3 cursor-pointer"
     >
       {/* Order arrows — left */}
       <div className="flex flex-col gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={() => onMove(scene.id, "up")}
           disabled={index === 0}
-          className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-xs"
+          className="w-7 h-7 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-xs"
         >▲</button>
         <button
           onClick={() => onMove(scene.id, "down")}
           disabled={index === total - 1}
-          className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-slate-400 hover:text-white transition-colors flex items-center justify-center text-xs"
+          className="w-7 h-7 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-xs"
         >▼</button>
       </div>
 
@@ -363,20 +363,20 @@ function SceneCard({
         backgroundAsset={scene.background_asset}
         characters={sceneCharacters}
         characterPositions={scene.character_positions}
-        className="w-40 h-[90px] flex-shrink-0 rounded-xl"
+        className="w-40 h-[90px] flex-shrink-0 rounded-md"
       />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-mono">{index + 1}</span>
-          <h3 className="text-white font-medium truncate">{scene.title}</h3>
+          <span className="text-xs text-subtle font-mono">{index + 1}</span>
+          <h3 className="text-fore font-medium truncate">{scene.title}</h3>
         </div>
       </div>
 
       <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
         <button
           onClick={onDelete}
-          className="p-2 rounded-lg bg-slate-700 hover:bg-red-900/40 text-slate-400 hover:text-red-300 transition-colors cursor-pointer"
+          className="p-2 rounded bg-raised hover:bg-red-900/40 text-muted hover:text-red-300 transition-colors cursor-pointer"
           title="Supprimer la scène"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

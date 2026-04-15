@@ -1,0 +1,107 @@
+/* player.css — Player theme
+   Variables and classes used by ScenePlayer.
+   Future: override per story via <style> injection from story settings. */
+
+:root {
+  /* Container */
+  --player-end-bg: #0d0d0d;
+
+  /* Shared panel box (dialogue, text, quiz) */
+  --player-box-bg: rgba(8, 8, 8, 0.9);
+  --player-box-border: rgba(255, 255, 255, 0.08);
+  --player-box-radius: 12px;
+  --player-box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+
+  /* Text */
+  --player-text-color: #ededed;
+  --player-name-color: #ededed;
+  --player-progress-color: rgba(255, 255, 255, 0.35);
+
+  /* Next / continue buttons */
+  --player-next-color: rgba(255, 255, 255, 0.4);
+  --player-next-hover: #ffffff;
+
+  /* Quiz option states */
+  --player-option-bg: rgba(255, 255, 255, 0.04);
+  --player-option-border: rgba(255, 255, 255, 0.08);
+  --player-option-selected-bg: rgba(255, 255, 255, 0.12);
+  --player-option-selected-border: rgba(255, 255, 255, 0.35);
+  --player-option-correct-bg: rgba(74, 222, 128, 0.14);
+  --player-option-correct-border: rgba(74, 222, 128, 0.6);
+  --player-option-wrong-bg: rgba(239, 68, 68, 0.14);
+  --player-option-wrong-border: rgba(239, 68, 68, 0.5);
+
+  /* Quiz confirm / continue button */
+  --player-confirm-bg: rgba(255, 255, 255, 0.1);
+  --player-confirm-border: rgba(255, 255, 255, 0.18);
+  --player-confirm-hover-bg: rgba(255, 255, 255, 0.18);
+}
+
+/* Shared panel box */
+.player-box {
+  background: var(--player-box-bg);
+  border: 1px solid var(--player-box-border);
+  border-radius: var(--player-box-radius);
+  box-shadow: var(--player-box-shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Next / continue buttons inside the player */
+.player-next-btn {
+  color: var(--player-next-color);
+}
+.player-next-btn:hover {
+  color: var(--player-next-hover);
+}
+
+/* Quiz option base state */
+.player-option {
+  background: var(--player-option-bg);
+  border-color: var(--player-option-border);
+  color: var(--player-text-color);
+}
+.player-option:hover:not(:disabled) {
+  background: var(--player-option-selected-bg);
+  border-color: var(--player-option-selected-border);
+}
+
+/* Quiz option selected (before reveal) */
+.player-option-selected {
+  background: var(--player-option-selected-bg);
+  border-color: var(--player-option-selected-border);
+  color: var(--player-text-color);
+}
+
+/* Quiz reveal states */
+.player-option-correct {
+  background: var(--player-option-correct-bg);
+  border-color: var(--player-option-correct-border);
+  color: rgb(134 239 172);
+}
+.player-option-wrong {
+  background: var(--player-option-wrong-bg);
+  border-color: var(--player-option-wrong-border);
+  color: rgb(252 165 165);
+}
+.player-option-neutral {
+  background: var(--player-option-bg);
+  border-color: var(--player-option-border);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Quiz confirm / continue button */
+.player-confirm-btn {
+  background: var(--player-confirm-bg);
+  border: 1px solid var(--player-confirm-border);
+  color: var(--player-text-color);
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+.player-confirm-btn:hover:not(:disabled) {
+  background: var(--player-confirm-hover-bg);
+}
+.player-confirm-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
