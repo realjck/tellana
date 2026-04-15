@@ -60,6 +60,10 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   const [localPositions, setLocalPositions] = useState<Record<string, CharacterPosition>>({});
   const positionsInitialized = useRef(false);
 
+  const mainAreaRef = useRef<HTMLDivElement>(null);
+  const [previewPct, setPreviewPct] = useState(42);
+  const dragState = useRef<{ startY: number; startPct: number } | null>(null);
+
   useEffect(() => {
     if (!bgCustomInitialized.current && scene) {
       bgCustomInitialized.current = true;
@@ -242,6 +246,21 @@ export default function SceneEditorPage({ params }: { params: Params }) {
     await mutateScene();
   };
 
+  const onDividerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragState.current = { startY: e.clientY, startPct: previewPct };
+  };
+  const onDividerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState.current) return;
+    const containerH = mainAreaRef.current?.getBoundingClientRect().height ?? 1;
+    const delta = e.clientY - dragState.current.startY;
+    const newPct = Math.max(15, Math.min(82, dragState.current.startPct + (delta / containerH) * 100));
+    setPreviewPct(newPct);
+  };
+  const onDividerPointerUp = () => {
+    dragState.current = null;
+  };
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -368,10 +387,16 @@ export default function SceneEditorPage({ params }: { params: Params }) {
         </aside>
 
         {/* Main area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div ref={mainAreaRef} className="flex-1 flex flex-col overflow-hidden">
           {/* Scene preview */}
-          <div className={`flex-shrink-0 p-4 bg-bg ${tab === "nodes" ? "border-b border-white/5" : ""}`}>
-            <div className="max-w-2xl mx-auto">
+          <div
+            className="flex-shrink-0 bg-bg overflow-hidden flex items-center justify-center"
+            style={tab === "nodes" ? { height: `${previewPct}%` } : { padding: "1rem" }}
+          >
+            <div
+              className={tab !== "nodes" ? "w-full max-w-2xl" : ""}
+              style={tab === "nodes" ? { height: "100%", aspectRatio: "16/9", maxWidth: "100%" } : {}}
+            >
               {nodes.length > 0 || tab !== "nodes" ? (
                 <ScenePlayer
                   nodes={previewNodes}
@@ -404,6 +429,22 @@ export default function SceneEditorPage({ params }: { params: Params }) {
               )}
             </div>
           </div>
+
+          {/* Drag divider */}
+          {tab === "nodes" && (
+            <div
+              className="flex-shrink-0 h-2 bg-transparent hover:bg-white/5 cursor-ns-resize flex items-center justify-center group select-none border-y border-white/5"
+              onPointerDown={onDividerPointerDown}
+              onPointerMove={onDividerPointerMove}
+              onPointerUp={onDividerPointerUp}
+            >
+              <div className="flex gap-0.5">
+                <div className="w-1 h-1 rounded-full bg-white/15 group-hover:bg-white/30 transition-colors" />
+                <div className="w-1 h-1 rounded-full bg-white/15 group-hover:bg-white/30 transition-colors" />
+                <div className="w-1 h-1 rounded-full bg-white/15 group-hover:bg-white/30 transition-colors" />
+              </div>
+            </div>
+          )}
 
           {/* Node editor form */}
           {tab === "nodes" && (
