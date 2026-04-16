@@ -54,6 +54,7 @@ class Character(Base):
     id = Column(Integer, primary_key=True, index=True)
     story_id = Column(Integer, ForeignKey("stories.id"), nullable=False)
     name = Column(String, nullable=False)
+    color = Column(String, nullable=True)
     sprites = Column(JSON, nullable=False, default=dict)
 
     story = relationship("Story", back_populates="characters")

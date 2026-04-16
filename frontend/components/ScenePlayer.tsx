@@ -250,7 +250,7 @@ export default function ScenePlayer({
                 {speakingChar && (
                   <div
                     className="text-[52px] font-semibold mb-3"
-                    style={{ color: "var(--player-name-color)" }}
+                    style={{ color: speakingChar.color ?? "var(--player-name-color)" }}
                   >
                     {speakingChar.name}
                   </div>

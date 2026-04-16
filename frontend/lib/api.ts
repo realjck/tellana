@@ -113,7 +113,7 @@ export const api = {
       ),
   },
   characters: {
-    create: (storyId: number, data: Pick<Character, "name" | "sprites">) =>
+    create: (storyId: number, data: Pick<Character, "name" | "color" | "sprites">) =>
       request<Character>(`/api/stories/${storyId}/characters/`, {
         method: "POST",
         body: JSON.stringify(data),
@@ -121,7 +121,7 @@ export const api = {
     update: (
       storyId: number,
       charId: number,
-      data: Partial<Pick<Character, "name" | "sprites">>
+      data: Partial<Pick<Character, "name" | "color" | "sprites">>
     ) =>
       request<Character>(`/api/stories/${storyId}/characters/${charId}`, {
         method: "PATCH",
@@ -154,6 +154,16 @@ export const api = {
     },
   },
 };
+
+/** Rainbow palette for character default colors */
+export const RAINBOW_COLORS = [
+  "#FF6B6B", "#FF9F43", "#FECA57", "#1DD1A1",
+  "#48DBFB", "#54A0FF", "#9B59B6", "#FF9FF3",
+];
+
+export function randomCharacterColor(): string {
+  return RAINBOW_COLORS[Math.floor(Math.random() * RAINBOW_COLORS.length)];
+}
 
 /** Default sprites available without upload */
 export const DEFAULT_SPRITES = [

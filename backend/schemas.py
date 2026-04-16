@@ -24,6 +24,7 @@ class AssetRef(BaseModel):
 
 class CharacterBase(BaseModel):
     name: str
+    color: Optional[str] = None
     sprites: Dict[str, AssetRef] = {}
 
 
@@ -33,6 +34,7 @@ class CharacterCreate(CharacterBase):
 
 class CharacterUpdate(BaseModel):
     name: Optional[str] = None
+    color: Optional[str] = None
     sprites: Optional[Dict[str, AssetRef]] = None
 
 
