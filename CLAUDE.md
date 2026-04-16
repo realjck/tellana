@@ -65,6 +65,36 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 - `character_ids` sur Scene : max 4, doivent appartenir à la story (validé dans PATCH scenes).
 - Suppression d'un personnage story : le backend nettoie `character_ids` et `character_positions` dans toutes les scènes de la story.
 
+## UI — Palette et style global
+
+### Palette sémantique (Tailwind v4 `@theme`)
+
+Tokens définis dans `frontend/app/globals.css` via `@theme { --color-* }` :
+
+- `bg-bg` / `bg-surface` / `bg-sidebar` — fonds principaux (du plus sombre au plus clair)
+- `bg-elevated` / `bg-raised` — surfaces surélevées
+- `text-fore` / `text-muted` / `text-subtle` — hiérarchie typographique
+
+Utiliser **toujours ces tokens** plutôt que des couleurs hardcodées (`slate-*`, `zinc-*`, etc.).
+
+### Police
+
+**Space Grotesk** via `next/font/google` dans `app/layout.tsx`, variable CSS `--font-space-grotesk` sur `<html>`.
+
+### Boutons primaires
+
+`bg-neutral-100 hover:bg-white text-zinc-900` — pas de bleu comme couleur principale.
+
+### Border radius
+
+Convention : `rounded-lg` (cards), `rounded-md` (éléments interactifs), `rounded` (petits éléments). Éviter `rounded-2xl` et `rounded-xl`.
+
+### Styles du player
+
+Isolés dans `frontend/app/styles/player.css` (importé dans `globals.css`). Variables CSS : `--player-box-bg`, `--player-name-color`, etc. Classes : `.player-box`, `.player-next-btn`, `.player-option*`, `.player-confirm-btn`. Permet un override par story à terme.
+
+**Ne pas mettre de styles player inline dans les composants** — passer par ces classes CSS.
+
 ## Architecture ScenePlayer / rendu visuel
 
 ### Scale uniforme 1920×1080
@@ -103,11 +133,13 @@ Onglet Perso de l'éditeur : toggle des persos visibles (max 4), sliders de posi
 
 ## Éditeur de scène (page edit)
 
+- Panneau resizable : la zone principale (`mainAreaRef`) est divisée en preview (hauteur `previewPct`%, défaut 42%) + divider + formulaire. Drag vertical par pointer capture, limité à [15%, 82%]. État : `previewPct` (useState), `dragState` (useRef).
 - Tab "Script" : liste des nœuds + formulaire d'édition.
 - Ajout de nœud : sous-menu (Dialogue / Texte narratif / Quiz). Type fixé à la création. Nœud inséré après le nœud courant.
 - `NodeForm` : `DialogueFields` (personnage + texte), `TextFields` (Markdown), `QuizFields`.
   - `DialogueFields` : clic sur un bloc personnage le sélectionne ; re-clic sur le même le désélectionne (`character_id → null`).
   - Auto-save 1 s avec spinner affiché à droite du titre "Édition du nœud". Pas de bouton Enregistrer.
+- Preview (tab "nodes") : wrapper `height: previewPct% + aspectRatio: 16/9 + maxWidth: 100%` — hauteur fixe, largeur calculée automatiquement (height-driven). Pour les autres tabs, padding `1rem` et `max-w-2xl`.
 - `previewPatch` : patch live pour la preview lors de l'édition. Réinitialisé à `null` dans `onIndexChange` pour éviter la contamination lors de l'avance dans la preview.
 - `sceneCharacters` passé à `NodeForm` (persos de la scène uniquement).
 - Root div : `h-screen overflow-hidden`. Liste des nœuds scrollable (`flex-1 min-h-0 overflow-y-auto`), bouton Ajouter fixe (`flex-shrink-0`).
