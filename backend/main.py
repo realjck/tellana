@@ -19,6 +19,13 @@ with engine.begin() as _conn:
     except Exception:
         pass  # Column already exists
 
+# Safe migration: add color column to characters if it doesn't exist yet
+with engine.begin() as _conn:
+    try:
+        _conn.execute(text("ALTER TABLE characters ADD COLUMN color TEXT"))
+    except Exception:
+        pass  # Column already exists
+
 # Ensure uploads dir exists
 Path("uploads").mkdir(exist_ok=True)
 
