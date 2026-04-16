@@ -156,7 +156,6 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
         <div className="flex flex-col gap-2">
           {characters.map((c) => {
             const firstSprite = Object.values(c.sprites)[0];
-            const poseCount = Object.keys(c.sprites).length;
             return (
               <button
                 key={c.id}
@@ -169,24 +168,12 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
                   className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: c.color ?? "#aaaaaa" }}
-                    />
-                    <span className="text-sm font-medium text-fore truncate">{c.name}</span>
-                  </div>
-                  <div className="text-[11px] text-subtle">
-                    {poseCount} pose{poseCount > 1 ? "s" : ""}
-                  </div>
+                  <span className="text-sm font-medium text-fore truncate">{c.name}</span>
                 </div>
-                <svg
-                  className="w-4 h-4 text-subtle group-hover:text-muted flex-shrink-0 transition-colors"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                </svg>
+                <div
+                  className="w-4 h-4 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: c.color ?? "#aaaaaa" }}
+                />
               </button>
             );
           })}

@@ -131,25 +131,6 @@ export default function CharacterBasicForm({
         {initial ? "Modifier le personnage" : "Nouveau personnage"}
       </div>
 
-      {/* Color picker */}
-      <div>
-        <div className="text-xs text-muted mb-2">Couleur du personnage</div>
-        <button
-          type="button"
-          onClick={() => colorInputRef.current?.click()}
-          className="w-full h-9 rounded-md border border-white/10 hover:border-white/25 transition-colors"
-          style={{ backgroundColor: color }}
-          title="Choisir une couleur"
-        />
-        <input
-          ref={colorInputRef}
-          type="color"
-          value={color}
-          onChange={(e) => setColor(e.target.value)}
-          className="sr-only"
-        />
-      </div>
-
       {/* Default sprite picker */}
       <div>
         <div className="text-xs text-muted mb-2">Sprite par défaut</div>
@@ -241,14 +222,30 @@ export default function CharacterBasicForm({
         </button>
       )}
 
-      {/* Name */}
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Nom du personnage"
-        className="w-full bg-elevated border border-white/7 rounded px-3 py-2 text-sm text-fore placeholder-subtle focus:outline-none focus:border-white/25"
-      />
+      {/* Name + color picker */}
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Nom du personnage"
+          className="flex-1 bg-elevated border border-white/7 rounded px-3 py-2 text-sm text-fore placeholder-subtle focus:outline-none focus:border-white/25"
+        />
+        <button
+          type="button"
+          onClick={() => colorInputRef.current?.click()}
+          className="w-9 h-9 rounded border border-white/10 hover:border-white/25 transition-colors flex-shrink-0"
+          style={{ backgroundColor: color }}
+          title="Couleur du personnage"
+        />
+        <input
+          ref={colorInputRef}
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          className="sr-only"
+        />
+      </div>
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">
