@@ -42,6 +42,7 @@ jest.mock("@/lib/api", () => ({
     { label: "Homme", url: "/sprite_man.png" },
     { label: "Femme", url: "/sprite_woman.png" },
   ],
+  randomCharacterColor: () => "#FF6B6B",
   resolveAsset: (ref: string | AssetRef | null | undefined) => {
     if (!ref) return "";
     if (typeof ref === "string") return ref;

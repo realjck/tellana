@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { AssetRef, Character } from "@/types";
-import { api, DEFAULT_SPRITES, resolveAsset } from "@/lib/api";
+import { api, DEFAULT_SPRITES, randomCharacterColor, resolveAsset } from "@/lib/api";
 
 interface Props {
   storyId: number;
@@ -26,6 +26,8 @@ export default function CharacterBasicForm({
   onManagePoses,
 }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
+  const [color, setColor] = useState(initial?.color ?? randomCharacterColor());
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
   const defaultSprite = initial?.sprites?.["default"] ?? null;
   const initialAsset: AssetRef = defaultSprite ?? {
@@ -100,9 +102,9 @@ export default function CharacterBasicForm({
       const sprites = { ...existingSprites, default: activeAsset };
       let saved: Character;
       if (initial) {
-        saved = await api.characters.update(storyId, initial.id, { name: name.trim(), sprites });
+        saved = await api.characters.update(storyId, initial.id, { name: name.trim(), color, sprites });
       } else {
-        saved = await api.characters.create(storyId, { name: name.trim(), sprites });
+        saved = await api.characters.create(storyId, { name: name.trim(), color, sprites });
       }
       onSaved(saved);
     } catch {
@@ -127,6 +129,25 @@ export default function CharacterBasicForm({
 
       <div className="text-xs font-semibold text-subtle uppercase tracking-wide">
         {initial ? "Modifier le personnage" : "Nouveau personnage"}
+      </div>
+
+      {/* Color picker */}
+      <div>
+        <div className="text-xs text-muted mb-2">Couleur du personnage</div>
+        <button
+          type="button"
+          onClick={() => colorInputRef.current?.click()}
+          className="w-full h-9 rounded-md border border-white/10 hover:border-white/25 transition-colors"
+          style={{ backgroundColor: color }}
+          title="Choisir une couleur"
+        />
+        <input
+          ref={colorInputRef}
+          type="color"
+          value={color}
+          onChange={(e) => setColor(e.target.value)}
+          className="sr-only"
+        />
       </div>
 
       {/* Default sprite picker */}

@@ -169,7 +169,13 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
                   className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-fore truncate">{c.name}</div>
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: c.color ?? "#aaaaaa" }}
+                    />
+                    <span className="text-sm font-medium text-fore truncate">{c.name}</span>
+                  </div>
                   <div className="text-[11px] text-subtle">
                     {poseCount} pose{poseCount > 1 ? "s" : ""}
                   </div>

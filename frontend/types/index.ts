@@ -17,6 +17,7 @@ export interface Character {
   id: number;
   story_id: number;
   name: string;
+  color?: string | null;
   sprites: Record<string, AssetRef>;
 }
 
