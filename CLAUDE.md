@@ -12,7 +12,7 @@ Plateforme Visual Novel : éditeur de stories composées de scènes (dialogues, 
 
 - **Story** : titre, slug, published, personnages — une story = plusieurs scènes ordonnées
 - **Scene** : séquence de nœuds avec son propre décor, titre, `character_ids` (persos visibles, ordonnés, max 4), `character_positions`
-- **Character** : attaché à la Story (partagé entre toutes les scènes), sans champ `position` (positionné dynamiquement par ScenePlayer)
+- **Character** : attaché à la Story (partagé entre toutes les scènes), sans champ `position` (positionné dynamiquement par ScenePlayer). Champ `color` (hex string, ex. `#FF6B6B`) pour la couleur du nom dans le player.
 - **Node** : attaché à une Scene via `scene_id`
 
 ## Structure
@@ -51,12 +51,14 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 - Résolution d'URL d'assets : toujours utiliser `resolveAsset(ref: string | AssetRef)` importé depuis `@/lib/api` (gère `/uploads/` → URL complète backend, rétrocompatible `string`). Ne jamais utiliser `ref.url` directement pour afficher une image.
 - **Types de nœuds** : ne pas fermer le `Literal` à `"dialogue"|"text"|"quiz"` — les types `"image"`, `"video"`, `"image_text"` sont prévus (spec Media Creator).
 - **Sprites personnages** : `sprites: Record<string, AssetRef>` sur `Character` — `Object.values(c.sprites)[0]` pour le sprite par défaut.
+- **Couleur personnage** : `color?: string | null` sur `Character`. `RAINBOW_COLORS` + `randomCharacterColor()` exportés depuis `@/lib/api` pour la valeur par défaut aléatoire.
 - Types `NodeData` : double cast `as unknown as TargetType` pour passer entre `Record<string,unknown>` et les types union.
 - Pas de `<button>` imbriqués — utiliser `<div role="button" tabIndex={0} onKeyDown={...}>` pour les items de liste cliquables.
 
 ### Backend
 - Schémas Pydantic : `type: Literal["dialogue","text","quiz"]` — ne pas élargir en `str`, mais documenter les types futurs prévus (`"image"`, `"video"`, `"image_text"`) en commentaire.
-- `Character` n'a pas de champ `position` (positionnement dynamique dans ScenePlayer). `sprites: dict[str, AssetRef]`.
+- `Character` n'a pas de champ `position` (positionnement dynamique dans ScenePlayer). `sprites: dict[str, AssetRef]`. `color: Optional[str]` (hex, nullable).
+- Migrations safe au démarrage dans `main.py` : pattern `ALTER TABLE ... ADD COLUMN` dans un `try/except` (voir `character_positions` et `color`). `create_all` gère les DB fraîches, le bloc ALTER gère les DB existantes.
 - `Scene` hérite de `SceneSummary` — ne pas dupliquer les champs. `SceneSummary` inclut `character_ids: list[int]` et `character_positions: Dict[str, CharacterPosition]`.
 - `StorySummary` inclut `first_scene_character_ids`, `first_scene_character_positions`, `characters: list[Character]` — construits manuellement dans `list_stories` avec `selectinload(Story.scenes)` + `selectinload(Story.characters)`.
 - `exclude_unset=True` sur tous les PATCH pour n'écraser que les champs fournis.
@@ -148,7 +150,7 @@ Onglet Perso de l'éditeur : toggle des persos visibles (max 4), sliders de posi
 ## Personnages et poses
 
 - `CharacterManager` : modes list / add / edit / poses. `onEditingCharacter?(editing: boolean)` remonte l'état.
-- `CharacterBasicForm` : grille sprites 3 colonnes, bouton "Gérer les poses" amber.
+- `CharacterBasicForm` : grille sprites 3 colonnes, bouton "Gérer les poses" amber. Color picker inline à droite du champ nom (bouton carré `w-9 h-9`, `<input type="color">` caché via `sr-only`). Couleur initialisée depuis `initial?.color ?? randomCharacterColor()`.
 - `CharacterPosesManager` : gestion des poses (add, rename, delete, change image). Overlay modale pour noms dupliqués. Badge "défaut" non renommable.
 - `CharacterPosesDrawer` : preview des sprites à droite (z-30).
 - Overlay backdrop `fixed left-[36rem] inset-y-0 right-0` avec `bg-black/50 backdrop-blur-sm`.
@@ -168,6 +170,7 @@ Onglet Perso de l'éditeur : toggle des persos visibles (max 4), sliders de posi
 - Lancer depuis `backend/` : `python -m pytest`.
 
 ### Frontend Jest (39 tests)
+- Mock `@/lib/api` : inclure `randomCharacterColor: () => "#FF6B6B"` dans tout mock de ce module (requis par `CharacterBasicForm`).
 - Config dans `jest.config.ts` avec `next/jest.js`.
 - `testMatch` limité à `__tests__/` pour exclure les fichiers Playwright `e2e/`.
 - `jest.setup.ts` : mock `ResizeObserver` (requis pour ScenePlayer et ScenePreviewThumbnail).
