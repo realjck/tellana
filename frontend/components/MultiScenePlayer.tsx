@@ -49,7 +49,7 @@ export default function MultiScenePlayer({ scenes, characters, title }: Props) {
         {title && <p className="text-white/40 text-sm">{title}</p>}
         <button
           onClick={() => { setSceneIndex(0); setEnded(false); }}
-          className="px-6 py-2.5 rounded-md bg-neutral-100 hover:bg-white text-zinc-900 font-medium transition-colors"
+          className="px-6 py-2.5 rounded-md bg-primary hover:bg-primary-hover text-white cursor-pointer font-medium transition-colors"
         >
           Rejouer depuis le début
         </button>

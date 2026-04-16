@@ -86,7 +86,7 @@ export default function DashboardPage() {
           <button
             type="submit"
             disabled={creating || !newTitle.trim()}
-            className="px-6 py-3 rounded-md bg-neutral-100 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-zinc-900 font-semibold transition-colors flex items-center gap-2"
+            className="px-6 py-3 rounded-md bg-primary hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold transition-colors flex items-center gap-2"
           >
             {creating ? (
               <span className="opacity-60">Création…</span>

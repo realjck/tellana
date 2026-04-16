@@ -83,7 +83,7 @@ Utiliser **toujours ces tokens** plutôt que des couleurs hardcodées (`slate-*`
 
 ### Boutons primaires
 
-`bg-neutral-100 hover:bg-white text-zinc-900` — pas de bleu comme couleur principale.
+`bg-primary hover:bg-primary-hover text-white` — couleur définie par `--color-primary` / `--color-primary-hover` dans `globals.css @theme`. Modifier ces variables pour rethémer tous les boutons d'action.
 
 ### Border radius
 

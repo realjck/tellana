@@ -241,7 +241,7 @@ export default function CharacterPosesManager({
             <div className="flex justify-end">
               <button
                 onClick={() => setErrorMessage(null)}
-                className="px-4 py-2 rounded bg-neutral-100 hover:bg-white text-zinc-900 text-sm font-semibold transition-colors"
+                className="px-4 py-2 rounded bg-primary hover:bg-primary-hover text-white cursor-pointer text-sm font-semibold transition-colors"
               >
                 OK
               </button>

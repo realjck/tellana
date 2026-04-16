@@ -13,10 +13,22 @@
   --color-elevated: #212121;
   --color-raised: #2c2c2c;
 
+  /* Primary action color — change here to retheme buttons */
+  --color-primary: #6c6af5;
+  --color-primary-hover: #7b79f7;
+
   /* Editor text */
   --color-fore: #ededed;
   --color-muted: #888888;
   --color-subtle: #505050;
+}
+
+@utility bg-primary {
+  background-color: var(--color-primary);
+}
+
+@utility bg-primary-hover {
+  background-color: var(--color-primary-hover);
 }
 
 :root {

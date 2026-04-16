@@ -109,7 +109,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   };
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="h-screen bg-bg flex flex-col overflow-hidden">
       {confirmDeleteSceneId !== null && (
         <ConfirmModal
           message="Supprimer cette scène et tous ses nœuds ? Cette action est irréversible."
@@ -168,7 +168,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
                 story.published
                   ? "bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-red-900/20 hover:border-red-500/30 hover:text-red-300"
-                  : "bg-neutral-100 hover:bg-white text-zinc-900"
+                  : "bg-primary hover:bg-primary-hover text-white cursor-pointer"
               }`}
             >
               {publishing ? "…" : story.published ? "Dépublier" : "Publier"}
@@ -241,7 +241,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
               <h2 className="text-fore font-semibold text-lg">Scènes</h2>
               <button
                 onClick={() => setAddingScene(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded bg-neutral-100 hover:bg-white text-zinc-900 text-sm font-medium transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded bg-primary hover:bg-primary-hover text-white cursor-pointer text-sm font-medium transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
