@@ -83,10 +83,15 @@ export default function StoryEditorPage({ params }: { params: Params }) {
     }
   };
 
+  const hasUnpublishedChanges =
+    story.published &&
+    story.published_at !== null &&
+    new Date(story.updated_at) > new Date(story.published_at);
+
   const togglePublish = async () => {
     setPublishing(true);
     try {
-      if (story.published) {
+      if (story.published && !hasUnpublishedChanges) {
         await api.stories.unpublish(storyId);
       } else {
         await api.stories.publish(storyId);
@@ -94,7 +99,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
       await mutate();
     } catch {
       setExportError(
-        story.published
+        story.published && !hasUnpublishedChanges
           ? "Erreur lors de la dépublication."
           : "Erreur lors de la publication. Vérifiez que le player bundle est compilé (npm run build:player)."
       );
@@ -102,11 +107,6 @@ export default function StoryEditorPage({ params }: { params: Params }) {
       setPublishing(false);
     }
   };
-
-  const hasUnpublishedChanges =
-    story.published &&
-    story.published_at !== null &&
-    new Date(story.updated_at) > new Date(story.published_at);
 
   const handleAddScene = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -230,12 +230,12 @@ export default function StoryEditorPage({ params }: { params: Params }) {
               onClick={togglePublish}
               disabled={publishing}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                story.published
+                story.published && !hasUnpublishedChanges
                   ? "bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-red-900/20 hover:border-red-500/30 hover:text-red-300"
                   : "bg-primary hover:bg-primary-hover text-white cursor-pointer"
               }`}
             >
-              {publishing ? "…" : story.published ? "Dépublier" : "Publier"}
+              {publishing ? "…" : hasUnpublishedChanges ? "Republier" : story.published ? "Dépublier" : "Publier"}
             </button>
             {story.published && (
               <a
