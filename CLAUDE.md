@@ -10,7 +10,7 @@ Plateforme Visual Novel : éditeur de stories composées de scènes (dialogues, 
 
 ### Hiérarchie des objets
 
-- **Story** : titre, slug, published, personnages — une story = plusieurs scènes ordonnées
+- **Story** : titre, slug, published, `published_at` (DateTime nullable — horodatage de la dernière publication), personnages — une story = plusieurs scènes ordonnées
 - **Scene** : séquence de nœuds avec son propre décor, titre, `character_ids` (persos visibles, ordonnés, max 4), `character_positions`
 - **Character** : attaché à la Story (partagé entre toutes les scènes), sans champ `position` (positionné dynamiquement par ScenePlayer). Champ `color` (hex string, ex. `#FF6B6B`) pour la couleur du nom dans le player.
 - **Node** : attaché à une Scene via `scene_id`
@@ -32,7 +32,8 @@ cd backend && python -m pytest
 # Frontend
 cd frontend && npm run dev
 cd frontend && npm test
-cd frontend && npm run test:e2e   # nécessite backend sur :8000
+cd frontend && npm run test:e2e       # nécessite backend sur :8000
+cd frontend && npm run build:player   # compile le player bundle standalone (player-dist/)
 ```
 
 ## Points d'attention Next.js 16
@@ -58,7 +59,7 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 ### Backend
 - Schémas Pydantic : `type: Literal["dialogue","text","quiz"]` — ne pas élargir en `str`, mais documenter les types futurs prévus (`"image"`, `"video"`, `"image_text"`) en commentaire.
 - `Character` n'a pas de champ `position` (positionnement dynamique dans ScenePlayer). `sprites: dict[str, AssetRef]`. `color: Optional[str]` (hex, nullable).
-- Migrations safe au démarrage dans `main.py` : pattern `ALTER TABLE ... ADD COLUMN` dans un `try/except` (voir `character_positions` et `color`). `create_all` gère les DB fraîches, le bloc ALTER gère les DB existantes.
+- Migrations safe au démarrage dans `main.py` : pattern `ALTER TABLE ... ADD COLUMN` dans un `try/except` (voir `character_positions`, `color`, `published_at`). `create_all` gère les DB fraîches, le bloc ALTER gère les DB existantes.
 - `Scene` hérite de `SceneSummary` — ne pas dupliquer les champs. `SceneSummary` inclut `character_ids: list[int]` et `character_positions: Dict[str, CharacterPosition]`.
 - `StorySummary` inclut `first_scene_character_ids`, `first_scene_character_positions`, `characters: list[Character]` — construits manuellement dans `list_stories` avec `selectinload(Story.scenes)` + `selectinload(Story.characters)`.
 - `exclude_unset=True` sur tous les PATCH pour n'écraser que les champs fournis.
@@ -66,6 +67,7 @@ cd frontend && npm run test:e2e   # nécessite backend sur :8000
 - Slug : `unicodedata.normalize("NFKD")` + encode ASCII avant le regex pour translittérer les accents.
 - `character_ids` sur Scene : max 4, doivent appartenir à la story (validé dans PATCH scenes).
 - Suppression d'un personnage story : le backend nettoie `character_ids` et `character_positions` dans toutes les scènes de la story.
+- **`_touch_story(story_id, db)`** : helper présent dans `routers/scenes.py`, `nodes.py`, `characters.py` — bumpe `story.updated_at = datetime.utcnow()` sur toute mutation de contenu. Permet la détection des modifications non publiées. À appeler avant chaque `db.commit()` dans ces routers.
 
 ## UI — Palette et style global
 
@@ -155,18 +157,28 @@ Onglet Perso de l'éditeur : toggle des persos visibles (max 4), sliders de posi
 - `CharacterPosesDrawer` : preview des sprites à droite (z-30).
 - Overlay backdrop `fixed left-[36rem] inset-y-0 right-0` avec `bg-black/50 backdrop-blur-sm`.
 
+## Export et publication standalone
+
+- **Player bundle** : `frontend/player-entry.tsx` compilé via `npm run build:player` (Vite IIFE) → `frontend/player-dist/` (`player-bundle.js`, `player-bundle.css`, `custom.css`). Requis pour export ZIP et publication.
+- **`GET /api/stories/{id}/export-zip`** : génère un ZIP standalone téléchargeable (assets inclus, URLs réécrites `assets/images/`).
+- **`POST /api/stories/{id}/publish`** : génère le ZIP, extrait dans `backend/published/{slug}/`, met `published=True` + `published_at=now()`.
+- **`POST /api/stories/{id}/unpublish`** : supprime `backend/published/{slug}/`, met `published=False`.
+- FastAPI sert `backend/published/` via `StaticFiles(html=True)` sur `/published`. URL publique : `http://localhost:8000/published/{slug}/index.html`.
+- Bouton navbar : "Publier" / "Republier" (style primaire, quand `updated_at > published_at`) / "Dépublier" (style vert). Point amber affiché quand modifications non publiées.
+
 ## UI générale
 
-- `ConfirmModal` : remplace tous les `confirm()` natifs.
+- `ConfirmModal` : remplace tous les `confirm()` natifs (message + Annuler/Supprimer).
+- `AlertModal` : pour les messages d'erreur simples (message + OK). Même style que `ConfirmModal`.
 - Story page navbar : libellé "Éditer votre story" (petit, grisé) + titre éditable.
-- Story publiée : bouton "Voir la page publique" dans la navbar + bouton copier le lien (coche verte 2 s).
+- Story publiée : bouton "Voir la page publique" (→ `/published/{slug}/index.html`) + bouton copier le lien (coche verte 2 s).
 - Limite 4 personnages : s'applique uniquement à la scène (`character_ids`), pas à la story.
 
 ## Tests
 
-### Backend (45 tests)
+### Backend (60 tests)
 - Fixture `client` dans `tests/conftest.py` : SQLite in-memory avec `StaticPool` + override `get_db`.
-- Uploads redirigés vers `tmp_path` via `monkeypatch`.
+- Uploads redirigés vers `tmp_path` via `monkeypatch`. Pour les tests export-zip/publish : monkeypatcher aussi `_PLAYER_DIST_DIR` et `_PUBLISHED_DIR` dans `routers.stories`.
 - Lancer depuis `backend/` : `python -m pytest`.
 
 ### Frontend Jest (39 tests)
