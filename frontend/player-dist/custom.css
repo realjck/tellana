@@ -1,0 +1,10 @@
+/* custom.css — Personnalisation du player standalone
+   Ce fichier est chargé après le bundle principal.
+   Surcharger les variables CSS pour modifier l'apparence :
+
+   :root {
+     --player-box-bg: rgba(20, 20, 40, 0.95);
+     --player-name-color: #a78bfa;
+     --player-text-color: #f0f0f0;
+   }
+*/
