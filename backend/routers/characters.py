@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -6,6 +7,12 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 from database import get_db
+
+
+def _touch_story(story_id: int, db: Session):
+    story = db.query(models.Story).filter(models.Story.id == story_id).first()
+    if story:
+        story.updated_at = datetime.utcnow()
 
 router = APIRouter(prefix="/stories/{story_id}/characters", tags=["characters"])
 
@@ -28,6 +35,7 @@ def create_character(
         raise HTTPException(status_code=404, detail="Story not found")
     db_char = models.Character(**character.model_dump(), story_id=story_id)
     db.add(db_char)
+    _touch_story(story_id, db)
     db.commit()
     db.refresh(db_char)
     return db_char
@@ -52,6 +60,7 @@ def update_character(
         raise HTTPException(status_code=404, detail="Character not found")
     for field, value in update.model_dump(exclude_unset=True).items():
         setattr(char, field, value)
+    _touch_story(story_id, db)
     db.commit()
     db.refresh(char)
     return char
@@ -86,4 +95,5 @@ def delete_character(
             scene.character_positions = {k: v for k, v in positions.items() if k != str(character_id)}
 
     db.delete(char)
+    _touch_story(story_id, db)
     db.commit()

@@ -83,11 +83,26 @@ export default function StoryEditorPage({ params }: { params: Params }) {
     }
   };
 
+  const hasUnpublishedChanges =
+    story.published &&
+    story.published_at !== null &&
+    new Date(story.updated_at) > new Date(story.published_at);
+
   const togglePublish = async () => {
     setPublishing(true);
     try {
-      await api.stories.update(storyId, { published: !story.published });
+      if (story.published && !hasUnpublishedChanges) {
+        await api.stories.unpublish(storyId);
+      } else {
+        await api.stories.publish(storyId);
+      }
       await mutate();
+    } catch {
+      setExportError(
+        story.published && !hasUnpublishedChanges
+          ? "Erreur lors de la dépublication."
+          : "Erreur lors de la publication. Vérifiez que le player bundle est compilé (npm run build:player)."
+      );
     } finally {
       setPublishing(false);
     }
@@ -205,33 +220,40 @@ export default function StoryEditorPage({ params }: { params: Params }) {
               )}
               <span>Export web</span>
             </button>
+            {hasUnpublishedChanges && (
+              <span
+                className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0"
+                title="Modifications non publiées"
+              />
+            )}
             <button
               onClick={togglePublish}
               disabled={publishing}
               className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                story.published
+                story.published && !hasUnpublishedChanges
                   ? "bg-green-600/20 border border-green-500/30 text-green-300 hover:bg-red-900/20 hover:border-red-500/30 hover:text-red-300"
                   : "bg-primary hover:bg-primary-hover text-white cursor-pointer"
               }`}
             >
-              {publishing ? "…" : story.published ? "Dépublier" : "Publier"}
+              {publishing ? "…" : hasUnpublishedChanges ? "Republier" : story.published ? "Dépublier" : "Publier"}
             </button>
             {story.published && (
-              <Link
-                href={`/s/${story.slug}`}
+              <a
+                href={`${API_BASE}/published/${story.slug}/index.html`}
                 target="_blank"
+                rel="noreferrer"
                 className="px-3 py-1.5 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm transition-colors"
                 title="Voir la page publique"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                 </svg>
-              </Link>
+              </a>
             )}
             {story.published && (
               <button
                 onClick={() => {
-                  const url = `${window.location.origin}/s/${story.slug}`;
+                  const url = `${API_BASE}/published/${story.slug}/index.html`;
                   navigator.clipboard.writeText(url);
                   setLinkCopied(true);
                   setTimeout(() => setLinkCopied(false), 2000);

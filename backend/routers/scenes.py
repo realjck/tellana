@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,6 +9,12 @@ import schemas
 from database import get_db
 
 router = APIRouter(prefix="/stories/{story_id}/scenes", tags=["scenes"])
+
+
+def _touch_story(story_id: int, db: Session):
+    story = db.query(models.Story).filter(models.Story.id == story_id).first()
+    if story:
+        story.updated_at = datetime.utcnow()
 
 
 def _get_story_or_404(story_id: int, db: Session) -> models.Story:
@@ -51,6 +58,7 @@ def create_scene(story_id: int, body: schemas.SceneCreate, db: Session = Depends
         order=scene_count,
     )
     db.add(db_scene)
+    _touch_story(story_id, db)
     db.commit()
     db.refresh(db_scene)
     return db_scene
@@ -86,6 +94,7 @@ def update_scene(
 
     for field, value in update_data.items():
         setattr(scene, field, value)
+    _touch_story(story_id, db)
     db.commit()
     db.refresh(scene)
     return scene
@@ -95,6 +104,7 @@ def update_scene(
 def delete_scene(story_id: int, scene_id: int, db: Session = Depends(get_db)):
     scene = _get_scene_or_404(story_id, scene_id, db)
     db.delete(scene)
+    _touch_story(story_id, db)
     db.commit()
 
 
@@ -113,5 +123,6 @@ def reorder_scenes(
         raise HTTPException(status_code=400, detail="Invalid scene IDs in reorder request")
     for index, scene_id in enumerate(body.order):
         scenes[scene_id].order = index
+    _touch_story(story_id, db)
     db.commit()
     return sorted(scenes.values(), key=lambda s: s.order)

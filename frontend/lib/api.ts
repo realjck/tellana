@@ -48,11 +48,15 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ title }),
       }),
-    update: (id: number, data: Partial<Pick<Story, "title" | "published">>) =>
+    update: (id: number, data: Partial<Pick<Story, "title">>) =>
       request<Story>(`/api/stories/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+    publish: (id: number) =>
+      request<Story>(`/api/stories/${id}/publish`, { method: "POST" }),
+    unpublish: (id: number) =>
+      request<Story>(`/api/stories/${id}/unpublish`, { method: "POST" }),
     delete: (id: number) =>
       request<void>(`/api/stories/${id}`, { method: "DELETE" }),
   },

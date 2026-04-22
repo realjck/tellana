@@ -132,6 +132,7 @@ class StorySummary(BaseModel):
     title: str
     slug: str
     published: bool
+    published_at: Optional[datetime] = None
     first_scene_background: Optional[AssetRef] = None
     first_scene_character_ids: List[int] = []
     first_scene_character_positions: Dict[str, CharacterPosition] = {}
@@ -146,6 +147,7 @@ class Story(StoryBase):
     id: int
     slug: str
     published: bool
+    published_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     scenes: List[SceneSummary] = []
