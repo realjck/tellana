@@ -37,6 +37,10 @@ package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
+# Player standalone build artifacts (custom.css is committed as template)
+frontend/player-dist/player-bundle.js
+frontend/player-dist/player-bundle.css
+
 # Next.js
 .next/
 out/
