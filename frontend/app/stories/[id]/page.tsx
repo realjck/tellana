@@ -9,6 +9,7 @@ import type { Character, SceneSummary, Story } from "@/types";
 import CharacterManager from "@/components/CharacterManager";
 import ScenePreviewThumbnail from "@/components/ScenePreviewThumbnail";
 import ConfirmModal from "@/components/ConfirmModal";
+import AlertModal from "@/components/AlertModal";
 
 type Params = Promise<{ id: string }>;
 
@@ -26,6 +27,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   const [titleDraft, setTitleDraft] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [confirmDeleteSceneId, setConfirmDeleteSceneId] = useState<number | null>(null);
   const [addingScene, setAddingScene] = useState(false);
@@ -75,7 +77,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      alert("Erreur lors de l'export. Vérifiez que le player bundle est compilé.");
+      setExportError("Erreur lors de l'export. Vérifiez que le player bundle est compilé (npm run build:player).");
     } finally {
       setExporting(false);
     }
@@ -130,6 +132,9 @@ export default function StoryEditorPage({ params }: { params: Params }) {
 
   return (
     <div className="h-screen bg-bg flex flex-col overflow-hidden">
+      {exportError && (
+        <AlertModal message={exportError} onClose={() => setExportError(null)} />
+      )}
       {confirmDeleteSceneId !== null && (
         <ConfirmModal
           message="Supprimer cette scène et tous ses nœuds ? Cette action est irréversible."
