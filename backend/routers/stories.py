@@ -1,14 +1,26 @@
+import html
+import io
+import json
 import re
 import unicodedata
 import uuid
+import zipfile
+from pathlib import Path
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, selectinload
 
 import models
 import schemas
 from database import get_db
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_FRONTEND_DIR = _BACKEND_DIR.parent / "frontend"
+_PLAYER_DIST_DIR = _FRONTEND_DIR / "player-dist"
+_PUBLIC_DIR = _FRONTEND_DIR / "public"
+_UPLOAD_DIR = _BACKEND_DIR / "uploads"
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
@@ -101,6 +113,108 @@ def export_story_json(story_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Story not found")
     data = schemas.PublicStory.model_validate(story).model_dump(mode="json")
     return _rewrite_upload_urls(data)
+
+
+def _collect_and_rewrite_local_assets(data) -> tuple:
+    """Walk data, rewrite local /xxx.png → assets/images/xxx.png, collect files to copy.
+
+    Returns (rewritten_data, dict mapping dest_filename → ("upload"|"local", src_ref)).
+    Upload assets are already rewritten by _rewrite_upload_urls; we just collect them here.
+    """
+    files: dict[str, tuple[str, str]] = {}
+
+    def walk(obj):
+        if isinstance(obj, dict):
+            asset_type = obj.get("type")
+            url = obj.get("url")
+            if asset_type in ("upload", "local") and isinstance(url, str):
+                if url.startswith("assets/images/"):
+                    files[url[len("assets/images/"):]] = ("upload", url[len("assets/images/"):])
+                    return obj
+                if asset_type == "local" and url.startswith("/"):
+                    name = Path(url).name
+                    files[name] = ("local", url)
+                    return {**obj, "url": f"assets/images/{name}"}
+            return {k: walk(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [walk(item) for item in obj]
+        if isinstance(obj, str) and obj.startswith("assets/images/"):
+            files[obj[len("assets/images/"):]] = ("upload", obj[len("assets/images/"):])
+            return obj
+        return obj
+
+    return walk(data), files
+
+
+def _generate_index_html(title: str) -> str:
+    safe_title = html.escape(title)
+    return f"""<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{safe_title}</title>
+  <link rel="stylesheet" href="assets/css/player-bundle.css">
+  <link rel="stylesheet" href="assets/css/custom.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script src="assets/js/player-bundle.js"></script>
+</body>
+</html>
+"""
+
+
+@router.get("/{story_id}/export-zip")
+def export_story_zip(story_id: int, db: Session = Depends(get_db)):
+    player_js = _PLAYER_DIST_DIR / "player-bundle.js"
+    if not player_js.exists():
+        raise HTTPException(status_code=503, detail="Player bundle introuvable. Lancez : npm run build:player")
+
+    story = (
+        db.query(models.Story)
+        .options(
+            selectinload(models.Story.scenes).selectinload(models.Scene.nodes),
+            selectinload(models.Story.characters),
+        )
+        .filter(models.Story.id == story_id)
+        .first()
+    )
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    data = schemas.PublicStory.model_validate(story).model_dump(mode="json")
+    data = _rewrite_upload_urls(data)
+    data, files_to_copy = _collect_and_rewrite_local_assets(data)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("data/story.json", json.dumps(data, ensure_ascii=False, indent=2))
+        zf.write(player_js, "assets/js/player-bundle.js")
+
+        player_css = _PLAYER_DIST_DIR / "player-bundle.css"
+        if player_css.exists():
+            zf.write(player_css, "assets/css/player-bundle.css")
+
+        custom_css = _PLAYER_DIST_DIR / "custom.css"
+        if custom_css.exists():
+            zf.write(custom_css, "assets/css/custom.css")
+        else:
+            zf.writestr("assets/css/custom.css", "/* Custom CSS */\n")
+
+        for dest_name, (src_type, src_ref) in files_to_copy.items():
+            src = _UPLOAD_DIR / src_ref if src_type == "upload" else _PUBLIC_DIR / src_ref.lstrip("/")
+            if src.exists():
+                zf.write(src, f"assets/images/{dest_name}")
+
+        zf.writestr("index.html", _generate_index_html(story.title))
+
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{story.slug}-standalone.zip"'},
+    )
 
 
 @router.get("/{story_id}/play", response_model=schemas.PublicStory)
