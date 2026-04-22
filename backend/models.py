@@ -10,6 +10,7 @@ class Story(Base):
     title = Column(String, nullable=False)
     slug = Column(String, unique=True, nullable=False, index=True)
     published = Column(Boolean, default=False)
+    published_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

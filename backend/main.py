@@ -26,8 +26,16 @@ with engine.begin() as _conn:
     except Exception:
         pass  # Column already exists
 
-# Ensure uploads dir exists
+# Safe migration: add published_at column to stories if it doesn't exist yet
+with engine.begin() as _conn:
+    try:
+        _conn.execute(text("ALTER TABLE stories ADD COLUMN published_at DATETIME"))
+    except Exception:
+        pass  # Column already exists
+
+# Ensure uploads and published dirs exist
 Path("uploads").mkdir(exist_ok=True)
+Path("published").mkdir(exist_ok=True)
 
 app = FastAPI(title="Tellana API", version="0.1.0")
 
@@ -40,6 +48,7 @@ app.add_middleware(
 )
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/published", StaticFiles(directory="published", html=True), name="published")
 
 app.include_router(stories.router, prefix="/api")
 app.include_router(scenes.router, prefix="/api")

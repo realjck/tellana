@@ -84,6 +84,7 @@ export interface Story {
   title: string;
   slug: string;
   published: boolean;
+  published_at: string | null;
   created_at: string;
   updated_at: string;
   scenes: SceneSummary[];
@@ -95,6 +96,7 @@ export interface StorySummary {
   title: string;
   slug: string;
   published: boolean;
+  published_at: string | null;
   first_scene_background: AssetRef | null;
   first_scene_character_ids: number[];
   first_scene_character_positions: Record<string, CharacterPosition>;

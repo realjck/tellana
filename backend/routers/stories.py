@@ -2,9 +2,11 @@ import html
 import io
 import json
 import re
+import shutil
 import unicodedata
 import uuid
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -21,6 +23,7 @@ _FRONTEND_DIR = _BACKEND_DIR.parent / "frontend"
 _PLAYER_DIST_DIR = _FRONTEND_DIR / "player-dist"
 _PUBLIC_DIR = _FRONTEND_DIR / "public"
 _UPLOAD_DIR = _BACKEND_DIR / "uploads"
+_PUBLISHED_DIR = _BACKEND_DIR / "published"
 
 router = APIRouter(prefix="/stories", tags=["stories"])
 
@@ -165,23 +168,11 @@ def _generate_index_html(title: str) -> str:
 """
 
 
-@router.get("/{story_id}/export-zip")
-def export_story_zip(story_id: int, db: Session = Depends(get_db)):
+def _build_story_zip(story) -> io.BytesIO:
+    """Build and return an in-memory ZIP for the given story."""
     player_js = _PLAYER_DIST_DIR / "player-bundle.js"
     if not player_js.exists():
         raise HTTPException(status_code=503, detail="Player bundle introuvable. Lancez : npm run build:player")
-
-    story = (
-        db.query(models.Story)
-        .options(
-            selectinload(models.Story.scenes).selectinload(models.Scene.nodes),
-            selectinload(models.Story.characters),
-        )
-        .filter(models.Story.id == story_id)
-        .first()
-    )
-    if not story:
-        raise HTTPException(status_code=404, detail="Story not found")
 
     data = schemas.PublicStory.model_validate(story).model_dump(mode="json")
     data = _rewrite_upload_urls(data)
@@ -210,11 +201,71 @@ def export_story_zip(story_id: int, db: Session = Depends(get_db)):
         zf.writestr("index.html", _generate_index_html(story.title))
 
     buf.seek(0)
+    return buf
+
+
+def _load_full_story(story_id: int, db: Session):
+    return (
+        db.query(models.Story)
+        .options(
+            selectinload(models.Story.scenes).selectinload(models.Scene.nodes),
+            selectinload(models.Story.characters),
+        )
+        .filter(models.Story.id == story_id)
+        .first()
+    )
+
+
+@router.get("/{story_id}/export-zip")
+def export_story_zip(story_id: int, db: Session = Depends(get_db)):
+    story = _load_full_story(story_id, db)
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    buf = _build_story_zip(story)
     return StreamingResponse(
         buf,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{story.slug}-standalone.zip"'},
     )
+
+
+@router.post("/{story_id}/publish", response_model=schemas.Story)
+def publish_story(story_id: int, db: Session = Depends(get_db)):
+    story = _load_full_story(story_id, db)
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    buf = _build_story_zip(story)
+
+    pub_dir = _PUBLISHED_DIR / story.slug
+    if pub_dir.exists():
+        shutil.rmtree(pub_dir)
+    pub_dir.mkdir(parents=True)
+    with zipfile.ZipFile(buf) as zf:
+        zf.extractall(pub_dir)
+
+    story.published = True
+    story.published_at = datetime.utcnow()
+    db.commit()
+    db.refresh(story)
+    return story
+
+
+@router.post("/{story_id}/unpublish", response_model=schemas.Story)
+def unpublish_story(story_id: int, db: Session = Depends(get_db)):
+    story = db.query(models.Story).filter(models.Story.id == story_id).first()
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+
+    pub_dir = _PUBLISHED_DIR / story.slug
+    if pub_dir.exists():
+        shutil.rmtree(pub_dir)
+
+    story.published = False
+    db.commit()
+    db.refresh(story)
+    return story
 
 
 @router.get("/{story_id}/play", response_model=schemas.PublicStory)
