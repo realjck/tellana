@@ -73,6 +73,36 @@ def get_story_by_slug(slug: str, db: Session = Depends(get_db)):
     return story
 
 
+def _rewrite_upload_urls(obj):
+    """Recursively rewrite /uploads/{f} → assets/images/{f} in serialized story data."""
+    if isinstance(obj, dict):
+        if obj.get("type") == "upload" and isinstance(obj.get("url"), str) and obj["url"].startswith("/uploads/"):
+            obj = {**obj, "url": "assets/images/" + obj["url"][len("/uploads/"):]}
+        return {k: _rewrite_upload_urls(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_rewrite_upload_urls(item) for item in obj]
+    if isinstance(obj, str) and obj.startswith("/uploads/"):
+        return "assets/images/" + obj[len("/uploads/"):]
+    return obj
+
+
+@router.get("/{story_id}/export-json", response_model=schemas.PublicStory)
+def export_story_json(story_id: int, db: Session = Depends(get_db)):
+    story = (
+        db.query(models.Story)
+        .options(
+            selectinload(models.Story.scenes).selectinload(models.Scene.nodes),
+            selectinload(models.Story.characters),
+        )
+        .filter(models.Story.id == story_id)
+        .first()
+    )
+    if not story:
+        raise HTTPException(status_code=404, detail="Story not found")
+    data = schemas.PublicStory.model_validate(story).model_dump(mode="json")
+    return _rewrite_upload_urls(data)
+
+
 @router.get("/{story_id}/play", response_model=schemas.PublicStory)
 def get_story_for_play(story_id: int, db: Session = Depends(get_db)):
     story = (
