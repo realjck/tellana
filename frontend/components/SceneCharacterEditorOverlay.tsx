@@ -288,10 +288,10 @@ function MirrorButton({ flipX, onClick }: { flipX: boolean; onClick: (e: React.M
     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
       <button
         onClick={onClick}
-        className="w-10 h-10 rounded-full flex items-center justify-center select-none transition-colors cursor-pointer text-white bg-black/65 border border-white/30 backdrop-blur-sm hover:bg-black/80"
+        className="w-7 h-7 rounded-full flex items-center justify-center select-none transition-colors cursor-pointer text-white bg-black/65 border border-white/30 backdrop-blur-sm hover:bg-black/80"
         title={flipX ? "Retourner vers la droite" : "Retourner vers la gauche"}
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
           {flipX
             ? <path d="M5 12h14M13 6l6 6-6 6" />
             : <path d="M19 12H5M11 6L5 12l6 6" />
