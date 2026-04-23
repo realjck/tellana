@@ -407,7 +407,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
           {/* Scene preview */}
           <div
             className="bg-bg overflow-hidden flex items-center justify-center"
-            style={tab === "nodes" ? { flexShrink: 0, height: `${previewPct}%` } : { flex: 1, padding: "1rem" }}
+            style={tab === "nodes" ? { flexShrink: 0, height: `${previewPct}%` } : { flexShrink: 0, padding: "1rem" }}
           >
             <div
               className={tab !== "nodes" ? "w-full max-w-2xl" : ""}
