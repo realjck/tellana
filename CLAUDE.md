@@ -133,7 +133,19 @@ CSS : `height:100%`, `bottom: calc(-10% + y*50%)`, `left: ((x+1)/2)*100%`, `tran
 
 ### SceneCharacterSelector
 
-Onglet Perso de l'éditeur : toggle des persos visibles (max 4), sliders de position (X, Y, Échelle) et toggle orientation. Callbacks : `onChange(ids, positions)` (persist), `onPositionChange(charId, pos)` (real-time), `onPositionCommit(charId, pos)` (persist au relâchement).
+Onglet Perso de l'éditeur : liste des personnages visibles (max 4) avec boutons ▲/▼ pour réordonner l'index Z (ordre = `character_ids`, dernier = avant-plan). Liste affichée inversée (premier affiché = avant-plan). État actif synchronisé avec `selectedCharId`. Callbacks : `onChange(ids, positions)` (persist add/remove), `onSelectCharacter(id | null)` (sélection), `onReorder(newIds)` (réordonnement Z, PATCH `character_ids` uniquement sans positions).
+
+### SceneCharacterEditorOverlay
+
+`frontend/components/SceneCharacterEditorOverlay.tsx` — overlay `absolute inset-0` sur le ScenePlayer, actif uniquement en tab "Perso.". Mesure sa propre largeur via `ResizeObserver` pour `scale = width / 1920`.
+
+- Clic sur un personnage → sélection ; clic en dehors → désélection
+- Personnage sélectionné : cadre pointillé (`border-white/90`) + 8 handles de resize + bouton miroir central circulaire
+- Drag sur le personnage → déplacement (delta CSS / scale → delta scène)
+- Drag sur un handle → scale uniforme : `new_scale = start_scale * dist / startDist` (distances en coordonnées viewport)
+- Bouton miroir → toggle `flip_x`, commit immédiat
+- `hasMoved` flag sur le DragState : évite un commit spurieux si l'utilisateur clique sans bouger
+- Formule `cy` (pivot vertical, scale-invariant) : `cy = (0.6 - pos.y * 0.5) * containerH` — correspond au `transform-origin: 50% 50%` de l'img 1080px dans ScenePlayer
 
 ## Éditeur de scène (page edit)
 
