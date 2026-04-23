@@ -51,9 +51,9 @@ function computeBounds(pos: CharacterPosition, asset: { width: number | null; he
   const h = containerH * pos.scale;
   const w = aspect * containerH * pos.scale;
 
-  // Mirror ScenePlayer: bottom = calc(-10% + y * 50%) → charBottom (from top) = containerH * (1.1 - y * 0.5)
-  const charBottom = containerH * (1.1 - pos.y * 0.5);
-  const cy = charBottom - h / 2;
+  // cy = transform-origin of the character img (center of the 1080px height, scale-invariant)
+  // img top = (0.1 - y*0.5)*BASE_H → center = img_top + BASE_H/2 = (0.6 - y*0.5)*BASE_H
+  const cy = (0.6 - pos.y * 0.5) * containerH;
 
   return { cx, cy, w, h };
 }
