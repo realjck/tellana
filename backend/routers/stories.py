@@ -311,5 +311,8 @@ def delete_story(story_id: int, db: Session = Depends(get_db)):
     story = db.query(models.Story).filter(models.Story.id == story_id).first()
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
+    pub_dir = _PUBLISHED_DIR / story.slug
+    if pub_dir.exists():
+        shutil.rmtree(pub_dir)
     db.delete(story)
     db.commit()
