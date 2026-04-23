@@ -51,7 +51,7 @@ def test_export_zip_basic_structure(client, player_dist, upload_dir, story_id):
     res = client.get(f"/api/stories/{story_id}/export-zip")
     assert res.status_code == 200
     assert "application/zip" in res.headers["content-type"]
-    assert "zip-story" in res.headers["content-disposition"]
+    assert "standalone.zip" in res.headers["content-disposition"]
 
     names = _open_zip(res).namelist()
     assert "index.html" in names

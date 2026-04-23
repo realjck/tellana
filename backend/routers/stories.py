@@ -29,12 +29,7 @@ router = APIRouter(prefix="/stories", tags=["stories"])
 
 
 def _generate_slug(title: str) -> str:
-    # Transliterate accented chars (é→e, ç→c, etc.) before stripping
-    normalized = unicodedata.normalize("NFKD", title.lower())
-    ascii_title = normalized.encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^\w\s-]", "", ascii_title)
-    slug = re.sub(r"[\s_-]+", "-", slug).strip("-")
-    return f"{slug}-{uuid.uuid4().hex[:8]}"
+    return uuid.uuid4().hex[:8]
 
 
 @router.get("/", response_model=List[schemas.StorySummary])

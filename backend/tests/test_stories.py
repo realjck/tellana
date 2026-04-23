@@ -9,12 +9,12 @@ def test_create_story(client):
     assert data["scenes"] == []
 
 
-def test_slug_ascii_transliteration(client):
+def test_slug_is_hex(client):
     res = client.post("/api/stories/", json={"title": "Épisode 1 : L'été"})
     assert res.status_code == 201
     slug = res.json()["slug"]
-    assert "episode" in slug
-    assert "É" not in slug
+    assert len(slug) == 8
+    assert all(c in "0123456789abcdef" for c in slug)
 
 
 def test_slug_is_unique(client):
