@@ -69,7 +69,8 @@ export default function SceneCharacterSelector({
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">
-            {selectedChars.map((c, index) => {
+            {[...selectedChars].reverse().map((c, displayIndex) => {
+              const originalIndex = selectedIds.length - 1 - displayIndex;
               const firstSprite = Object.values(c.sprites)[0];
               const isActive = selectedCharId === c.id;
               return (
@@ -99,19 +100,19 @@ export default function SceneCharacterSelector({
                       {c.name}
                     </span>
 
-                    {/* Reorder arrows */}
+                    {/* Reorder arrows — list is reversed so ▲ = moveDown (higher z-index) */}
                     <div className="flex gap-0.5 flex-shrink-0">
                       <button
-                        onClick={(e) => { e.stopPropagation(); moveUp(index); }}
-                        disabled={index === 0}
+                        onClick={(e) => { e.stopPropagation(); moveDown(originalIndex); }}
+                        disabled={originalIndex === selectedIds.length - 1}
                         className="w-6 h-6 rounded flex items-center justify-center text-muted hover:text-fore hover:bg-raised disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-[10px]"
                         title="Vers l'avant"
                       >
                         ▲
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); moveDown(index); }}
-                        disabled={index === selectedIds.length - 1}
+                        onClick={(e) => { e.stopPropagation(); moveUp(originalIndex); }}
+                        disabled={originalIndex === 0}
                         className="w-6 h-6 rounded flex items-center justify-center text-muted hover:text-fore hover:bg-raised disabled:opacity-20 disabled:cursor-not-allowed transition-colors text-[10px]"
                         title="Vers l'arrière"
                       >
