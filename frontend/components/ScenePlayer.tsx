@@ -226,7 +226,7 @@ export default function ScenePlayer({
                   key={c.id}
                   src={resolvedSprite ? resolveAsset(resolvedSprite) : ""}
                   alt={c.name}
-                  className="absolute object-contain transition-all duration-200"
+                  className={`absolute object-contain ${isPreviewMode ? "" : "transition-all duration-200"}`}
                   style={{
                     height: "100%",
                     bottom: `calc(-10% + ${pos.y * 50}%)`,

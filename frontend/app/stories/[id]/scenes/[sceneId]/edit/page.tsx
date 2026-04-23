@@ -9,6 +9,7 @@ import type { AssetRef, CharacterPosition, Scene, Story, StoryNode, NodeType, Di
 import ScenePlayer from "@/components/ScenePlayer";
 import NodeForm from "@/components/NodeForm";
 import SceneCharacterSelector from "@/components/SceneCharacterSelector";
+import SceneCharacterEditorOverlay from "@/components/SceneCharacterEditorOverlay";
 
 type Params = Promise<{ id: string; sceneId: string }>;
 
@@ -59,6 +60,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   const bgCustomInitialized = useRef(false);
   const [localPositions, setLocalPositions] = useState<Record<string, CharacterPosition>>({});
   const positionsInitialized = useRef(false);
+  const [selectedCharId, setSelectedCharId] = useState<number | null>(null);
 
   const mainAreaRef = useRef<HTMLDivElement>(null);
   const [previewPct, setPreviewPct] = useState(() => {
@@ -254,6 +256,11 @@ export default function SceneEditorPage({ params }: { params: Params }) {
     await mutateScene();
   };
 
+  const handleCharacterReorder = async (newIds: number[]) => {
+    await api.scenes.update(storyId, sceneId, { character_ids: newIds });
+    await mutateScene();
+  };
+
   const onDividerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     dragState.current = { startY: e.clientY, startPct: previewPct };
@@ -372,9 +379,10 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                   allCharacters={allCharacters}
                   selectedIds={scene.character_ids}
                   characterPositions={localPositions}
+                  selectedCharId={selectedCharId}
                   onChange={updateCharacters}
-                  onPositionChange={handlePositionChange}
-                  onPositionCommit={handlePositionCommit}
+                  onSelectCharacter={setSelectedCharId}
+                  onReorder={handleCharacterReorder}
                 />
               </div>
             )}
@@ -398,35 +406,47 @@ export default function SceneEditorPage({ params }: { params: Params }) {
         <div ref={mainAreaRef} className="flex-1 flex flex-col overflow-hidden">
           {/* Scene preview */}
           <div
-            className="flex-shrink-0 bg-bg overflow-hidden flex items-center justify-center"
-            style={tab === "nodes" ? { height: `${previewPct}%` } : { padding: "1rem" }}
+            className="bg-bg overflow-hidden flex items-center justify-center"
+            style={tab === "nodes" ? { flexShrink: 0, height: `${previewPct}%` } : { flexShrink: 0, padding: "1rem" }}
           >
             <div
               className={tab !== "nodes" ? "w-full max-w-2xl" : ""}
               style={tab === "nodes" ? { height: "100%", aspectRatio: "16/9", maxWidth: "100%" } : {}}
             >
               {nodes.length > 0 || tab !== "nodes" ? (
-                <ScenePlayer
-                  nodes={previewNodes}
-                  characters={sceneCharacters}
-                  characterPositions={localPositions}
-                  backgroundAsset={scene.background_asset}
-                  backgroundLoop={scene.background_loop}
-                  startIndex={tab === "nodes" ? previewIndex : 0}
-                  key={`${tab}-${sceneId}-${previewIndex}-${scene.background_asset?.url}-${JSON.stringify(nodes)}-${JSON.stringify(scene.character_ids)}`}
-                  compact
-                  onEnd={() => {}}
-                  showMode={
-                    tab === "perso" ? "characters-only"
-                    : tab === "background" ? "background-only"
-                    : undefined
-                  }
-                  onIndexChange={tab === "nodes" ? (idx) => {
-                    setPreviewIndex(idx);
-                    setPreviewPatch(null);
-                    if (idx < nodes.length) setSelectedNodeId(nodes[idx].id);
-                  } : undefined}
-                />
+                <div className={tab === "perso" ? "relative" : ""}>
+                  <ScenePlayer
+                    nodes={previewNodes}
+                    characters={sceneCharacters}
+                    characterPositions={localPositions}
+                    backgroundAsset={scene.background_asset}
+                    backgroundLoop={scene.background_loop}
+                    startIndex={tab === "nodes" ? previewIndex : 0}
+                    key={`${tab}-${sceneId}-${previewIndex}-${scene.background_asset?.url}-${JSON.stringify(nodes)}-${JSON.stringify(scene.character_ids)}`}
+                    compact
+                    onEnd={() => {}}
+                    showMode={
+                      tab === "perso" ? "characters-only"
+                      : tab === "background" ? "background-only"
+                      : undefined
+                    }
+                    onIndexChange={tab === "nodes" ? (idx) => {
+                      setPreviewIndex(idx);
+                      setPreviewPatch(null);
+                      if (idx < nodes.length) setSelectedNodeId(nodes[idx].id);
+                    } : undefined}
+                  />
+                  {tab === "perso" && (
+                    <SceneCharacterEditorOverlay
+                      characters={sceneCharacters}
+                      characterPositions={localPositions}
+                      selectedCharId={selectedCharId}
+                      onCharacterSelect={setSelectedCharId}
+                      onPositionChange={handlePositionChange}
+                      onPositionCommit={handlePositionCommit}
+                    />
+                  )}
+                </div>
               ) : (
                 <div
                   className="w-full bg-elevated/40 border border-white/7 rounded-md flex items-center justify-center text-subtle text-sm"
