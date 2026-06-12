@@ -105,6 +105,45 @@ export interface StorySummary {
   updated_at: string;
 }
 
+// ── Graph ──────────────────────────────────────────────────────────────────
+
+export type GraphNodeType = "start" | "scene" | "branch" | "end";
+export type EndNodeEndType = "good" | "bad" | "neutral";
+
+export interface GraphNodeData {
+  scene_id?: number;
+  title?: string | null;
+  replay?: boolean;
+  show_visited?: boolean;
+  type?: EndNodeEndType;
+  text?: string;
+}
+
+export interface GraphNode {
+  id: number;
+  story_id: number;
+  type: GraphNodeType;
+  position_x: number;
+  position_y: number;
+  data: GraphNodeData;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GraphEdge {
+  id: number;
+  story_id: number;
+  source_node_id: number;
+  target_node_id: number;
+  label: string | null;
+  order: number;
+}
+
+export interface GraphResponse {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 // For the public player: scenes include their nodes
 export interface PublicStory {
   id: number;
