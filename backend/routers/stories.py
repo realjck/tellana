@@ -163,7 +163,7 @@ def _generate_index_html(title: str) -> str:
 """
 
 
-def _build_story_zip(story) -> io.BytesIO:
+def _build_story_zip(story, db: Session) -> io.BytesIO:
     """Build and return an in-memory ZIP for the given story."""
     player_js = _PLAYER_DIST_DIR / "player-bundle.js"
     if not player_js.exists():
@@ -173,9 +173,14 @@ def _build_story_zip(story) -> io.BytesIO:
     data = _rewrite_upload_urls(data)
     data, files_to_copy = _collect_and_rewrite_local_assets(data)
 
+    graph_nodes = db.query(models.GraphNode).filter(models.GraphNode.story_id == story.id).all()
+    graph_edges = db.query(models.GraphEdge).filter(models.GraphEdge.story_id == story.id).all()
+    graph_data = schemas.GraphResponse(nodes=graph_nodes, edges=graph_edges).model_dump(mode="json")
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("data/story.json", json.dumps(data, ensure_ascii=False, indent=2))
+        zf.writestr("data/graph.json", json.dumps(graph_data, ensure_ascii=False, indent=2))
         zf.write(player_js, "assets/js/player-bundle.js")
 
         player_css = _PLAYER_DIST_DIR / "player-bundle.css"
@@ -217,7 +222,7 @@ def export_story_zip(story_id: int, db: Session = Depends(get_db)):
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    buf = _build_story_zip(story)
+    buf = _build_story_zip(story, db)
     return StreamingResponse(
         buf,
         media_type="application/zip",
@@ -231,7 +236,7 @@ def publish_story(story_id: int, db: Session = Depends(get_db)):
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
-    buf = _build_story_zip(story)
+    buf = _build_story_zip(story, db)
 
     pub_dir = _PUBLISHED_DIR / story.slug
     if pub_dir.exists():

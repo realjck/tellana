@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 import models
 from database import engine
-from routers import assets, characters, nodes, scenes, stories
+from routers import assets, characters, graph, nodes, scenes, stories
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
@@ -55,6 +55,7 @@ app.include_router(scenes.router, prefix="/api")
 app.include_router(nodes.router, prefix="/api")
 app.include_router(characters.router, prefix="/api")
 app.include_router(assets.router, prefix="/api")
+app.include_router(graph.router, prefix="/api")
 
 
 @app.get("/")

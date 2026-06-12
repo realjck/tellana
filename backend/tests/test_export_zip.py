@@ -56,9 +56,32 @@ def test_export_zip_basic_structure(client, player_dist, upload_dir, story_id):
     names = _open_zip(res).namelist()
     assert "index.html" in names
     assert "data/story.json" in names
+    assert "data/graph.json" in names
     assert "assets/js/player-bundle.js" in names
     assert "assets/css/player-bundle.css" in names
     assert "assets/css/custom.css" in names
+
+
+def test_export_zip_graph_json_content(client, player_dist, upload_dir, story_id):
+    client.post(f"/api/stories/{story_id}/graph/nodes", json={"type": "start"})
+    branch_id = client.post(
+        f"/api/stories/{story_id}/graph/nodes",
+        json={"type": "branch", "data": {"title": "Choix", "replay": False, "show_visited": False}},
+    ).json()["id"]
+    end_id = client.post(
+        f"/api/stories/{story_id}/graph/nodes",
+        json={"type": "end", "data": {"type": "good", "title": "Fin", "text": "Bravo"}},
+    ).json()["id"]
+    client.post(
+        f"/api/stories/{story_id}/graph/edges",
+        json={"source_node_id": branch_id, "target_node_id": end_id, "label": "Fin heureuse"},
+    )
+
+    zf = _open_zip(client.get(f"/api/stories/{story_id}/export-zip"))
+    graph = json.loads(zf.read("data/graph.json"))
+    assert len(graph["nodes"]) == 3
+    assert len(graph["edges"]) == 1
+    assert graph["edges"][0]["label"] == "Fin heureuse"
 
 
 def test_export_zip_story_json_content(client, player_dist, upload_dir, story_id):
