@@ -75,6 +75,8 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
   });
   const [lastScene, setLastScene] = useState<Scene | null>(null);
   const [lastReplayNodeId, setLastReplayNodeId] = useState<number | null>(null);
+  // Vrai quand une scène terminale (sans edge sortant) a été jouée jusqu'au bout.
+  const [storyComplete, setStoryComplete] = useState(false);
 
   const navigate = (targetNodeId: number, edgeId?: number) => {
     const newVisited = edgeId ? [...visitedEdgeIds, edgeId] : visitedEdgeIds;
@@ -94,6 +96,7 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
       setLastScene(null);
       setLastReplayNodeId(null);
     }
+    setStoryComplete(false);
     setCurrentNodeId(targetId);
     setVisitedEdgeIds([]);
   };
@@ -111,6 +114,7 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
   const handleRestart = () => {
     clearProgress(storyId);
     setVisitedEdgeIds([]);
+    setStoryComplete(false);
     setPendingResume(null);
     setCurrentNodeId(startNode ? startNode.id : -1);
   };
@@ -177,6 +181,27 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
             Recommencer au début
           </button>
         </div>
+      </div>
+    );
+  }
+
+  // ── Fin d'histoire sans nœud de fin (scène terminale sans edge sortant) ──────
+
+  if (storyComplete) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center gap-5 rounded-md"
+        style={{ aspectRatio: "16/9", background: "var(--player-end-bg)" }}
+      >
+        <div style={{ color: END_COLORS.neutral, fontSize: "2.5rem" }}>{END_ICONS.neutral}</div>
+        <h2 className="text-white text-2xl font-bold text-center px-8">Fin</h2>
+        <button
+          onClick={() => restart()}
+          className="px-6 py-2.5 rounded-md bg-primary hover:bg-primary-hover text-white text-sm font-medium transition-colors cursor-pointer mt-2"
+        >
+          Recommencer
+        </button>
+        <div className="text-xs text-white/20 mt-2">Créé avec Tellana</div>
       </div>
     );
   }
@@ -301,7 +326,13 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
         onEnd={() => {
           setLastScene(scene);
           const out = edgesFrom.get(currentNode.id) ?? [];
-          if (out.length > 0) navigate(out[0].target_node_id, out[0].id);
+          if (out.length > 0) {
+            navigate(out[0].target_node_id, out[0].id);
+          } else {
+            // Scène terminale sans edge sortant : fin de l'histoire.
+            clearProgress(storyId);
+            setStoryComplete(true);
+          }
         }}
       />
     );

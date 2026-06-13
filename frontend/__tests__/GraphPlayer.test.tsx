@@ -184,6 +184,24 @@ describe("GraphPlayer", () => {
     expect(localStorage.getItem("tellana_progress_1")).toBeNull();
   });
 
+  it("affiche un écran de fin et efface le bookmark pour une scène sans sortie", () => {
+    // SCENE (id 2) n'a aucun edge sortant → fin de l'histoire à la fin de la scène
+    const graph: GraphResponse = { nodes: [START, SCENE], edges: [makeEdge(1, 1, 2)] };
+    render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Fin scène"));
+    expect(screen.getByText("Fin")).toBeInTheDocument();
+    expect(screen.getByText("Recommencer")).toBeInTheDocument();
+    expect(localStorage.getItem("tellana_progress_1")).toBeNull();
+  });
+
+  it("Recommencer depuis une fin de scène repart du début", () => {
+    const graph: GraphResponse = { nodes: [START, SCENE], edges: [makeEdge(1, 1, 2)] };
+    render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Fin scène"));
+    fireEvent.click(screen.getByText("Recommencer"));
+    expect(screen.getByTestId("scene-player")).toBeInTheDocument();
+  });
+
   it("Recommencer au début efface la progression et repart du start", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 4, visitedEdgeIds: [1, 2] }));
     const graph: GraphResponse = {
