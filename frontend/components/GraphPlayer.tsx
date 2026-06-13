@@ -64,15 +64,14 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
   const startNode = graph.nodes.find((n) => n.type === "start") ?? null;
   const nodeIds = new Set(graph.nodes.map((n) => n.id));
 
-  const [currentNodeId, setCurrentNodeId] = useState<number>(() => {
-    if (!startNode) return -1;
+  // Le lancement repart toujours du début ; un bookmark sauvegardé déclenche une
+  // modale de reprise (Reprendre / Recommencer) au lieu de reprendre directement.
+  const [currentNodeId, setCurrentNodeId] = useState<number>(startNode ? startNode.id : -1);
+  const [visitedEdgeIds, setVisitedEdgeIds] = useState<number[]>([]);
+  const [pendingResume, setPendingResume] = useState<Progress | null>(() => {
+    if (!startNode) return null;
     const saved = loadProgress(storyId, nodeIds);
-    return saved?.currentNodeId ?? startNode.id;
-  });
-  const [visitedEdgeIds, setVisitedEdgeIds] = useState<number[]>(() => {
-    if (!startNode) return [];
-    const saved = loadProgress(storyId, nodeIds);
-    return saved?.visitedEdgeIds ?? [];
+    return saved && saved.currentNodeId !== startNode.id ? saved : null;
   });
   const [lastScene, setLastScene] = useState<Scene | null>(null);
   const [lastReplayNodeId, setLastReplayNodeId] = useState<number | null>(null);
@@ -101,11 +100,33 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
 
   const currentNode = nodeMap.get(currentNodeId) ?? null;
 
-  // Auto-advance from start node
+  const handleResume = () => {
+    if (pendingResume) {
+      setCurrentNodeId(pendingResume.currentNodeId);
+      setVisitedEdgeIds(pendingResume.visitedEdgeIds);
+    }
+    setPendingResume(null);
+  };
+
+  const handleRestart = () => {
+    clearProgress(storyId);
+    setVisitedEdgeIds([]);
+    setPendingResume(null);
+    setCurrentNodeId(startNode ? startNode.id : -1);
+  };
+
+  // Auto-advance from start node (held while a resume choice is pending)
   useEffect(() => {
+    if (pendingResume) return;
     if (!currentNode || currentNode.type !== "start") return;
     const out = edgesFrom.get(currentNode.id) ?? [];
     if (out.length > 0) navigate(out[0].target_node_id, out[0].id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentNodeId, pendingResume]);
+
+  // Reset the bookmark once an ending is reached: a finished story restarts fresh.
+  useEffect(() => {
+    if (currentNode?.type === "end") clearProgress(storyId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentNodeId]);
 
@@ -127,6 +148,35 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
         style={{ aspectRatio: "16/9" }}
       >
         Nœud introuvable.
+      </div>
+    );
+  }
+
+  // ── Resume prompt (bookmark détecté) ────────────────────────────────────────
+
+  if (pendingResume) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center gap-5 rounded-md"
+        style={{ aspectRatio: "16/9", background: "var(--player-end-bg)" }}
+      >
+        <p className="text-white text-lg font-medium text-center px-8">
+          Reprendre votre progression&nbsp;?
+        </p>
+        <div className="flex flex-col items-center gap-3">
+          <button
+            onClick={handleResume}
+            className="px-6 py-2.5 rounded-md bg-primary hover:bg-primary-hover text-white text-sm font-medium transition-colors cursor-pointer"
+          >
+            Reprendre
+          </button>
+          <button
+            onClick={handleRestart}
+            className="px-6 py-2.5 rounded-md bg-surface hover:bg-elevated text-white/80 text-sm font-medium border border-white/10 transition-colors cursor-pointer"
+          >
+            Recommencer au début
+          </button>
+        </div>
       </div>
     );
   }

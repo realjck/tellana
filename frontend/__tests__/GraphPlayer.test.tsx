@@ -68,32 +68,43 @@ describe("GraphPlayer", () => {
     expect(screen.getByTestId("scene-player")).toBeInTheDocument();
   });
 
-  it("affiche l'écran de fin pour un nœud end (via localStorage)", () => {
-    localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 4, visitedEdgeIds: [] }));
-    const graph: GraphResponse = { nodes: [START, END], edges: [] };
+  it("affiche la modale de reprise quand un bookmark existe", () => {
+    localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 2, visitedEdgeIds: [1] }));
+    const graph: GraphResponse = { nodes: [START, SCENE], edges: [makeEdge(1, 1, 2)] };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
-    expect(screen.getByText("Bravo")).toBeInTheDocument();
-    expect(screen.getByText("Fin de la story")).toBeInTheDocument();
+    expect(screen.getByText("Reprendre")).toBeInTheDocument();
+    expect(screen.getByText("Recommencer au début")).toBeInTheDocument();
   });
 
-  it("affiche le bouton Recommencer sur l'écran de fin", () => {
+  it("ne montre pas la modale de reprise sans bookmark", () => {
+    const graph: GraphResponse = { nodes: [START, SCENE], edges: [makeEdge(1, 1, 2)] };
+    render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    expect(screen.queryByText("Reprendre")).not.toBeInTheDocument();
+    expect(screen.getByTestId("scene-player")).toBeInTheDocument();
+  });
+
+  it("affiche l'écran de fin après reprise vers un nœud end", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 4, visitedEdgeIds: [] }));
     const graph: GraphResponse = { nodes: [START, END], edges: [] };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Reprendre"));
+    expect(screen.getByText("Bravo")).toBeInTheDocument();
+    expect(screen.getByText("Fin de la story")).toBeInTheDocument();
     expect(screen.getByText("Recommencer")).toBeInTheDocument();
   });
 
-  it("affiche BranchOverlay pour un nœud branch (via localStorage)", () => {
+  it("affiche BranchOverlay pour un nœud branch après reprise", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 3, visitedEdgeIds: [] }));
     const graph: GraphResponse = {
       nodes: [START, BRANCH, END],
       edges: [makeEdge(10, 3, 4, null, 0, "c1")],
     };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Reprendre"));
     expect(screen.getByText("Choix A")).toBeInTheDocument();
   });
 
-  it("affiche un choix non raccordé sans cible", () => {
+  it("affiche un choix non raccordé sans cible (après reprise)", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 3, visitedEdgeIds: [] }));
     const branch = makeNode(3, "branch", {
       show_visited: true,
@@ -104,6 +115,7 @@ describe("GraphPlayer", () => {
       edges: [makeEdge(10, 3, 4, null, 0, "c1")],
     };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Reprendre"));
     expect(screen.getByText("Relié")).toBeInTheDocument();
     expect(screen.getByText("Orphelin")).toBeInTheDocument();
   });
@@ -119,13 +131,14 @@ describe("GraphPlayer", () => {
     expect(saved.visitedEdgeIds).toContain(1);
   });
 
-  it("restaure la progression depuis localStorage si le nœud existe encore", () => {
+  it("Reprendre restaure la progression sauvegardée", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 2, visitedEdgeIds: [1] }));
     const graph: GraphResponse = {
       nodes: [START, SCENE],
       edges: [makeEdge(1, 1, 2)],
     };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Reprendre"));
     expect(screen.getByTestId("scene-player")).toBeInTheDocument();
   });
 
@@ -136,15 +149,17 @@ describe("GraphPlayer", () => {
       edges: [makeEdge(1, 1, 2)],
     };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
-    // Falls back to start → auto-advance to scene
+    // Bookmark invalide → pas de modale → auto-avance vers la scène
+    expect(screen.queryByText("Reprendre")).not.toBeInTheDocument();
     expect(screen.getByTestId("scene-player")).toBeInTheDocument();
   });
 
-  it("affiche 'Scène manquante' quand la scène DB est introuvable", () => {
+  it("affiche 'Scène manquante' quand la scène DB est introuvable (après reprise)", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 2, visitedEdgeIds: [] }));
     const storyWithoutScene: PublicStory = { ...mockStory, scenes: [] };
     const graph: GraphResponse = { nodes: [START, SCENE], edges: [] };
     render(<GraphPlayer story={storyWithoutScene} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Reprendre"));
     expect(screen.getByText(/Scène manquante/)).toBeInTheDocument();
   });
 
@@ -159,17 +174,27 @@ describe("GraphPlayer", () => {
     expect(screen.getByText("Bravo")).toBeInTheDocument();
   });
 
-  it("remet la progression à zéro au Recommencer (sans edges visitées précédentes)", () => {
+  it("efface le bookmark quand une fin est atteinte", () => {
+    const graph: GraphResponse = {
+      nodes: [START, SCENE, END],
+      edges: [makeEdge(1, 1, 2), makeEdge(2, 2, 4)],
+    };
+    render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Fin scène"));
+    expect(localStorage.getItem("tellana_progress_1")).toBeNull();
+  });
+
+  it("Recommencer au début efface la progression et repart du start", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 4, visitedEdgeIds: [1, 2] }));
     const graph: GraphResponse = {
       nodes: [START, SCENE, END],
       edges: [makeEdge(1, 1, 2), makeEdge(2, 2, 4)],
     };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
-    fireEvent.click(screen.getByText("Recommencer"));
-    // After restart → auto-advance from start → scene, only edge 1 (start→scene) visited
+    fireEvent.click(screen.getByText("Recommencer au début"));
+    // Repart du start → auto-avance vers la scène, seule l'edge 1 (start→scene) visitée
     const saved = JSON.parse(localStorage.getItem("tellana_progress_1") ?? "{}");
     expect(saved.visitedEdgeIds).toEqual([1]);
-    expect(saved.visitedEdgeIds).not.toContain(2); // l'ancienne edge scene→end effacée
+    expect(saved.visitedEdgeIds).not.toContain(2);
   });
 });
