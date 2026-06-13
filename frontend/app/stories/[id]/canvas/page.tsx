@@ -13,6 +13,7 @@ import {
   useEdgesState,
   useReactFlow,
   addEdge,
+  MarkerType,
   type Node,
   type Edge,
   type OnConnect,
@@ -332,6 +333,11 @@ function CanvasInner({ storyId }: { storyId: number }) {
         onPaneClick={handlePaneClick}
         onPaneContextMenu={handlePaneContextMenu}
         nodeTypes={NODE_TYPES}
+        defaultEdgeOptions={{
+          type: "smoothstep",
+          style: { stroke: "#64748b", strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+        }}
         deleteKeyCode="Delete"
         fitView
         className="bg-bg"
