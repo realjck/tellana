@@ -120,6 +120,40 @@ describe("GraphPlayer", () => {
     expect(screen.getByText("Orphelin")).toBeInTheDocument();
   });
 
+  it("masque les choix déjà visités quand show_visited est désactivé", () => {
+    localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 3, visitedEdgeIds: [10] }));
+    const branch = makeNode(3, "branch", {
+      show_visited: false,
+      choices: [{ id: "c1", label: "Choix A" }, { id: "c2", label: "Choix B" }],
+    });
+    const END2 = makeNode(5, "end", { type: "good", title: "Fin 2", text: "" });
+    const graph: GraphResponse = {
+      nodes: [START, branch, END, END2],
+      edges: [makeEdge(10, 3, 4, null, 0, "c1"), makeEdge(11, 3, 5, null, 0, "c2")],
+    };
+    render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Reprendre"));
+    expect(screen.queryByText("Choix A")).not.toBeInTheDocument(); // visité → masqué
+    expect(screen.getByText("Choix B")).toBeInTheDocument();
+  });
+
+  it("affiche les choix visités (grisés) quand show_visited est activé", () => {
+    localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 3, visitedEdgeIds: [10] }));
+    const branch = makeNode(3, "branch", {
+      show_visited: true,
+      choices: [{ id: "c1", label: "Choix A" }, { id: "c2", label: "Choix B" }],
+    });
+    const END2 = makeNode(5, "end", { type: "good", title: "Fin 2", text: "" });
+    const graph: GraphResponse = {
+      nodes: [START, branch, END, END2],
+      edges: [makeEdge(10, 3, 4, null, 0, "c1"), makeEdge(11, 3, 5, null, 0, "c2")],
+    };
+    render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    fireEvent.click(screen.getByText("Reprendre"));
+    expect(screen.getByText("Choix B")).toBeInTheDocument();
+    expect(screen.getByText("Choix A").closest("button")?.className).toContain("player-branch-option-visited");
+  });
+
   it("sauvegarde la progression dans localStorage après auto-avance depuis start", () => {
     const graph: GraphResponse = {
       nodes: [START, SCENE],

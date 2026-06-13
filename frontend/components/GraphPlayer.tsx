@@ -255,15 +255,19 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
     const showVisited = d.show_visited !== false;
     const choices = d.choices ?? [];
     const outgoing = edgesFrom.get(currentNode.id) ?? [];
-    const options = choices.map((choice) => {
-      const edge = outgoing.find((e) => e.source_handle === choice.id) ?? null;
-      return {
-        label: choice.label,
-        edgeId: edge?.id ?? null,
-        targetNodeId: edge?.target_node_id ?? null,
-        visited: showVisited && edge ? visitedEdgeIds.includes(edge.id) : false,
-      };
-    });
+    // show_visited coché : les choix visités restent affichés (grisés).
+    // show_visited décoché : les choix déjà visités sont masqués.
+    const options = choices
+      .map((choice) => {
+        const edge = outgoing.find((e) => e.source_handle === choice.id) ?? null;
+        return {
+          label: choice.label,
+          edgeId: edge?.id ?? null,
+          targetNodeId: edge?.target_node_id ?? null,
+          visited: edge ? visitedEdgeIds.includes(edge.id) : false,
+        };
+      })
+      .filter((o) => showVisited || !o.visited);
     const sceneChars: Character[] = lastScene
       ? lastScene.character_ids
           .map((id) => story.characters.find((c) => c.id === id))
