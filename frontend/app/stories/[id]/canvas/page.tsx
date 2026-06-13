@@ -39,17 +39,20 @@ function toFlowNode(
   storyId: number,
   selectedId: string | null,
   onRename: (id: number, title: string) => void,
-  onNavigateToScene: (sceneId: number) => void
+  onNavigateToScene: (sceneId: number) => void,
+  sceneTitles?: Map<number, string>
 ): Node {
   const id = String(n.id);
   const base = { id, position: { x: n.position_x, y: n.position_y }, selected: id === selectedId };
   if (n.type === "start") return { ...base, type: "start", data: {} };
   if (n.type === "scene") {
     const sceneId = (n.data as { scene_id?: number }).scene_id;
+    // La scène est la source unique du titre : le nœud affiche Scene.title.
+    const sceneTitle = sceneId != null ? sceneTitles?.get(sceneId) : undefined;
     return {
       ...base, type: "scene",
       data: {
-        title: (n.data as { title?: string }).title ?? "Scène",
+        title: sceneTitle ?? (n.data as { title?: string }).title ?? "Scène",
         selected: id === selectedId,
         onRename: (title: string) => onRename(n.id, title),
         sceneId,
@@ -125,7 +128,7 @@ function CanvasInner({ storyId }: { storyId: number }) {
 
   // Load graph on mount
   useSWR(`graph-${storyId}`, async () => {
-    const graph = await api.graph.get(storyId);
+    const [graph, scenes] = await Promise.all([api.graph.get(storyId), api.scenes.list(storyId)]);
     if (!initialized.current) {
       initialized.current = true;
       // Auto-create start node if absent
@@ -134,7 +137,8 @@ function CanvasInner({ storyId }: { storyId: number }) {
         const startNode = await api.graph.createNode(storyId, { type: "start", position_x: 400, position_y: 80, data: {} });
         dbNodes = [startNode, ...dbNodes];
       }
-      const flowNodes = dbNodes.map((n) => toFlowNode(n, storyId, selectedNodeId, handleRename, handleNavigateToScene));
+      const sceneTitles = new Map(scenes.map((s) => [s.id, s.title] as [number, string]));
+      const flowNodes = dbNodes.map((n) => toFlowNode(n, storyId, selectedNodeId, handleRename, handleNavigateToScene, sceneTitles));
       const flowEdges = graph.edges.map(toFlowEdge);
       setNodes(flowNodes);
       setEdges(flowEdges);
