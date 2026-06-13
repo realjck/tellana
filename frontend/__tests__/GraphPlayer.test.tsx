@@ -29,8 +29,8 @@ const makeNode = (id: number, type: GraphNode["type"], data: object = {}): Graph
   data, created_at: "", updated_at: "",
 });
 
-const makeEdge = (id: number, src: number, tgt: number, label: string | null = null, order = 0): GraphEdge => ({
-  id, story_id: 1, source_node_id: src, target_node_id: tgt, label, order,
+const makeEdge = (id: number, src: number, tgt: number, label: string | null = null, order = 0, source_handle: string | null = null): GraphEdge => ({
+  id, story_id: 1, source_node_id: src, target_node_id: tgt, label, order, source_handle,
 });
 
 const mockStory: PublicStory = {
@@ -48,7 +48,7 @@ const mockStory: PublicStory = {
 
 const START = makeNode(1, "start");
 const SCENE = makeNode(2, "scene", { scene_id: 10, title: "Scène 1" });
-const BRANCH = makeNode(3, "branch", { title: null, replay: false, show_visited: true });
+const BRANCH = makeNode(3, "branch", { title: null, show_visited: true, choices: [{ id: "c1", label: "Choix A" }] });
 const END = makeNode(4, "end", { type: "good", title: "Bravo", text: "Fin de la story" });
 
 describe("GraphPlayer", () => {
@@ -87,10 +87,25 @@ describe("GraphPlayer", () => {
     localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 3, visitedEdgeIds: [] }));
     const graph: GraphResponse = {
       nodes: [START, BRANCH, END],
-      edges: [makeEdge(10, 3, 4, "Choix A")],
+      edges: [makeEdge(10, 3, 4, null, 0, "c1")],
     };
     render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
     expect(screen.getByText("Choix A")).toBeInTheDocument();
+  });
+
+  it("affiche un choix non raccordé sans cible", () => {
+    localStorage.setItem("tellana_progress_1", JSON.stringify({ currentNodeId: 3, visitedEdgeIds: [] }));
+    const branch = makeNode(3, "branch", {
+      show_visited: true,
+      choices: [{ id: "c1", label: "Relié" }, { id: "c2", label: "Orphelin" }],
+    });
+    const graph: GraphResponse = {
+      nodes: [START, branch, END],
+      edges: [makeEdge(10, 3, 4, null, 0, "c1")],
+    };
+    render(<GraphPlayer story={mockStory} graph={graph} storyId={1} />);
+    expect(screen.getByText("Relié")).toBeInTheDocument();
+    expect(screen.getByText("Orphelin")).toBeInTheDocument();
   });
 
   it("sauvegarde la progression dans localStorage après auto-avance depuis start", () => {

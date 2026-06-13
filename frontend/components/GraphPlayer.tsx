@@ -176,9 +176,19 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
   // ── Branch node ────────────────────────────────────────────────────────────
 
   if (currentNode.type === "branch") {
-    const d = currentNode.data as { show_visited?: boolean };
+    const d = currentNode.data as { show_visited?: boolean; choices?: { id: string; label: string }[] };
     const showVisited = d.show_visited !== false;
-    const out = (edgesFrom.get(currentNode.id) ?? []).slice(0, 5);
+    const choices = d.choices ?? [];
+    const outgoing = edgesFrom.get(currentNode.id) ?? [];
+    const options = choices.map((choice) => {
+      const edge = outgoing.find((e) => e.source_handle === choice.id) ?? null;
+      return {
+        label: choice.label,
+        edgeId: edge?.id ?? null,
+        targetNodeId: edge?.target_node_id ?? null,
+        visited: showVisited && edge ? visitedEdgeIds.includes(edge.id) : false,
+      };
+    });
     const sceneChars: Character[] = lastScene
       ? lastScene.character_ids
           .map((id) => story.characters.find((c) => c.id === id))
@@ -193,8 +203,7 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
           className="absolute inset-0"
         />
         <BranchOverlay
-          edges={out}
-          visitedEdgeIds={showVisited ? visitedEdgeIds : []}
+          options={options}
           onChoice={(edgeId, targetNodeId) => navigate(targetNodeId, edgeId)}
         />
       </div>
