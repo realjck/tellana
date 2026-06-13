@@ -65,4 +65,18 @@ describe("BranchSettingsModal", () => {
     expect(payload.title).toBe("Embranchement 1");
     expect(payload.show_visited).toBe(false);
   });
+
+  it("conserve show_visited à false quand décoché au départ", () => {
+    const onSave = jest.fn();
+    render(<BranchSettingsModal initial={{ ...initial, show_visited: false }} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Enregistrer"));
+    expect(onSave.mock.calls[0][0].show_visited).toBe(false);
+  });
+
+  it("ne se ferme pas au clic sur le fond", () => {
+    const onCancel = jest.fn();
+    const { container } = render(<BranchSettingsModal initial={initial} onSave={() => {}} onCancel={onCancel} />);
+    fireEvent.click(container.firstChild as Element);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
 });

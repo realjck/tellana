@@ -66,6 +66,7 @@ function toFlowNode(
       ...base, type: "branch",
       data: {
         title: (n.data as { title?: string }).title ?? "",
+        show_visited: (n.data as { show_visited?: boolean }).show_visited,
         choices: (n.data as { choices?: GraphChoice[] }).choices ?? [],
         selected: id === selectedId,
       },

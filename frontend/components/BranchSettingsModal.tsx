@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { GraphChoice } from "@/types";
 
 export function makeChoiceId(): string {
@@ -31,12 +31,6 @@ export default function BranchSettingsModal({ initial, onSave, onCancel }: Props
         ]
   );
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onCancel]);
-
   const updateLabel = (id: string, label: string) =>
     setChoices((cs) => cs.map((c) => (c.id === id ? { ...c, label } : c)));
 
@@ -61,10 +55,8 @@ export default function BranchSettingsModal({ initial, onSave, onCancel }: Props
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+
       <div className="bg-elevated border border-white/10 rounded-lg shadow-2xl px-6 py-5 w-full max-w-md mx-4">
         <h2 className="text-fore text-base font-semibold mb-4">Paramètres de l&apos;embranchement</h2>
 
