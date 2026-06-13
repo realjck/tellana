@@ -187,7 +187,12 @@ function CanvasInner({ storyId }: { storyId: number }) {
   const handleEdgesDelete = useCallback(async (deleted: Edge[]) => {
     for (const edge of deleted) {
       const dbId = (edge.data as { dbId?: number })?.dbId;
-      if (dbId) await api.graph.deleteEdge(storyId, dbId);
+      if (!dbId) continue;
+      try {
+        await api.graph.deleteEdge(storyId, dbId);
+      } catch {
+        // L'edge peut déjà avoir été supprimé en cascade par la suppression d'un nœud.
+      }
     }
   }, [storyId]);
 
@@ -197,6 +202,17 @@ function CanvasInner({ storyId }: { storyId: number }) {
     for (const node of deleted) {
       if (node.type === "start") continue; // non-deletable
       await api.graph.deleteNode(storyId, Number(node.id));
+      // Canvas seul maître des scènes : supprimer le nœud scène supprime la scène.
+      if (node.type === "scene") {
+        const sceneId = (node.data as { sceneId?: number }).sceneId;
+        if (sceneId) {
+          try {
+            await api.scenes.delete(storyId, sceneId);
+          } catch {
+            // Scène déjà supprimée — ignorer.
+          }
+        }
+      }
     }
   }, [storyId]);
 
