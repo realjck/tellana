@@ -209,6 +209,7 @@ class GraphEdgeCreate(BaseModel):
     source_node_id: int
     target_node_id: int
     label: Optional[str] = None
+    source_handle: Optional[str] = None
     order: int = 0
 
 
@@ -218,6 +219,7 @@ class GraphEdge(BaseModel):
     source_node_id: int
     target_node_id: int
     label: Optional[str] = None
+    source_handle: Optional[str] = None
     order: int
 
     model_config = {"from_attributes": True}

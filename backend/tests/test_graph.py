@@ -273,3 +273,34 @@ def test_get_graph_returns_all(client, story_id, start_node_id, branch_node_id):
     assert end_id in node_ids
     assert len(graph["edges"]) == 1
     assert graph["edges"][0]["label"] == "Fin heureuse"
+
+
+# ── source_handle ───────────────────────────────────────────────────────────
+
+def test_create_edge_with_source_handle(client, story_id, start_node_id):
+    end_id = client.post(
+        f"/api/stories/{story_id}/graph/nodes",
+        json={"type": "end", "data": {"type": "good", "title": "Fin", "text": ""}},
+    ).json()["id"]
+    res = client.post(
+        f"/api/stories/{story_id}/graph/edges",
+        json={"source_node_id": start_node_id, "target_node_id": end_id, "source_handle": "c_abc"},
+    )
+    assert res.status_code == 201
+    assert res.json()["source_handle"] == "c_abc"
+
+    graph = client.get(f"/api/stories/{story_id}/graph").json()
+    assert graph["edges"][0]["source_handle"] == "c_abc"
+
+
+def test_create_edge_source_handle_defaults_null(client, story_id, start_node_id):
+    end_id = client.post(
+        f"/api/stories/{story_id}/graph/nodes",
+        json={"type": "end", "data": {"type": "good", "title": "Fin", "text": ""}},
+    ).json()["id"]
+    res = client.post(
+        f"/api/stories/{story_id}/graph/edges",
+        json={"source_node_id": start_node_id, "target_node_id": end_id},
+    )
+    assert res.status_code == 201
+    assert res.json()["source_handle"] is None

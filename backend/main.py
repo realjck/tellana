@@ -33,6 +33,13 @@ with engine.begin() as _conn:
     except Exception:
         pass  # Column already exists
 
+# Safe migration: add source_handle column to graph_edges if it doesn't exist yet
+with engine.begin() as _conn:
+    try:
+        _conn.execute(text("ALTER TABLE graph_edges ADD COLUMN source_handle TEXT"))
+    except Exception:
+        pass  # Column already exists
+
 # Ensure uploads and published dirs exist
 Path("uploads").mkdir(exist_ok=True)
 Path("published").mkdir(exist_ok=True)

@@ -103,6 +103,7 @@ class GraphEdge(Base):
     source_node_id = Column(Integer, ForeignKey("graph_nodes.id"), nullable=False)
     target_node_id = Column(Integer, ForeignKey("graph_nodes.id"), nullable=False)
     label = Column(String, nullable=True)
+    source_handle = Column(String, nullable=True)
     order = Column(Integer, nullable=False, default=0)
 
     story = relationship("Story", back_populates="graph_edges")

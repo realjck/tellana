@@ -118,6 +118,7 @@ def create_graph_edge(story_id: int, edge: schemas.GraphEdgeCreate, db: Session 
         source_node_id=edge.source_node_id,
         target_node_id=edge.target_node_id,
         label=edge.label,
+        source_handle=edge.source_handle,
         order=edge.order,
     )
     db.add(db_edge)
