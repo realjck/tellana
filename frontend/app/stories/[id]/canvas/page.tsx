@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -22,7 +22,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api } from "@/lib/api";
-import type { GraphNode, GraphEdge, Story, GraphChoice } from "@/types";
+import type { AssetRef, Character, CharacterPosition, GraphNode, GraphEdge, Story, GraphChoice } from "@/types";
 import StartNode from "@/components/canvas/StartNode";
 import SceneNode from "@/components/canvas/SceneNode";
 import BranchNode from "@/components/canvas/BranchNode";
@@ -35,13 +35,21 @@ const NODE_TYPES = { start: StartNode, scene: SceneNode, branch: BranchNode, end
 
 // ── helpers ───────────────────────────────────────────────────────────────
 
+interface SceneInfo {
+  backgroundAsset: AssetRef | null;
+  characterIds: number[];
+  characterPositions: Record<string, CharacterPosition>;
+}
+
 function toFlowNode(
   n: GraphNode,
   storyId: number,
   selectedId: string | null,
   onRename: (id: number, title: string) => void,
   onNavigateToScene: (sceneId: number) => void,
-  sceneTitles?: Map<number, string>
+  sceneTitles?: Map<number, string>,
+  sceneInfoMap?: Map<number, SceneInfo>,
+  characters?: Character[]
 ): Node {
   const id = String(n.id);
   const base = { id, position: { x: n.position_x, y: n.position_y }, selected: id === selectedId };
@@ -50,10 +58,18 @@ function toFlowNode(
     const sceneId = (n.data as { scene_id?: number }).scene_id;
     // La scène est la source unique du titre : le nœud affiche Scene.title.
     const sceneTitle = sceneId != null ? sceneTitles?.get(sceneId) : undefined;
+    const sceneInfo = sceneId != null ? sceneInfoMap?.get(sceneId) : undefined;
+    const sceneCharacters = sceneInfo && characters
+      ? sceneInfo.characterIds.map((cid) => characters.find((c) => c.id === cid)).filter((c): c is Character => !!c)
+      : [];
     return {
       ...base, type: "scene",
       data: {
         title: sceneTitle ?? (n.data as { title?: string }).title ?? "Scène",
+        backgroundAsset: sceneInfo?.backgroundAsset ?? null,
+        characters: sceneCharacters,
+        characterPositions: sceneInfo?.characterPositions ?? {},
+        characterIds: sceneInfo?.characterIds ?? [],
         selected: id === selectedId,
         onRename: (title: string) => onRename(n.id, title),
         sceneId,
@@ -98,7 +114,7 @@ function toFlowEdge(e: GraphEdge): Edge {
 
 // ── Canvas inner (needs ReactFlowProvider context) ─────────────────────────
 
-function CanvasInner({ storyId }: { storyId: number }) {
+function CanvasInner({ storyId, characters }: { storyId: number; characters: Character[] }) {
   const router = useRouter();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -108,6 +124,9 @@ function CanvasInner({ storyId }: { storyId: number }) {
   const debounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const initialized = useRef(false);
   const { screenToFlowPosition } = useReactFlow();
+  // Ref pour accéder aux personnages depuis le callback SWR (évite la stale closure)
+  const charactersRef = useRef<Character[]>(characters);
+  useEffect(() => { charactersRef.current = characters; }, [characters]);
 
   const handleNavigateToScene = useCallback((sceneId: number) => {
     router.push(`/stories/${storyId}/scenes/${sceneId}/edit`);
@@ -140,13 +159,32 @@ function CanvasInner({ storyId }: { storyId: number }) {
         dbNodes = [startNode, ...dbNodes];
       }
       const sceneTitles = new Map(scenes.map((s) => [s.id, s.title] as [number, string]));
-      const flowNodes = dbNodes.map((n) => toFlowNode(n, storyId, selectedNodeId, handleRename, handleNavigateToScene, sceneTitles));
+      const sceneInfoMap = new Map<number, SceneInfo>(scenes.map((s) => [s.id, {
+        backgroundAsset: s.background_asset,
+        characterIds: s.character_ids,
+        characterPositions: s.character_positions,
+      }]));
+      const flowNodes = dbNodes.map((n) => toFlowNode(n, storyId, selectedNodeId, handleRename, handleNavigateToScene, sceneTitles, sceneInfoMap, charactersRef.current));
       const flowEdges = graph.edges.map(toFlowEdge);
       setNodes(flowNodes);
       setEdges(flowEdges);
     }
     return graph;
   });
+
+  // Mettre à jour les personnages dans les noeuds scène quand ils arrivent après l'init
+  useEffect(() => {
+    if (characters.length === 0) return;
+    setNodes((nds) => nds.map((n) => {
+      if (n.type !== "scene") return n;
+      const d = n.data as { characterIds?: number[] };
+      if (!d.characterIds) return n;
+      const sceneChars = d.characterIds
+        .map((cid) => characters.find((c) => c.id === cid))
+        .filter((c): c is Character => !!c);
+      return { ...n, data: { ...n.data, characters: sceneChars } };
+    }));
+  }, [characters, setNodes]);
 
   // ── position auto-save ──────────────────────────────────────────────────
 
@@ -421,6 +459,7 @@ export default function CanvasPage({ params }: { params: Params }) {
   const storyId = Number(id);
 
   const { data: story } = useSWR<Story>(`story-${storyId}`, () => api.stories.get(storyId));
+  const characters = story?.characters ?? [];
 
   return (
     <div className="h-screen bg-bg flex flex-col overflow-hidden">
@@ -453,7 +492,7 @@ export default function CanvasPage({ params }: { params: Params }) {
       {/* Canvas — ReactFlowProvider required for useReactFlow inside CanvasInner */}
       <div className="flex-1 overflow-hidden">
         <ReactFlowProvider>
-          <CanvasInner storyId={storyId} />
+          <CanvasInner storyId={storyId} characters={characters} />
         </ReactFlowProvider>
       </div>
     </div>

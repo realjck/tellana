@@ -2,9 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Handle, Position } from "@xyflow/react";
+import type { AssetRef, Character, CharacterPosition } from "@/types";
+import ScenePreviewThumbnail from "@/components/ScenePreviewThumbnail";
 
 interface SceneNodeData {
   title: string;
+  backgroundAsset: AssetRef | null;
+  characters: Character[];
+  characterPositions: Record<string, CharacterPosition>;
   onRename: (title: string) => void;
   onDoubleClick?: () => void;
   selected: boolean;
@@ -32,7 +37,6 @@ export default function SceneNode({ data }: { data: SceneNodeData }) {
   const handleTitleClick = (e: React.MouseEvent) => {
     if (data.selected) {
       e.stopPropagation();
-      // Delay editing so dblclick can cancel it and navigate instead
       editTimerRef.current = setTimeout(() => {
         editTimerRef.current = null;
         setEditing(true);
@@ -41,7 +45,6 @@ export default function SceneNode({ data }: { data: SceneNodeData }) {
   };
 
   const handleBodyDoubleClick = (e: React.MouseEvent) => {
-    // Cancel any pending single-click edit timer
     if (editTimerRef.current) {
       clearTimeout(editTimerRef.current);
       editTimerRef.current = null;
@@ -52,11 +55,17 @@ export default function SceneNode({ data }: { data: SceneNodeData }) {
 
   return (
     <div
-      className="bg-surface border border-white/15 rounded-lg px-4 py-3 min-w-[160px] shadow-lg"
+      className="bg-surface border border-white/15 rounded-lg overflow-hidden w-48 shadow-lg"
       onDoubleClick={handleBodyDoubleClick}
     >
       <Handle type="target" position={Position.Top} className="!bg-white/40" />
-      <div className="flex items-center gap-2">
+      <ScenePreviewThumbnail
+        backgroundAsset={data.backgroundAsset}
+        characters={data.characters}
+        characterPositions={data.characterPositions}
+        className="w-full aspect-video"
+      />
+      <div className="px-3 py-2 flex items-center gap-2">
         <div className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
         {editing ? (
           <input
