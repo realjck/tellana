@@ -110,11 +110,17 @@ export interface StorySummary {
 export type GraphNodeType = "start" | "scene" | "branch" | "end";
 export type EndNodeEndType = "good" | "bad" | "neutral";
 
+export interface GraphChoice {
+  id: string;
+  label: string;
+}
+
 export interface GraphNodeData {
   scene_id?: number;
   title?: string | null;
   replay?: boolean;
   show_visited?: boolean;
+  choices?: GraphChoice[];
   type?: EndNodeEndType;
   text?: string;
 }
@@ -136,6 +142,7 @@ export interface GraphEdge {
   source_node_id: number;
   target_node_id: number;
   label: string | null;
+  source_handle?: string | null;
   order: number;
 }
 

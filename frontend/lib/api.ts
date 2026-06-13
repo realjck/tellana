@@ -160,7 +160,7 @@ export const api = {
       request<void>(`/api/stories/${storyId}/graph/nodes/${nodeId}`, { method: "DELETE" }),
     createEdge: (
       storyId: number,
-      data: { source_node_id: number; target_node_id: number; label?: string | null; order?: number }
+      data: { source_node_id: number; target_node_id: number; label?: string | null; order?: number; source_handle?: string | null }
     ) =>
       request<GraphEdge>(`/api/stories/${storyId}/graph/edges`, {
         method: "POST",
