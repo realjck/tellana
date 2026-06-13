@@ -97,15 +97,17 @@ Validation : un label vide est rétabli au défaut `Choix N` (label jamais vide)
 Pour un nœud branch :
 - Lit `currentNode.data.choices` (ordre = ordre des choix).
 - Pour chaque choix, recherche l'edge tel que `source_node_id === branch.id && source_handle === choice.id`.
-- Construit `options = choices` raccordés uniquement → `{ edgeId, targetNodeId, label, visited }`.
-  - Les choix non raccordés (aucun edge) sont ignorés (ils ne mènent nulle part).
-  - `visited` calculé seulement si `show_visited !== false`.
+- Construit `options` pour **tous** les choix, dans l'ordre → `{ label, edgeId, targetNodeId, visited }`.
+  - Choix raccordé : `edgeId`/`targetNodeId` renseignés.
+  - **Choix non raccordé** (aucun edge) : `edgeId` et `targetNodeId` à `null` → le bouton s'affiche mais le clic ne fait rien.
+  - `visited` calculé seulement si `show_visited !== false` et le choix est raccordé.
 - Passe `options` et `onChoice` à `BranchOverlay`.
 
 ### `components/BranchOverlay.tsx`
 
-- Props remplacées par : `options: { edgeId: number; targetNodeId: number; label: string; visited: boolean }[]` et `onChoice: (edgeId, targetNodeId) => void`.
+- Props remplacées par : `options: { label: string; edgeId: number | null; targetNodeId: number | null; visited: boolean }[]` et `onChoice: (edgeId, targetNodeId) => void`.
 - Rend un bouton par option avec son `label` (fin du fallback `Choix ${order+1}`), classe `player-branch-option-visited` si `visited`.
+- Au clic : appelle `onChoice(edgeId, targetNodeId)` uniquement si `targetNodeId !== null` ; sinon no-op (le bouton reste visible et cliquable mais sans effet).
 
 ## Types
 
