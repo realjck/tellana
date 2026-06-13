@@ -21,11 +21,12 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { api } from "@/lib/api";
-import type { GraphNode, GraphEdge, Story } from "@/types";
+import type { GraphNode, GraphEdge, Story, GraphChoice } from "@/types";
 import StartNode from "@/components/canvas/StartNode";
 import SceneNode from "@/components/canvas/SceneNode";
 import BranchNode from "@/components/canvas/BranchNode";
 import EndNode from "@/components/canvas/EndNode";
+import BranchSettingsModal, { makeChoiceId } from "@/components/BranchSettingsModal";
 
 type Params = Promise<{ id: string }>;
 
@@ -61,9 +62,9 @@ function toFlowNode(
     return {
       ...base, type: "branch",
       data: {
-        title: (n.data as { title?: string }).title ?? null,
+        title: (n.data as { title?: string }).title ?? "",
+        choices: (n.data as { choices?: GraphChoice[] }).choices ?? [],
         selected: id === selectedId,
-        onRename: (title: string) => onRename(n.id, title),
       },
     };
   }
@@ -84,6 +85,7 @@ function toFlowEdge(e: GraphEdge): Edge {
     id: String(e.id),
     source: String(e.source_node_id),
     target: String(e.target_node_id),
+    sourceHandle: e.source_handle ?? undefined,
     label: e.label ?? undefined,
     data: { dbId: e.id },
   };
@@ -96,6 +98,7 @@ function CanvasInner({ storyId }: { storyId: number }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [branchModalNodeId, setBranchModalNodeId] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; clientX: number; clientY: number } | null>(null);
   const debounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const initialized = useRef(false);
@@ -170,6 +173,7 @@ function CanvasInner({ storyId }: { storyId: number }) {
         target_node_id: targetId,
         label: null,
         order: 0,
+        source_handle: params.sourceHandle ?? null,
       });
       setEdges((eds) => addEdge({ ...params, id: String(dbEdge.id), data: { dbId: dbEdge.id } }, eds));
     } catch (e: unknown) {
@@ -199,6 +203,10 @@ function CanvasInner({ storyId }: { storyId: number }) {
   // ── double click → navigate to scene editor ────────────────────────────
 
   const handleNodeDoubleClick: NodeMouseHandler = useCallback((_e, node) => {
+    if (node.type === "branch") {
+      setBranchModalNodeId(Number(node.id));
+      return;
+    }
     const cb = (node.data as { onDoubleClick?: () => void }).onDoubleClick;
     if (cb) cb();
   }, []);
@@ -241,7 +249,15 @@ function CanvasInner({ storyId }: { storyId: number }) {
       const scene = await api.scenes.create(storyId, title);
       data = { scene_id: scene.id, title };
     } else if (type === "branch") {
-      data = { title: null, replay: false, show_visited: false };
+      const branchCount = nodes.filter((n) => n.type === "branch").length;
+      data = {
+        title: `Embranchement ${branchCount + 1}`,
+        show_visited: true,
+        choices: [
+          { id: makeChoiceId(), label: "Choix 1" },
+          { id: makeChoiceId(), label: "Choix 2" },
+        ],
+      };
     } else {
       data = { type: "neutral", title: "", text: "" };
     }
@@ -250,6 +266,29 @@ function CanvasInner({ storyId }: { storyId: number }) {
     const flowNode = toFlowNode(dbNode, storyId, null, handleRename, handleNavigateToScene);
     setNodes((nds) => [...nds, flowNode]);
   }, [contextMenu, nodes, storyId, handleRename, handleNavigateToScene, screenToFlowPosition, setNodes]);
+
+  // ── branch settings save (data + edge reconciliation) ───────────────────
+
+  const handleBranchSave = useCallback(
+    async (nodeId: number, data: { title: string; show_visited: boolean; choices: GraphChoice[] }) => {
+      await api.graph.updateNode(storyId, nodeId, { data: data as Record<string, unknown> });
+      const validIds = new Set(data.choices.map((c) => c.id));
+      const orphans = edges.filter(
+        (e) => e.source === String(nodeId) && e.sourceHandle != null && !validIds.has(e.sourceHandle)
+      );
+      for (const e of orphans) {
+        const dbId = (e.data as { dbId?: number })?.dbId;
+        if (dbId) await api.graph.deleteEdge(storyId, dbId);
+      }
+      const orphanIds = new Set(orphans.map((e) => e.id));
+      setEdges((eds) => eds.filter((e) => !orphanIds.has(e.id)));
+      setNodes((nds) =>
+        nds.map((n) => (n.id === String(nodeId) ? { ...n, data: { ...n.data, ...data } } : n))
+      );
+      setBranchModalNodeId(null);
+    },
+    [storyId, edges, setEdges, setNodes]
+  );
 
   // ── "Tester" button ────────────────────────────────────────────────────
 
@@ -328,6 +367,22 @@ function CanvasInner({ storyId }: { storyId: number }) {
           </button>
         </div>
       )}
+      {branchModalNodeId != null && (() => {
+        const node = nodes.find((n) => n.id === String(branchModalNodeId));
+        if (!node) return null;
+        const d = node.data as { title?: string; show_visited?: boolean; choices?: GraphChoice[] };
+        return (
+          <BranchSettingsModal
+            initial={{
+              title: d.title ?? "",
+              show_visited: d.show_visited !== false,
+              choices: d.choices ?? [],
+            }}
+            onSave={(data) => handleBranchSave(branchModalNodeId, data)}
+            onCancel={() => setBranchModalNodeId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
