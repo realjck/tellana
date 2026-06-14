@@ -215,20 +215,30 @@ function CanvasInner({ storyId, characters }: { storyId: number; characters: Cha
   const onConnect: OnConnect = useCallback(async (params) => {
     const sourceId = Number(params.source);
     const targetId = Number(params.target);
+    const sourceHandle = params.sourceHandle ?? null;
     try {
+      // Supprimer l'edge existant depuis ce même point de sortie
+      const duplicate = edges.find(
+        (e) => e.source === params.source && (e.sourceHandle ?? null) === sourceHandle
+      );
+      if (duplicate) {
+        const dbId = (duplicate.data as { dbId?: number })?.dbId;
+        if (dbId) await api.graph.deleteEdge(storyId, dbId);
+        setEdges((eds) => eds.filter((e) => e.id !== duplicate.id));
+      }
       const dbEdge = await api.graph.createEdge(storyId, {
         source_node_id: sourceId,
         target_node_id: targetId,
         label: null,
         order: 0,
-        source_handle: params.sourceHandle ?? null,
+        source_handle: sourceHandle,
       });
       setEdges((eds) => addEdge({ ...params, id: String(dbEdge.id), data: { dbId: dbEdge.id } }, eds));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Erreur";
       alert(msg);
     }
-  }, [storyId, setEdges]);
+  }, [storyId, edges, setEdges]);
 
   // ── edge delete ─────────────────────────────────────────────────────────
 
