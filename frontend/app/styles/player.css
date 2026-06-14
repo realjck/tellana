@@ -50,6 +50,7 @@
 /* Next / continue buttons inside the player */
 .player-next-btn {
   color: var(--player-next-color);
+  cursor: pointer;
 }
 .player-next-btn:hover {
   color: var(--player-next-hover);
