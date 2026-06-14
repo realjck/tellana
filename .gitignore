@@ -78,6 +78,7 @@ CLAUDE.local.md
 # Database & uploads
 backend/tellana.db
 backend/uploads/
+backend/published/
 
 # work assets
 assets/
