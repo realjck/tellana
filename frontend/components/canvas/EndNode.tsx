@@ -49,7 +49,7 @@ export default function EndNode({ data }: { data: EndNodeData }) {
 
   return (
     <div className={`border rounded-lg px-4 py-3 min-w-[160px] shadow-lg ${END_COLORS[endType]}`}>
-      <Handle type="target" position={Position.Top} className="!bg-white/40" />
+      <Handle type="target" position={Position.Top} className="!bg-white/40 !w-4 !h-4" />
       <div className="flex items-center gap-2 mb-1">
         <span className={`text-xs font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${END_BADGES[endType]}`}>
           {endType === "good" ? "Bonne fin" : endType === "bad" ? "Mauvaise fin" : "Fin neutre"}

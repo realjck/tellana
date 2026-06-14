@@ -58,7 +58,7 @@ export default function SceneNode({ data }: { data: SceneNodeData }) {
       className="bg-surface border border-white/15 rounded-lg overflow-hidden w-48 shadow-lg"
       onDoubleClick={handleBodyDoubleClick}
     >
-      <Handle type="target" position={Position.Top} className="!bg-white/40" />
+      <Handle type="target" position={Position.Top} className="!bg-white/40 !w-4 !h-4" />
       <ScenePreviewThumbnail
         backgroundAsset={data.backgroundAsset}
         characters={data.characters}
@@ -90,7 +90,7 @@ export default function SceneNode({ data }: { data: SceneNodeData }) {
           </span>
         )}
       </div>
-      <Handle type="source" position={Position.Bottom} className="!bg-white/40" />
+      <Handle type="source" position={Position.Bottom} className="!bg-white/40 !w-4 !h-4" />
     </div>
   );
 }
