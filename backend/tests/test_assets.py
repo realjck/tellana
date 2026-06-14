@@ -217,3 +217,71 @@ def test_asset_defaults(client):
     schema = AssetSchema.model_validate(asset)
     assert schema.folder == "backgrounds"
     assert schema.is_seed is False
+
+
+# ── Story 1.3 — Upload d'un asset dans un dossier ─────────────────────────
+
+
+def test_create_asset_with_folder(client, tmp_path):
+    res = client.post(
+        "/api/assets",
+        files={"file": ("portrait.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": "characters/alice"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["folder"] == "characters/alice"
+    assert data["filename"] == "portrait.png"
+    assert data["url"] == "/uploads/characters/alice/portrait.png"
+    assert data["content_type"] == "image/png"
+    assert data["is_seed"] is False
+    assert "id" in data
+    assert (tmp_path / "characters" / "alice" / "portrait.png").exists()
+
+
+def test_create_asset_default_folder(client, tmp_path):
+    res = client.post(
+        "/api/assets",
+        files={"file": ("bg.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["folder"] == "backgrounds"
+    assert data["url"] == "/uploads/backgrounds/bg.png"
+    assert (tmp_path / "backgrounds" / "bg.png").exists()
+
+
+def test_create_asset_normalizes_backslash_folder(client):
+    res = client.post(
+        "/api/assets",
+        files={"file": ("img.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": "characters\\alice"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["folder"] == "characters/alice"
+    assert data["url"] == "/uploads/characters/alice/img.png"
+
+
+def test_create_asset_persists_in_db(client):
+    res = client.post(
+        "/api/assets",
+        files={"file": ("test.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": "backgrounds"},
+    )
+    assert res.status_code == 200
+    asset_id = res.json()["id"]
+
+    res2 = client.get("/api/assets?folder=backgrounds")
+    assert res2.status_code == 200
+    ids = [a["id"] for a in res2.json()]
+    assert asset_id in ids
+
+
+def test_create_asset_invalid_type_rejected(client):
+    res = client.post(
+        "/api/assets",
+        files={"file": ("doc.pdf", io.BytesIO(b"%PDF-1.4 fake"), "application/pdf")},
+        data={"folder": "backgrounds"},
+    )
+    assert res.status_code == 400
