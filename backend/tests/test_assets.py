@@ -285,3 +285,192 @@ def test_create_asset_invalid_type_rejected(client):
         data={"folder": "backgrounds"},
     )
     assert res.status_code == 400
+
+
+# ── Story 1.4 — Renommage de dossier et de fichier ────────────────────────
+
+
+def _upload(client, filename, folder):
+    return client.post(
+        "/api/assets",
+        files={"file": (filename, io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": folder},
+    )
+
+
+def test_rename_folder_updates_folder_and_url(client, tmp_path):
+    asset_id = _upload(client, "portrait.png", "characters/alice").json()["id"]
+
+    res = client.patch(
+        "/api/assets/folders",
+        json={"from": "characters/alice", "to": "characters/alice-v2"},
+    )
+    assert res.status_code == 200
+
+    listing = client.get("/api/assets?folder=characters/alice-v2").json()
+    assert len(listing) == 1
+    assert listing[0]["id"] == asset_id
+    assert listing[0]["url"] == "/uploads/characters/alice-v2/portrait.png"
+    # Disque renommé
+    assert (tmp_path / "characters" / "alice-v2" / "portrait.png").exists()
+    assert not (tmp_path / "characters" / "alice").exists()
+    # Ancien dossier vide en DB
+    assert client.get("/api/assets?folder=characters/alice").json() == []
+
+
+def test_rename_folder_target_exists_conflict(client):
+    _upload(client, "a.png", "characters/alice")
+    _upload(client, "b.png", "characters/bob")
+
+    res = client.patch(
+        "/api/assets/folders",
+        json={"from": "characters/alice", "to": "characters/bob"},
+    )
+    assert res.status_code == 409
+    # Aucune mutation : alice intacte
+    assert len(client.get("/api/assets?folder=characters/alice").json()) == 1
+
+
+def test_rename_folder_renames_subfolders(client):
+    _upload(client, "main.png", "characters/alice")
+    _upload(client, "pose.png", "characters/alice/poses")
+
+    res = client.patch(
+        "/api/assets/folders",
+        json={"from": "characters/alice", "to": "characters/anna"},
+    )
+    assert res.status_code == 200
+    assert len(client.get("/api/assets?folder=characters/anna").json()) == 1
+    sub = client.get("/api/assets?folder=characters/anna/poses").json()
+    assert len(sub) == 1
+    assert sub[0]["url"] == "/uploads/characters/anna/poses/pose.png"
+
+
+def test_rename_folder_normalizes_backslash(client, tmp_path):
+    _upload(client, "x.png", "characters/alice")
+
+    res = client.patch(
+        "/api/assets/folders",
+        json={"from": "characters\\alice", "to": "characters\\anna"},
+    )
+    assert res.status_code == 200
+    listing = client.get("/api/assets?folder=characters/anna").json()
+    assert len(listing) == 1
+    assert (tmp_path / "characters" / "anna" / "x.png").exists()
+
+
+def test_rename_file_updates_db_and_disk(client, tmp_path):
+    asset_id = _upload(client, "portrait.png", "characters/alice").json()["id"]
+
+    res = client.patch(
+        f"/api/assets/{asset_id}/rename",
+        json={"filename": "portrait-v2.png"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["filename"] == "portrait-v2.png"
+    assert data["url"] == "/uploads/characters/alice/portrait-v2.png"
+    assert (tmp_path / "characters" / "alice" / "portrait-v2.png").exists()
+    assert not (tmp_path / "characters" / "alice" / "portrait.png").exists()
+
+
+def test_rename_file_not_found(client):
+    res = client.patch("/api/assets/999/rename", json={"filename": "x.png"})
+    assert res.status_code == 404
+
+
+# ── Story 1.5 — Détection et remplacement d'asset par même nom ─────────────
+
+
+def test_upload_same_name_conflict_with_references(client):
+    up = _upload(client, "portrait.png", "characters/alice").json()
+    url = up["url"]  # /uploads/characters/alice/portrait.png
+
+    story_id = client.post("/api/stories/", json={"title": "S"}).json()["id"]
+    scene_id = client.post(
+        f"/api/stories/{story_id}/scenes/", json={"title": "Sc"}
+    ).json()["id"]
+    client.patch(
+        f"/api/stories/{story_id}/scenes/{scene_id}",
+        json={"background_asset": {"type": "upload", "url": url}},
+    )
+    client.post(
+        f"/api/stories/{story_id}/scenes/{scene_id}/nodes/",
+        json={"type": "dialogue", "data": {"text": "x", "img": url}, "order": 0},
+    )
+
+    res = client.post(
+        "/api/assets",
+        files={"file": ("portrait.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": "characters/alice"},
+    )
+    assert res.status_code == 409
+    body = res.json()
+    assert body["existing_id"] == up["id"]  # top-level, pas sous "detail"
+    assert body["references"] == {"scenes": 1, "nodes": 1}
+
+
+def test_upload_same_name_conflict_no_references(client):
+    _upload(client, "portrait.png", "characters/alice")
+    res = client.post(
+        "/api/assets",
+        files={"file": ("portrait.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": "characters/alice"},
+    )
+    assert res.status_code == 409
+    assert res.json()["references"] == {"scenes": 0, "nodes": 0}
+
+
+def test_upload_replace_overwrites_same_id(client, tmp_path):
+    first = _upload(client, "portrait.png", "characters/alice").json()
+    other_png = MINIMAL_JPEG  # contenu différent (image valide)
+
+    res = client.post(
+        "/api/assets?replace=true",
+        files={"file": ("portrait.png", io.BytesIO(other_png), "image/jpeg")},
+        data={"folder": "characters/alice"},
+    )
+    assert res.status_code == 200
+    assert res.json()["id"] == first["id"]  # même id
+    # Une seule ligne en DB
+    assert len(client.get("/api/assets?folder=characters/alice").json()) == 1
+    # Fichier écrasé
+    assert (tmp_path / "characters" / "alice" / "portrait.png").read_bytes() == other_png
+
+
+def test_upload_new_name_no_conflict(client):
+    _upload(client, "a.png", "characters/alice")
+    res = _upload(client, "b.png", "characters/alice")
+    assert res.status_code == 200
+
+
+# ── Epic 1 review — patchs P1 (collision rename) & P2 (path traversal) ─────
+
+
+def test_rename_file_target_name_conflict(client):
+    _upload(client, "a.png", "characters/alice")
+    b_id = _upload(client, "b.png", "characters/alice").json()["id"]
+
+    res = client.patch(f"/api/assets/{b_id}/rename", json={"filename": "a.png"})
+    assert res.status_code == 409
+    # Les deux assets restent intacts
+    names = [x["filename"] for x in client.get("/api/assets?folder=characters/alice").json()]
+    assert sorted(names) == ["a.png", "b.png"]
+
+
+def test_create_asset_rejects_path_traversal_folder(client):
+    res = client.post(
+        "/api/assets",
+        files={"file": ("x.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": "../escape"},
+    )
+    assert res.status_code == 400
+
+
+def test_rename_folder_rejects_path_traversal(client):
+    _upload(client, "x.png", "characters/alice")
+    res = client.patch(
+        "/api/assets/folders",
+        json={"from": "characters/alice", "to": "../escape"},
+    )
+    assert res.status_code == 400

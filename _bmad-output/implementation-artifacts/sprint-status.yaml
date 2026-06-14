@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-06-14"
-last_updated: "2026-06-14"  # Updated: epic-1 in-progress, 1-1 ready-for-dev
+last_updated: "2026-06-14"  # Updated: Epic 1 done (code review closed)
 project: tellana
 project_key: NOKEY
 tracking_system: file-system
@@ -43,12 +43,12 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # ─── Epic 1 : Fondations API Assets ───────────────────────────────────────
-  epic-1: in-progress
-  1-1-migration-modele-asset: review
-  1-2-listing-des-assets-par-dossier: review
-  1-3-upload-dun-asset-dans-un-dossier: review
-  1-4-renommage-de-dossier-et-de-fichier: backlog
-  1-5-detection-et-remplacement-dassert-par-meme-nom: backlog
+  epic-1: done
+  1-1-migration-modele-asset: done
+  1-2-listing-des-assets-par-dossier: done
+  1-3-upload-dun-asset-dans-un-dossier: done
+  1-4-renommage-de-dossier-et-de-fichier: done
+  1-5-detection-et-remplacement-dassert-par-meme-nom: done
   epic-1-retrospective: optional
 
   # ─── Epic 2 : Composants Médiathèque & Seeds ──────────────────────────────

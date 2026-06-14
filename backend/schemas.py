@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Any, Dict, Literal
 from datetime import datetime
 
@@ -21,6 +21,15 @@ class Asset(BaseModel):
     is_seed: bool
 
     model_config = {"from_attributes": True}
+
+
+class FolderRename(BaseModel):
+    from_: str = Field(alias="from")  # `from` is a reserved keyword
+    to: str
+
+
+class FileRename(BaseModel):
+    filename: str
 
 
 # ── AssetRef ───────────────────────────────────────────────────────────────
