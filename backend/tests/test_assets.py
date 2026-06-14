@@ -3,6 +3,28 @@ import io
 import pytest
 from sqlalchemy import text
 
+# ── Shared helpers ─────────────────────────────────────────────────────────
+
+
+def _create_asset(client, filename, folder, content_type="image/png"):
+    """Insert an Asset directly into the test DB (POST /upload has no DB persistence yet)."""
+    from main import app
+    from database import get_db
+    from models import Asset as AssetModel
+
+    override = app.dependency_overrides.get(get_db)
+    db = next(override())
+    asset = AssetModel(
+        filename=filename,
+        url=f"/uploads/{folder}/{filename}",
+        content_type=content_type,
+        folder=folder,
+    )
+    db.add(asset)
+    db.commit()
+    db.refresh(asset)
+    return asset
+
 # Minimal valid 1×1 PNG
 MINIMAL_PNG = (
     b"\x89PNG\r\n\x1a\n"
@@ -107,6 +129,70 @@ def test_asset_table_created_with_folder_and_is_seed(client):
     column_names = {row[1] for row in rows}
     assert "folder" in column_names
     assert "is_seed" in column_names
+
+
+# ── Story 1.2 — Listing des assets par dossier ────────────────────────────
+
+
+def test_list_assets_by_folder_exact_match(client):
+    _create_asset(client, "bg1.png", "backgrounds")
+    _create_asset(client, "bg2.png", "backgrounds")
+    _create_asset(client, "alice.png", "characters/alice")
+
+    res = client.get("/api/assets?folder=backgrounds")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) == 2
+    assert all(a["folder"] == "backgrounds" for a in data)
+    assert "alice.png" not in [a["filename"] for a in data]
+
+
+def test_list_assets_includes_schema_fields(client):
+    _create_asset(client, "portrait.png", "characters/alice")
+
+    res = client.get("/api/assets?folder=characters/alice")
+    assert res.status_code == 200
+    data = res.json()
+    assert len(data) == 1
+    asset = data[0]
+    for field in ("id", "filename", "url", "content_type", "folder", "is_seed"):
+        assert field in asset
+
+
+def test_list_assets_empty_folder(client):
+    res = client.get("/api/assets?folder=backgrounds")
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+def test_list_assets_missing_folder_param(client):
+    res = client.get("/api/assets")
+    assert res.status_code == 422
+
+
+def test_list_folders_sorted(client):
+    _create_asset(client, "bob.png", "characters/bob")
+    _create_asset(client, "bg.png", "backgrounds")
+    _create_asset(client, "alice.png", "characters/alice")
+
+    res = client.get("/api/assets/folders")
+    assert res.status_code == 200
+    assert res.json() == ["backgrounds", "characters/alice", "characters/bob"]
+
+
+def test_list_folders_deduplicated(client):
+    _create_asset(client, "bg1.png", "backgrounds")
+    _create_asset(client, "bg2.png", "backgrounds")
+
+    res = client.get("/api/assets/folders")
+    assert res.status_code == 200
+    assert res.json().count("backgrounds") == 1
+
+
+def test_list_folders_empty(client):
+    res = client.get("/api/assets/folders")
+    assert res.status_code == 200
+    assert res.json() == []
 
 
 def test_asset_defaults(client):
