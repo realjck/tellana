@@ -335,7 +335,6 @@ export default function SceneEditorPage({ params }: { params: Params }) {
           <div className="ml-auto flex items-center gap-2">
             <Link
               href={`/stories/${storyId}/scenes/${sceneId}/play`}
-              target="_blank"
               className="px-4 py-1.5 rounded bg-raised hover:bg-elevated text-fore/80 text-sm font-medium transition-colors flex items-center gap-2"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
