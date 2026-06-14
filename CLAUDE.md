@@ -14,6 +14,8 @@ Plateforme Visual Novel : éditeur de stories composées de scènes (dialogues, 
 - **Scene** : séquence de nœuds avec son propre décor, titre, `character_ids` (persos visibles, ordonnés, max 4), `character_positions`
 - **Character** : attaché à la Story (partagé entre toutes les scènes), sans champ `position` (positionné dynamiquement par ScenePlayer). Champ `color` (hex string, ex. `#FF6B6B`) pour la couleur du nom dans le player.
 - **Node** : attaché à une Scene via `scene_id`
+- **GraphNode** : nœud du graphe narratif — types `start | scene | branch | end`, `data` JSON typé par type, `position_x/y` (layout canvas). Un seul `start` par story.
+- **GraphEdge** : lien entre deux GraphNodes — `source_node_id`, `target_node_id`, `source_handle` (id du choix sur un nœud branch), `order` (tri des sorties branch).
 
 ## Structure
 
@@ -95,9 +97,11 @@ Convention : `rounded-lg` (cards), `rounded-md` (éléments interactifs), `round
 
 ### Styles du player
 
-Isolés dans `frontend/app/styles/player.css` (importé dans `globals.css`). Variables CSS : `--player-box-bg`, `--player-name-color`, etc. Classes : `.player-box`, `.player-next-btn`, `.player-option*`, `.player-confirm-btn`. Permet un override par story à terme.
+Isolés dans `frontend/app/styles/player.css` (importé dans `globals.css`). Variables CSS : `--player-box-bg`, `--player-name-color`, etc. Classes : `.player-box`, `.player-next-btn`, `.player-option*`, `.player-confirm-btn`, `.player-branch-overlay`. Permet un override par story à terme.
 
 **Ne pas mettre de styles player inline dans les composants** — passer par ces classes CSS.
+
+**`.player-next-btn` inclut `cursor: pointer` directement en CSS** (pas via la classe Tailwind `cursor-pointer`) — la classe Tailwind peut être écrasée par le reset `cursor: default` des `<button>` dans le bundle standalone.
 
 ## Architecture ScenePlayer / rendu visuel
 
@@ -146,12 +150,67 @@ Onglet Perso de l'éditeur : liste des personnages visibles (max 4) avec boutons
 - Bouton miroir → toggle `flip_x`, commit immédiat
 - `hasMoved` flag sur le DragState : évite un commit spurieux si l'utilisateur clique sans bouger
 - Formule `cy` (pivot vertical, scale-invariant) : `cy = (0.6 - pos.y * 0.5) * containerH` — correspond au `transform-origin: 50% 50%` de l'img 1080px dans ScenePlayer
+- **Fallback de position** : quand `characterPositions[id]` est absent, utiliser `DEFAULT_POSITIONS[slotIndex] ?? FALLBACK_POSITION` (même logique que `ScenePlayer.getCharPosition`) — ne pas utiliser `{ x: 0, y: 0 }` directement.
+
+## Canvas (React Flow — `@xyflow/react`)
+
+Page : `frontend/app/stories/[id]/canvas/page.tsx`. Point d'entrée principal d'une story (remplace la vue liste linéaire).
+
+### Types de nœuds et arêtes
+
+| Type | Composant | Rôle |
+|------|-----------|------|
+| `scene` | `SceneNode` | Miniature ScenePreviewThumbnail + titre + handles top/bottom |
+| `branch` | `BranchNode` | Liste des choix numérotés + handles sortants dynamiques |
+| `end` | `EndNode` | Écran de fin (good/bad/neutral) |
+| `start` | `StartNode` | Point d'entrée unique |
+| `smoothstep` | `DeleteEdge` | Arête avec bouton × au survol pour supprimer |
+
+- `NODE_TYPES` et `EDGE_TYPES` enregistrés sur `<ReactFlow>` — ne jamais passer les composants en inline.
+- `deleteKeyCode={null}` sur `<ReactFlow>` — la suppression native est désactivée, gérée manuellement via `onKeyDown` + `ConfirmModal`.
+- Un seul trait par point de sortie (`source` + `sourceHandle`) : dans `onConnect`, supprimer l'arête existante avant d'en créer une nouvelle.
+- Handles : `!w-4 !h-4` (taille doublée via `!important` Tailwind).
+- `BranchNode` : numéros affichés au-dessus de chaque handle sortant + dans la liste des choix.
+
+### Gestion des personnages dans le canvas
+
+- `SceneInfo` (interface locale) porte `backgroundAsset`, `characterIds`, `characterPositions` par scene.
+- Les données de personnage (`characters`) viennent du SWR `story-{id}` — passées via `charactersRef` (useRef) pour éviter les closures périmées dans les callbacks React Flow.
+- `useEffect` sur le prop `characters` met à jour les `SceneNode` existants quand les données changent.
+
+### Modale de paramètres branch (double-clic)
+
+`BranchSettingsModal` — configure les choix (1–5), leurs labels, `show_visited` et `replay`. Fermée uniquement via les boutons (pas de clic extérieur). `source_handle` = id du choix (string UUID) — lien entre `GraphEdge.source_handle` et `choice.id` dans le nœud branch.
+
+## GraphPlayer / Lecteur de graphe
+
+`frontend/components/GraphPlayer.tsx` — lecteur qui traverse le graphe narratif. Utilisé dans la page publique et le player standalone.
+
+### Architecture fullscreen
+
+Le `containerRef` (div racine de `GraphPlayer`) est **l'élément fullscreen persistant** — il ne démonte jamais. `ScenePlayer` reçoit `isFullscreen` + `onToggleFullscreen` en props (contrôle externe) pour ne pas gérer le fullscreen lui-même. L'état fullscreen est géré dans `GraphPlayer` via `document.fullscreenchange`.
+
+### ScaledScreen
+
+Composant interne de `GraphPlayer` — même mécanique 1920×1080 que `ScenePlayer` (ResizeObserver + `transform: scale`). Utilisé pour tous les écrans non-scène : branch, end, pendingResume, storyComplete. Tailles de texte dans ces écrans : `text-[80px]` (titres), `text-[64px]` (messages), `text-[44px]` (boutons), `text-[28px]` (mentions). Boutons : `px-20 py-8 rounded-xl`.
+
+### Navigation
+
+- `navigate(targetNodeId, edgeId?)` : change le nœud courant + met à jour `visitedEdgeIds` + sauvegarde localStorage.
+- `pendingResume` : si une progression est sauvegardée et différente du nœud start, proposer de reprendre avant de démarrer.
+- `lastReplayNodeId` : dernier nœud branch avec `replay: true` traversé — utilisé pour le bouton "Rejouer depuis le dernier choix" sur l'écran de fin.
+- `show_visited` sur un nœud branch : si `false`, masquer les choix déjà visités (basé sur `visitedEdgeIds`).
+- `BranchOverlay` : les options sont filtrées + triées par `order`. Le nœud branch affiche le fond de la dernière scène visitée (`lastScene`).
+
+### BranchOverlay (1920×1080 scale)
+
+`frontend/components/BranchOverlay.tsx` — overlay centré sur le fond de la dernière scène. Boutons : `max-w-[1100px]`, `px-12 py-8 rounded-xl text-[44px]`. Classe `.player-branch-overlay` sur le conteneur.
 
 ## Éditeur de scène (page edit)
 
 - Panneau resizable : la zone principale (`mainAreaRef`) est divisée en preview (hauteur `previewPct`%, défaut 42%) + divider + formulaire. Drag vertical par pointer capture, limité à [15%, 82%]. État : `previewPct` (useState), `dragState` (useRef).
 - Tab "Script" : liste des nœuds + formulaire d'édition.
-- Ajout de nœud : sous-menu (Dialogue / Texte narratif / Quiz). Type fixé à la création. Nœud inséré après le nœud courant.
+- Ajout de nœud : sous-menu (Dialogue / Texte narratif / Quiz). Type fixé à la création. Nœud inséré après le nœud courant. Pour un nœud dialogue, `character_id` et `sprite_keys` sont copiés depuis le nœud courant si celui-ci est aussi un dialogue.
 - `NodeForm` : `DialogueFields` (personnage + texte), `TextFields` (Markdown), `QuizFields`.
   - `DialogueFields` : clic sur un bloc personnage le sélectionne ; re-clic sur le même le désélectionne (`character_id → null`).
   - Auto-save 1 s avec spinner affiché à droite du titre "Édition du nœud". Pas de bouton Enregistrer.
