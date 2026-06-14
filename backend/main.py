@@ -40,6 +40,20 @@ with engine.begin() as _conn:
     except Exception:
         pass  # Column already exists
 
+# Safe migration: add folder column to assets if it doesn't exist yet
+with engine.begin() as _conn:
+    try:
+        _conn.execute(text("ALTER TABLE assets ADD COLUMN folder TEXT DEFAULT 'backgrounds'"))
+    except Exception:
+        pass  # Column already exists
+
+# Safe migration: add is_seed column to assets if it doesn't exist yet
+with engine.begin() as _conn:
+    try:
+        _conn.execute(text("ALTER TABLE assets ADD COLUMN is_seed BOOLEAN DEFAULT FALSE"))
+    except Exception:
+        pass  # Column already exists
+
 # Ensure uploads and published dirs exist
 Path("uploads").mkdir(exist_ok=True)
 Path("published").mkdir(exist_ok=True)

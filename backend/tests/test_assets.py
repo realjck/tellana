@@ -1,5 +1,8 @@
 import io
 
+import pytest
+from sqlalchemy import text
+
 # Minimal valid 1×1 PNG
 MINIMAL_PNG = (
     b"\x89PNG\r\n\x1a\n"
@@ -58,3 +61,73 @@ def test_upload_writes_file(client, tmp_path):
     )
     filename = res.json()["url"].split("/")[-1]
     assert (tmp_path / filename).exists()
+
+
+# ── Story 1.1 — Migration modèle Asset ────────────────────────────────────
+
+
+def test_asset_pydantic_schema_includes_folder_and_is_seed():
+    """Asset Pydantic schema must expose folder and is_seed fields."""
+    from schemas import Asset as AssetSchema
+
+    asset = AssetSchema(
+        id=1,
+        filename="portrait.png",
+        url="/uploads/characters/alice/portrait.png",
+        content_type="image/png",
+        folder="characters/alice",
+        is_seed=True,
+    )
+    data = asset.model_dump()
+    assert data["folder"] == "characters/alice"
+    assert data["is_seed"] is True
+
+
+def test_asset_model_columns():
+    """Asset SQLAlchemy model must declare folder and is_seed columns."""
+    from models import Asset as AssetModel
+
+    column_names = {c.name for c in AssetModel.__table__.columns}
+    assert "folder" in column_names
+    assert "is_seed" in column_names
+    assert "id" in column_names
+    assert "filename" in column_names
+    assert "url" in column_names
+    assert "content_type" in column_names
+
+
+def test_asset_table_created_with_folder_and_is_seed(client):
+    """After DB creation, the assets table must contain folder and is_seed columns."""
+    from main import app
+    from database import get_db
+
+    override = app.dependency_overrides.get(get_db)
+    db = next(override())
+    rows = db.execute(text("PRAGMA table_info(assets)")).fetchall()
+    column_names = {row[1] for row in rows}
+    assert "folder" in column_names
+    assert "is_seed" in column_names
+
+
+def test_asset_defaults(client):
+    """Asset created without explicit folder/is_seed must use defaults."""
+    from main import app
+    from database import get_db
+    from models import Asset as AssetModel
+    from schemas import Asset as AssetSchema
+
+    override = app.dependency_overrides.get(get_db)
+    db = next(override())
+
+    asset = AssetModel(
+        filename="bg.png",
+        url="/uploads/backgrounds/bg.png",
+        content_type="image/png",
+    )
+    db.add(asset)
+    db.commit()
+    db.refresh(asset)
+
+    schema = AssetSchema.model_validate(asset)
+    assert schema.folder == "backgrounds"
+    assert schema.is_seed is False

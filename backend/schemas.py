@@ -10,6 +10,19 @@ GraphNodeType = Literal["start", "scene", "branch", "end"]
 AssetSourceType = Literal["upload", "remote", "local", "generated"]
 
 
+# ── Asset ──────────────────────────────────────────────────────────────────
+
+class Asset(BaseModel):
+    id: int
+    filename: str
+    url: str
+    content_type: str
+    folder: str
+    is_seed: bool
+
+    model_config = {"from_attributes": True}
+
+
 # ── AssetRef ───────────────────────────────────────────────────────────────
 
 class AssetRef(BaseModel):

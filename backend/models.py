@@ -107,3 +107,14 @@ class GraphEdge(Base):
     order = Column(Integer, nullable=False, default=0)
 
     story = relationship("Story", back_populates="graph_edges")
+
+
+class Asset(Base):
+    __tablename__ = "assets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String, nullable=False)
+    url = Column(String, nullable=False)
+    content_type = Column(String, nullable=False)
+    folder = Column(String, nullable=False, default="backgrounds")
+    is_seed = Column(Boolean, nullable=False, default=False)

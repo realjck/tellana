@@ -13,6 +13,15 @@ export interface AssetRef {
   height: number | null;
 }
 
+export interface Asset {
+  id: number;
+  filename: string;
+  url: string;
+  content_type: string;
+  folder: string;
+  is_seed: boolean;
+}
+
 export interface Character {
   id: number;
   story_id: number;
