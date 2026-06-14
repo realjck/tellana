@@ -28,10 +28,12 @@ import SceneNode from "@/components/canvas/SceneNode";
 import BranchNode from "@/components/canvas/BranchNode";
 import EndNode from "@/components/canvas/EndNode";
 import BranchSettingsModal, { makeChoiceId } from "@/components/BranchSettingsModal";
+import DeleteEdge from "@/components/canvas/DeleteEdge";
 
 type Params = Promise<{ id: string }>;
 
 const NODE_TYPES = { start: StartNode, scene: SceneNode, branch: BranchNode, end: EndNode };
+const EDGE_TYPES = { smoothstep: DeleteEdge };
 
 // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -371,6 +373,7 @@ function CanvasInner({ storyId, characters }: { storyId: number; characters: Cha
         onPaneClick={handlePaneClick}
         onPaneContextMenu={handlePaneContextMenu}
         nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
         defaultEdgeOptions={{
           type: "smoothstep",
           style: { stroke: "#64748b", strokeWidth: 2 },
