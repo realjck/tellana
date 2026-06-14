@@ -213,7 +213,7 @@ export default function GraphPlayer({ story, graph, storyId }: Props) {
   const fsButton = (
     <button
       onClick={toggleFullscreen}
-      className="player-next-btn absolute top-10 left-10 transition-colors z-20"
+      className="player-next-btn absolute top-10 left-10 transition-colors z-20 cursor-pointer"
       title={isFullscreen ? "Quitter le plein écran" : "Plein écran"}
     >
       {isFullscreen ? (
