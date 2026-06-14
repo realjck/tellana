@@ -29,6 +29,7 @@ import BranchNode from "@/components/canvas/BranchNode";
 import EndNode from "@/components/canvas/EndNode";
 import BranchSettingsModal, { makeChoiceId } from "@/components/BranchSettingsModal";
 import DeleteEdge from "@/components/canvas/DeleteEdge";
+import ConfirmModal from "@/components/ConfirmModal";
 
 type Params = Promise<{ id: string }>;
 
@@ -122,10 +123,11 @@ function CanvasInner({ storyId, characters }: { storyId: number; characters: Cha
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [branchModalNodeId, setBranchModalNodeId] = useState<number | null>(null);
+  const [pendingDeleteNodes, setPendingDeleteNodes] = useState<Node[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; clientX: number; clientY: number } | null>(null);
   const debounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const initialized = useRef(false);
-  const { screenToFlowPosition } = useReactFlow();
+  const { screenToFlowPosition, deleteElements } = useReactFlow();
   // Ref pour accéder aux personnages depuis le callback SWR (évite la stale closure)
   const charactersRef = useRef<Character[]>(characters);
   useEffect(() => { charactersRef.current = characters; }, [characters]);
@@ -329,6 +331,40 @@ function CanvasInner({ storyId, characters }: { storyId: number; characters: Cha
     setNodes((nds) => [...nds, flowNode]);
   }, [contextMenu, nodes, storyId, handleRename, handleNavigateToScene, screenToFlowPosition, setNodes]);
 
+  // ── delete key → confirmation modale ───────────────────────────────────
+
+  const handleCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "Delete") return;
+    const selectedNodes = nodes.filter((n) => n.selected && n.type !== "start");
+    const selectedEdges = edges.filter((ed) => ed.selected);
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+    e.preventDefault();
+    if (selectedNodes.length > 0) {
+      setPendingDeleteNodes(selectedNodes);
+    } else {
+      deleteElements({ edges: selectedEdges });
+    }
+  }, [nodes, edges, deleteElements]);
+
+  const deleteMessage = (() => {
+    if (pendingDeleteNodes.length === 1) {
+      const n = pendingDeleteNodes[0];
+      const title = (n.data as { title?: string }).title ?? "";
+      if (n.type === "scene") return `Supprimer la scène « ${title} » et tout son contenu ?`;
+      if (n.type === "branch") return `Supprimer l'embranchement « ${title} » ?`;
+      return "Supprimer ce nœud ?";
+    }
+    const sceneCount = pendingDeleteNodes.filter((n) => n.type === "scene").length;
+    if (sceneCount > 0)
+      return `Supprimer ${pendingDeleteNodes.length} nœuds (dont ${sceneCount} scène${sceneCount > 1 ? "s" : ""} et leur contenu) ?`;
+    return `Supprimer ${pendingDeleteNodes.length} nœuds ?`;
+  })();
+
+  const confirmDeleteNodes = useCallback(() => {
+    deleteElements({ nodes: pendingDeleteNodes });
+    setPendingDeleteNodes([]);
+  }, [pendingDeleteNodes, deleteElements]);
+
   // ── branch settings save (data + edge reconciliation) ───────────────────
 
   const handleBranchSave = useCallback(
@@ -379,7 +415,8 @@ function CanvasInner({ storyId, characters }: { storyId: number; characters: Cha
           style: { stroke: "#64748b", strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
         }}
-        deleteKeyCode="Delete"
+        deleteKeyCode={null}
+        onKeyDown={handleCanvasKeyDown}
         fitView
         className="bg-bg"
       >
@@ -434,6 +471,13 @@ function CanvasInner({ storyId, characters }: { storyId: number; characters: Cha
             Fin
           </button>
         </div>
+      )}
+      {pendingDeleteNodes.length > 0 && (
+        <ConfirmModal
+          message={deleteMessage}
+          onConfirm={confirmDeleteNodes}
+          onCancel={() => setPendingDeleteNodes([])}
+        />
       )}
       {branchModalNodeId != null && (() => {
         const node = nodes.find((n) => n.id === String(branchModalNodeId));
