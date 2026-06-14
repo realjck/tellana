@@ -474,3 +474,50 @@ def test_rename_folder_rejects_path_traversal(client):
         json={"from": "characters/alice", "to": "../escape"},
     )
     assert res.status_code == 400
+
+
+# ── Story 2.1 — Support fichier .keep (placeholder dossier vide) ─────────────
+
+
+def test_upload_keep_creates_folder_placeholder(client, tmp_path):
+    res = client.post(
+        "/api/assets",
+        files={"file": (".keep", io.BytesIO(b""), "application/x-empty")},
+        data={"folder": "characters/alice-v2"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["filename"] == ".keep"
+    assert data["content_type"] == "application/x-empty"
+    assert data["folder"] == "characters/alice-v2"
+    assert data["url"] == "/uploads/characters/alice-v2/.keep"
+    assert (tmp_path / "characters" / "alice-v2" / ".keep").exists()
+
+
+def test_upload_keep_is_idempotent(client):
+    res1 = client.post(
+        "/api/assets",
+        files={"file": (".keep", io.BytesIO(b""), "application/x-empty")},
+        data={"folder": "characters/alice-v2"},
+    )
+    assert res1.status_code == 200
+    id1 = res1.json()["id"]
+
+    res2 = client.post(
+        "/api/assets",
+        files={"file": (".keep", io.BytesIO(b""), "application/x-empty")},
+        data={"folder": "characters/alice-v2"},
+    )
+    assert res2.status_code == 200
+    assert res2.json()["id"] == id1  # même id, pas de doublon
+
+
+def test_upload_keep_appears_in_folders_list(client):
+    client.post(
+        "/api/assets",
+        files={"file": (".keep", io.BytesIO(b""), "application/x-empty")},
+        data={"folder": "characters/new-folder"},
+    )
+    res = client.get("/api/assets/folders")
+    assert res.status_code == 200
+    assert "characters/new-folder" in res.json()

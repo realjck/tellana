@@ -22,6 +22,15 @@ export interface Asset {
   is_seed: boolean;
 }
 
+export interface MediaLibraryConfig {
+  mode: "navigation" | "selector" | "folder-selector";
+  filter?: "images" | "all";
+  onSelect?: (asset: Asset) => void;
+  onSelectFolder?: (folder: string) => void;
+  allowedFolders?: string[];
+  initialFolder?: string;
+}
+
 export interface Character {
   id: number;
   story_id: number;

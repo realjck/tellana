@@ -78,8 +78,31 @@ async def create_asset(
 ):
     folder = _normalize_folder(folder)
     content = await file.read()
-    mime = _validate_image(content)
     filename = Path(file.filename or "upload").name
+
+    # .keep: folder placeholder — bypass image validation (idempotent)
+    if filename == ".keep":
+        existing_keep = (
+            db.query(models.Asset)
+            .filter(models.Asset.folder == folder, models.Asset.filename == ".keep")
+            .first()
+        )
+        if existing_keep:
+            return existing_keep
+        (UPLOAD_DIR / folder).mkdir(parents=True, exist_ok=True)
+        (UPLOAD_DIR / folder / ".keep").touch()
+        keep_asset = models.Asset(
+            filename=".keep",
+            url=f"/uploads/{folder}/.keep",
+            content_type="application/x-empty",
+            folder=folder,
+        )
+        db.add(keep_asset)
+        db.commit()
+        db.refresh(keep_asset)
+        return keep_asset
+
+    mime = _validate_image(content)
     existing = (
         db.query(models.Asset)
         .filter(models.Asset.folder == folder, models.Asset.filename == filename)

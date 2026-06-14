@@ -1,4 +1,4 @@
-import type { AssetRef, Character, GraphEdge, GraphNode, GraphResponse, PublicStory, Scene, SceneSummary, Story, StorySummary, StoryNode } from "@/types";
+import type { Asset, AssetRef, Character, GraphEdge, GraphNode, GraphResponse, PublicStory, Scene, SceneSummary, Story, StorySummary, StoryNode } from "@/types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -189,6 +189,16 @@ export const api = {
         height: null,
       };
     },
+    getFolders: (): Promise<string[]> =>
+      fetch(`${API_BASE}/api/assets/folders`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
+    list: (folder: string): Promise<Asset[]> =>
+      fetch(`${API_BASE}/api/assets?folder=${encodeURIComponent(folder)}`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
   },
 };
 

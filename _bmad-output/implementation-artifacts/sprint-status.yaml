@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-06-14"
-last_updated: "2026-06-14"  # Updated: Epic 1 done (code review closed)
+last_updated: "2026-06-14"  # Updated: Story 2.1 done
 project: tellana
 project_key: NOKEY
 tracking_system: file-system
@@ -52,8 +52,8 @@ development_status:
   epic-1-retrospective: optional
 
   # ─── Epic 2 : Composants Médiathèque & Seeds ──────────────────────────────
-  epic-2: backlog
-  2-1-modale-medialibrarymodal-et-navigation-de-dossiers: backlog
+  epic-2: in-progress
+  2-1-modale-medialibrarymodal-et-navigation-de-dossiers: done
   2-2-grille-de-miniatures: backlog
   2-3-upload-drag-drop-multi-fichiers: backlog
   2-4-renommage-inline-et-suppression-dassert: backlog
