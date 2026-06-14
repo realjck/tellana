@@ -121,6 +121,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
       const dialogueData: DialogueNodeData = { character_id: null, text: "" };
       if (selectedNode?.type === "dialogue") {
         const d = selectedNode.data as unknown as DialogueNodeData;
+        if (d.character_id) dialogueData.character_id = d.character_id;
         if (d.sprite_keys) dialogueData.sprite_keys = d.sprite_keys;
       }
       defaultData = dialogueData as unknown as StoryNode["data"];
