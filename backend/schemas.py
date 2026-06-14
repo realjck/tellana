@@ -5,6 +5,8 @@ from datetime import datetime
 NodeType = Literal["dialogue", "text", "quiz"]
 # Future node types (not yet implemented): "image", "video", "image_text"
 
+GraphNodeType = Literal["start", "scene", "branch", "end"]
+
 AssetSourceType = Literal["upload", "remote", "local", "generated"]
 
 
@@ -173,3 +175,56 @@ class PublicStory(StoryBase):
 
 class ReorderRequest(BaseModel):
     order: List[int]
+
+
+# ── Graph ──────────────────────────────────────────────────────────────────
+
+class GraphNodeCreate(BaseModel):
+    type: GraphNodeType
+    position_x: float = 0.0
+    position_y: float = 0.0
+    data: Dict[str, Any] = {}
+
+
+class GraphNodeUpdate(BaseModel):
+    position_x: Optional[float] = None
+    position_y: Optional[float] = None
+    data: Optional[Dict[str, Any]] = None
+
+
+class GraphNode(BaseModel):
+    id: int
+    story_id: int
+    type: GraphNodeType
+    position_x: float
+    position_y: float
+    data: Dict[str, Any]
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class GraphEdgeCreate(BaseModel):
+    source_node_id: int
+    target_node_id: int
+    label: Optional[str] = None
+    source_handle: Optional[str] = None
+    order: int = 0
+
+
+class GraphEdge(BaseModel):
+    id: int
+    story_id: int
+    source_node_id: int
+    target_node_id: int
+    label: Optional[str] = None
+    source_handle: Optional[str] = None
+    order: int
+
+    model_config = {"from_attributes": True}
+
+
+class GraphResponse(BaseModel):
+    nodes: List[GraphNode] = []
+    edges: List[GraphEdge] = []

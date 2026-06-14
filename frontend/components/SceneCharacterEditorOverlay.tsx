@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from "react";
 import type { Character, CharacterPosition } from "@/types";
+import { DEFAULT_POSITIONS, FALLBACK_POSITION } from "@/lib/scenePositions";
 
 const BASE_W = 1920;
 const BASE_H = 1080;
@@ -107,8 +108,12 @@ export default function SceneCharacterEditorOverlay({
     return () => ro.disconnect();
   }, []);
 
-  const getPos = (charId: number): CharacterPosition =>
-    characterPositions[String(charId)] ?? { x: 0, y: 0, scale: 1, flip_x: false };
+  const getPos = (charId: number): CharacterPosition => {
+    const stored = characterPositions[String(charId)];
+    if (stored) return stored;
+    const slotIndex = characters.findIndex((ch) => ch.id === charId);
+    return DEFAULT_POSITIONS[slotIndex >= 0 ? slotIndex : 0] ?? FALLBACK_POSITION;
+  };
 
   // ── Pointer events ──────────────────────────────────────────────────────────
 

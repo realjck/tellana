@@ -343,7 +343,7 @@ export default function ScenePlayer({
           {!compact && (
             <button
               onClick={toggleFullscreen}
-              className="player-next-btn absolute top-10 left-10 transition-colors"
+              className="player-next-btn absolute top-10 left-10 transition-colors cursor-pointer"
               title={activeFullscreen ? "Quitter le plein écran" : "Plein écran"}
             >
               {activeFullscreen ? (

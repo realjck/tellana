@@ -1,6 +1,6 @@
 # Architecture — Tellana
 
-> Généré le 2026-06-11 · Scan quick · Initial scan
+> Généré le 2026-06-11 · Mis à jour le 2026-06-14 (TEL-24 canvas + GraphPlayer)
 
 ---
 
@@ -56,7 +56,9 @@
 ```
 Story ──< Scene ──< Node
   │
-  └──< Character
+  ├──< Character
+  │
+  └──< GraphNode ──< GraphEdge
 ```
 
 ### Entités principales
@@ -74,6 +76,17 @@ Story ──< Scene ──< Node
 **Character** : `id`, `story_id` (FK), `name`, `color` (str hex?, ex. `#FF6B6B`), `sprites` (dict[str, AssetRef])
 
 **CharacterPosition** : `{ x: float[-1,1], y: float[-3,1], scale: float[0.1,2.5], flip_x: bool }`
+
+**GraphNode** : `id`, `story_id` (FK), `type` (Literal["start","scene","branch","end"]), `position_x`, `position_y` (layout canvas), `data` (JSON typé par type)
+
+- `start` → `{}`
+- `scene` → `{ scene_id: int }`
+- `branch` → `{ choices: [{id: str, label: str}], show_visited: bool, replay: bool }`
+- `end` → `{ type: "good"|"bad"|"neutral", title: str?, text: str? }`
+
+**GraphEdge** : `id`, `story_id` (FK), `source_node_id`, `target_node_id`, `source_handle` (str — id du choix branch), `order` (tri des sorties branch)
+
+Contraintes : un seul nœud `start` par story (HTTP 400 sinon) · max 5 edges sortantes par nœud branch.
 
 ### Migrations
 
@@ -96,7 +109,9 @@ backend/
     ├── scenes.py        # CRUD + reorder
     ├── nodes.py         # CRUD + reorder
     ├── characters.py    # CRUD
-    └── assets.py        # Upload + liste
+    ├── assets.py        # Upload + liste
+    ├── graph_nodes.py   # CRUD nœuds graphe (contrainte start unique)
+    └── graph_edges.py   # CRUD arêtes graphe (contrainte max 5 sorties branch)
 ```
 
 ### Endpoints clés
@@ -111,6 +126,12 @@ backend/
 | PATCH | `/api/scenes/{id}` | Fond, character_ids, character_positions |
 | PATCH | `/api/nodes/{id}` | Contenu `data` |
 | POST | `/api/assets/upload` | Upload multipart |
+| GET | `/api/stories/{id}/graph` | Graphe complet (nodes + edges) sérialisé |
+| POST | `/api/stories/{id}/graph_nodes` | Crée un nœud graphe |
+| PATCH | `/api/stories/{id}/graph_nodes/{nid}` | Met à jour position/data nœud |
+| DELETE | `/api/stories/{id}/graph_nodes/{nid}` | Supprime nœud + ses edges |
+| POST | `/api/stories/{id}/graph_edges` | Crée une arête |
+| DELETE | `/api/stories/{id}/graph_edges/{eid}` | Supprime une arête |
 
 ### Conventions backend
 
@@ -127,16 +148,18 @@ backend/
 
 ```
 frontend/app/
-├── page.tsx                        # Accueil — liste stories
-├── layout.tsx                      # Layout racine (Space Grotesk)
-├── globals.css                     # Tokens @theme Tailwind v4
+├── page.tsx                                 # Accueil — liste stories
+├── layout.tsx                               # Layout racine (Space Grotesk)
+├── globals.css                              # Tokens @theme Tailwind v4
 ├── stories/[id]/
-│   ├── page.tsx                    # Vue story (scènes + personnages)
-│   ├── edit/page.tsx               # Éditeur de scène
-│   └── play/page.tsx               # Lecteur interne
+│   ├── page.tsx                             # Vue story (canvas = point d'entrée)
+│   ├── canvas/page.tsx                      # Canvas éditeur (React Flow)
+│   └── scenes/[sceneId]/
+│       ├── edit/page.tsx                    # Éditeur de scène
+│       └── play/page.tsx                    # Lecteur interne
 └── s/[slug]/
-    ├── page.tsx                    # Page publique (SSR)
-    └── PublicPlayer.tsx            # Player public
+    ├── page.tsx                             # Page publique (SSR)
+    └── PublicPlayer.tsx                     # Player public (GraphPlayer)
 ```
 
 **Attention Next.js 16** : `params` est une `Promise`.
@@ -166,14 +189,19 @@ containerRef (outer div, aspect-ratio 16/9)
 
 | Composant | Rôle |
 |-----------|------|
-| `ScenePlayer` | Player principal (1920×1080 scalé, tous types de nœuds) |
+| `ScenePlayer` | Player principal (1920×1080 scalé, tous types de nœuds). Props `isFullscreen` + `onToggleFullscreen` pour contrôle externe. |
+| `GraphPlayer` | Lecteur de graphe narratif — traverse les GraphNodes, gère localStorage, fullscreen. |
+| `BranchOverlay` | Overlay de choix sur nœud branch (1920×1080 scale, options filtrées par `show_visited`) |
 | `MultiScenePlayer` | Enchaîne plusieurs ScenePlayer |
-| `ScenePreviewThumbnail` | Aperçu statique (sans interaction) |
-| `SceneCharacterEditorOverlay` | Overlay drag/resize/miroir personnages |
+| `ScenePreviewThumbnail` | Aperçu statique (sans interaction) — utilisé aussi dans `SceneNode` canvas |
+| `SceneCharacterEditorOverlay` | Overlay drag/resize/miroir personnages — fallback position = `DEFAULT_POSITIONS[slotIndex]` |
 | `SceneCharacterSelector` | Sidebar sélection + réordonnement Z personnages |
 | `CharacterManager` | Gestion complète personnages (modes list/add/edit/poses) |
 | `NodeForm` | Édition nœud avec auto-save 1s |
 | `ConfirmModal` / `AlertModal` | Modales UI |
+| `SceneNode` / `BranchNode` / `EndNode` / `StartNode` | Nœuds React Flow custom (canvas) |
+| `DeleteEdge` | Arête React Flow avec bouton × au survol |
+| `BranchSettingsModal` | Modale double-clic sur BranchNode (choix, labels, show_visited, replay) |
 
 ### Design system — Tailwind v4
 

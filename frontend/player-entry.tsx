@@ -1,17 +1,23 @@
 import { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import type { PublicStory } from "./types";
-import MultiScenePlayer from "./components/MultiScenePlayer";
+import type { GraphResponse, PublicStory } from "./types";
+import GraphPlayer from "./components/GraphPlayer";
 import "./app/globals.css";
 
 function PlayerApp() {
   const [story, setStory] = useState<PublicStory | null>(null);
+  const [graph, setGraph] = useState<GraphResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("data/story.json")
-      .then((r) => r.json())
-      .then(setStory)
+    Promise.all([
+      fetch("data/story.json").then((r) => r.json()),
+      fetch("data/graph.json").then((r) => r.json()),
+    ])
+      .then(([s, g]) => {
+        setStory(s as PublicStory);
+        setGraph(g as GraphResponse);
+      })
       .catch(() => setError("Impossible de charger la story."));
   }, []);
 
@@ -23,7 +29,7 @@ function PlayerApp() {
     );
   }
 
-  if (!story) return null;
+  if (!story || !graph) return null;
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
@@ -31,11 +37,7 @@ function PlayerApp() {
         <h1 className="text-white/50 text-sm font-medium text-center mb-4">
           {story.title}
         </h1>
-        <MultiScenePlayer
-          scenes={story.scenes}
-          characters={story.characters}
-          title={story.title}
-        />
+        <GraphPlayer story={story} graph={graph} storyId={story.id} />
       </div>
     </div>
   );

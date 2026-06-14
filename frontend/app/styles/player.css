@@ -50,6 +50,7 @@
 /* Next / continue buttons inside the player */
 .player-next-btn {
   color: var(--player-next-color);
+  cursor: pointer;
 }
 .player-next-btn:hover {
   color: var(--player-next-hover);
@@ -104,4 +105,16 @@
 .player-confirm-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* Branch overlay */
+.player-branch-overlay {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+/* Visited edge indicator */
+.player-branch-option-visited {
+  opacity: 0.45;
 }

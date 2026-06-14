@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 import models
 from database import engine
-from routers import assets, characters, nodes, scenes, stories
+from routers import assets, characters, graph, nodes, scenes, stories
 
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
@@ -33,6 +33,13 @@ with engine.begin() as _conn:
     except Exception:
         pass  # Column already exists
 
+# Safe migration: add source_handle column to graph_edges if it doesn't exist yet
+with engine.begin() as _conn:
+    try:
+        _conn.execute(text("ALTER TABLE graph_edges ADD COLUMN source_handle TEXT"))
+    except Exception:
+        pass  # Column already exists
+
 # Ensure uploads and published dirs exist
 Path("uploads").mkdir(exist_ok=True)
 Path("published").mkdir(exist_ok=True)
@@ -55,6 +62,7 @@ app.include_router(scenes.router, prefix="/api")
 app.include_router(nodes.router, prefix="/api")
 app.include_router(characters.router, prefix="/api")
 app.include_router(assets.router, prefix="/api")
+app.include_router(graph.router, prefix="/api")
 
 
 @app.get("/")

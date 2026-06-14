@@ -8,7 +8,6 @@ import { api, API_BASE } from "@/lib/api";
 import type { Character, SceneSummary, Story } from "@/types";
 import CharacterManager from "@/components/CharacterManager";
 import ScenePreviewThumbnail from "@/components/ScenePreviewThumbnail";
-import ConfirmModal from "@/components/ConfirmModal";
 import AlertModal from "@/components/AlertModal";
 
 type Params = Promise<{ id: string }>;
@@ -16,7 +15,6 @@ type Params = Promise<{ id: string }>;
 export default function StoryEditorPage({ params }: { params: Params }) {
   const { id } = use(params);
   const storyId = Number(id);
-  const router = useRouter();
 
   const { data: story, mutate, isLoading } = useSWR<Story>(
     `story-${storyId}`,
@@ -29,11 +27,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [confirmDeleteSceneId, setConfirmDeleteSceneId] = useState<number | null>(null);
-  const [addingScene, setAddingScene] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(false);
-  const [newSceneTitle, setNewSceneTitle] = useState("");
-  const [creatingScene, setCreatingScene] = useState(false);
 
   if (isLoading) {
     return (
@@ -108,54 +102,10 @@ export default function StoryEditorPage({ params }: { params: Params }) {
     }
   };
 
-  const handleAddScene = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSceneTitle.trim()) return;
-    setCreatingScene(true);
-    try {
-      const newScene = await api.scenes.create(storyId, newSceneTitle.trim());
-      await mutate();
-      setAddingScene(false);
-      setNewSceneTitle("");
-      router.push(`/stories/${storyId}/scenes/${newScene.id}/edit?tab=background`);
-    } catch {
-      alert("Erreur lors de la création");
-    } finally {
-      setCreatingScene(false);
-    }
-  };
-
-  const deleteScene = async (sceneId: number) => {
-    try {
-      await api.scenes.delete(storyId, sceneId);
-      await mutate();
-    } catch {
-      alert("Erreur lors de la suppression");
-    }
-  };
-
-  const moveScene = async (sceneId: number, direction: "up" | "down") => {
-    const idx = scenes.findIndex((s) => s.id === sceneId);
-    if (direction === "up" && idx === 0) return;
-    if (direction === "down" && idx === scenes.length - 1) return;
-    const newOrder = [...scenes.map((s) => s.id)];
-    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-    [newOrder[idx], newOrder[swapIdx]] = [newOrder[swapIdx], newOrder[idx]];
-    await api.scenes.reorder(storyId, newOrder);
-    await mutate();
-  };
-
   return (
     <div className="h-screen bg-bg flex flex-col overflow-hidden">
       {exportError && (
         <AlertModal message={exportError} onClose={() => setExportError(null)} />
-      )}
-      {confirmDeleteSceneId !== null && (
-        <ConfirmModal
-          message="Supprimer cette scène et tous ses nœuds ? Cette action est irréversible."
-          onConfirm={() => { deleteScene(confirmDeleteSceneId); setConfirmDeleteSceneId(null); }}
-          onCancel={() => setConfirmDeleteSceneId(null)}
-        />
       )}
       {/* Header */}
       <header className="flex-shrink-0 border-b border-white/5 bg-sidebar/80 backdrop-blur-md z-10">
@@ -202,6 +152,16 @@ export default function StoryEditorPage({ params }: { params: Params }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <Link
+              href={`/stories/${storyId}/canvas`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm transition-colors"
+              title="Ouvrir le canvas narratif"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+              </svg>
+              Canvas
+            </Link>
             <button
               onClick={handleExportZip}
               disabled={exporting}
@@ -304,22 +264,23 @@ export default function StoryEditorPage({ params }: { params: Params }) {
           <div className="max-w-3xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-fore font-semibold text-lg">Scènes</h2>
-              <button
-                onClick={() => setAddingScene(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded bg-primary hover:bg-primary-hover text-white cursor-pointer text-sm font-medium transition-colors"
+              <Link
+                href={`/stories/${storyId}/canvas`}
+                className="flex items-center gap-2 px-4 py-2 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm font-medium transition-colors"
+                title="Gérer les scènes dans le canvas"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
                 </svg>
-                Nouvelle scène
-              </button>
+                Gérer dans le canvas
+              </Link>
             </div>
 
             {scenes.length === 0 ? (
               <div className="text-center py-16 text-subtle">
                 <div className="text-4xl mb-4">🎬</div>
                 <p className="mb-1">Aucune scène pour l&apos;instant.</p>
-                <p className="text-xs">Créez une scène pour commencer à éditer votre story.</p>
+                <p className="text-xs">Créez vos scènes depuis le canvas narratif.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
@@ -328,11 +289,8 @@ export default function StoryEditorPage({ params }: { params: Params }) {
                     key={scene.id}
                     scene={scene}
                     index={i}
-                    total={scenes.length}
                     storyId={storyId}
                     characters={characters}
-                    onMove={moveScene}
-                    onDelete={() => setConfirmDeleteSceneId(scene.id)}
                   />
                 ))}
               </div>
@@ -341,40 +299,6 @@ export default function StoryEditorPage({ params }: { params: Params }) {
         </div>
       </div>
 
-      {/* Add scene modal */}
-      {addingScene && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-elevated border border-white/10 rounded-lg p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-fore font-semibold mb-4">Nouvelle scène</h3>
-            <form onSubmit={handleAddScene} className="flex flex-col gap-4">
-              <input
-                autoFocus
-                type="text"
-                value={newSceneTitle}
-                onChange={(e) => setNewSceneTitle(e.target.value)}
-                placeholder="Titre de la scène…"
-                className="bg-raised border border-white/10 rounded px-4 py-3 text-fore placeholder-subtle focus:outline-none focus:border-white/30 transition-colors"
-              />
-              <div className="flex gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => { setAddingScene(false); setNewSceneTitle(""); }}
-                  className="px-4 py-2 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="submit"
-                  disabled={creatingScene || !newSceneTitle.trim()}
-                  className="px-4 py-2 rounded bg-neutral-100 hover:bg-white disabled:opacity-40 text-zinc-900 text-sm font-medium transition-colors"
-                >
-                  {creatingScene ? "Création…" : "Créer"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -384,19 +308,13 @@ export default function StoryEditorPage({ params }: { params: Params }) {
 function SceneCard({
   scene,
   index,
-  total,
   storyId,
   characters,
-  onMove,
-  onDelete,
 }: {
   scene: SceneSummary;
   index: number;
-  total: number;
   storyId: number;
   characters: Character[];
-  onMove: (id: number, dir: "up" | "down") => void;
-  onDelete: () => void;
 }) {
   const router = useRouter();
 
@@ -409,20 +327,6 @@ function SceneCard({
       onClick={() => router.push(`/stories/${storyId}/scenes/${scene.id}/edit`)}
       className="flex gap-3 items-center bg-elevated/40 border border-white/7 rounded-lg overflow-hidden hover:border-white/15 transition-all p-3 cursor-pointer"
     >
-      {/* Order arrows — left */}
-      <div className="flex flex-col gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={() => onMove(scene.id, "up")}
-          disabled={index === 0}
-          className="w-7 h-7 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-xs"
-        >▲</button>
-        <button
-          onClick={() => onMove(scene.id, "down")}
-          disabled={index === total - 1}
-          className="w-7 h-7 rounded-full bg-raised hover:bg-elevated disabled:opacity-20 disabled:cursor-not-allowed cursor-pointer text-muted hover:text-fore transition-colors flex items-center justify-center text-xs"
-        >▼</button>
-      </div>
-
       {/* Thumbnail */}
       <ScenePreviewThumbnail
         backgroundAsset={scene.background_asset}
@@ -436,18 +340,6 @@ function SceneCard({
           <span className="text-xs text-subtle font-mono">{index + 1}</span>
           <h3 className="text-fore font-medium truncate">{scene.title}</h3>
         </div>
-      </div>
-
-      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={onDelete}
-          className="p-2 rounded bg-raised hover:bg-red-900/40 text-muted hover:text-red-300 transition-colors cursor-pointer"
-          title="Supprimer la scène"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        </button>
       </div>
     </div>
   );

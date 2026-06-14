@@ -1,0 +1,557 @@
+"use client";
+
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import useSWR from "swr";
+import {
+  ReactFlow,
+  MiniMap,
+  Background,
+  BackgroundVariant,
+  useNodesState,
+  useEdgesState,
+  useReactFlow,
+  addEdge,
+  MarkerType,
+  type Node,
+  type Edge,
+  type OnConnect,
+  type NodeMouseHandler,
+  ReactFlowProvider,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import { api } from "@/lib/api";
+import type { AssetRef, Character, CharacterPosition, GraphNode, GraphEdge, Story, GraphChoice } from "@/types";
+import StartNode from "@/components/canvas/StartNode";
+import SceneNode from "@/components/canvas/SceneNode";
+import BranchNode from "@/components/canvas/BranchNode";
+import EndNode from "@/components/canvas/EndNode";
+import BranchSettingsModal, { makeChoiceId } from "@/components/BranchSettingsModal";
+import DeleteEdge from "@/components/canvas/DeleteEdge";
+import ConfirmModal from "@/components/ConfirmModal";
+
+type Params = Promise<{ id: string }>;
+
+const NODE_TYPES = { start: StartNode, scene: SceneNode, branch: BranchNode, end: EndNode };
+const EDGE_TYPES = { smoothstep: DeleteEdge };
+
+// ── helpers ───────────────────────────────────────────────────────────────
+
+interface SceneInfo {
+  backgroundAsset: AssetRef | null;
+  characterIds: number[];
+  characterPositions: Record<string, CharacterPosition>;
+}
+
+function toFlowNode(
+  n: GraphNode,
+  storyId: number,
+  selectedId: string | null,
+  onRename: (id: number, title: string) => void,
+  onNavigateToScene: (sceneId: number) => void,
+  sceneTitles?: Map<number, string>,
+  sceneInfoMap?: Map<number, SceneInfo>,
+  characters?: Character[]
+): Node {
+  const id = String(n.id);
+  const base = { id, position: { x: n.position_x, y: n.position_y }, selected: id === selectedId };
+  if (n.type === "start") return { ...base, type: "start", data: {} };
+  if (n.type === "scene") {
+    const sceneId = (n.data as { scene_id?: number }).scene_id;
+    // La scène est la source unique du titre : le nœud affiche Scene.title.
+    const sceneTitle = sceneId != null ? sceneTitles?.get(sceneId) : undefined;
+    const sceneInfo = sceneId != null ? sceneInfoMap?.get(sceneId) : undefined;
+    const sceneCharacters = sceneInfo && characters
+      ? sceneInfo.characterIds.map((cid) => characters.find((c) => c.id === cid)).filter((c): c is Character => !!c)
+      : [];
+    return {
+      ...base, type: "scene",
+      data: {
+        title: sceneTitle ?? (n.data as { title?: string }).title ?? "Scène",
+        backgroundAsset: sceneInfo?.backgroundAsset ?? null,
+        characters: sceneCharacters,
+        characterPositions: sceneInfo?.characterPositions ?? {},
+        characterIds: sceneInfo?.characterIds ?? [],
+        selected: id === selectedId,
+        onRename: (title: string) => onRename(n.id, title),
+        sceneId,
+        storyId,
+        onDoubleClick: sceneId ? () => onNavigateToScene(sceneId) : undefined,
+      },
+    };
+  }
+  if (n.type === "branch") {
+    return {
+      ...base, type: "branch",
+      data: {
+        title: (n.data as { title?: string }).title ?? "",
+        show_visited: (n.data as { show_visited?: boolean }).show_visited,
+        choices: (n.data as { choices?: GraphChoice[] }).choices ?? [],
+        selected: id === selectedId,
+      },
+    };
+  }
+  // end
+  return {
+    ...base, type: "end",
+    data: {
+      type: (n.data as { type?: string }).type ?? "neutral",
+      title: (n.data as { title?: string }).title ?? "",
+      selected: id === selectedId,
+      onRename: (title: string) => onRename(n.id, title),
+    },
+  };
+}
+
+function toFlowEdge(e: GraphEdge): Edge {
+  return {
+    id: String(e.id),
+    source: String(e.source_node_id),
+    target: String(e.target_node_id),
+    sourceHandle: e.source_handle ?? undefined,
+    label: e.label ?? undefined,
+    data: { dbId: e.id },
+  };
+}
+
+// ── Canvas inner (needs ReactFlowProvider context) ─────────────────────────
+
+function CanvasInner({ storyId, characters }: { storyId: number; characters: Character[] }) {
+  const router = useRouter();
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [branchModalNodeId, setBranchModalNodeId] = useState<number | null>(null);
+  const [pendingDeleteNodes, setPendingDeleteNodes] = useState<Node[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; clientX: number; clientY: number } | null>(null);
+  const debounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const initialized = useRef(false);
+  const { screenToFlowPosition, deleteElements } = useReactFlow();
+  // Ref pour accéder aux personnages depuis le callback SWR (évite la stale closure)
+  const charactersRef = useRef<Character[]>(characters);
+  useEffect(() => { charactersRef.current = characters; }, [characters]);
+
+  const handleNavigateToScene = useCallback((sceneId: number) => {
+    router.push(`/stories/${storyId}/scenes/${sceneId}/edit`);
+  }, [router, storyId]);
+
+  const handleRename = useCallback(async (nodeDbId: number, title: string) => {
+    const node = (await api.graph.get(storyId)).nodes.find((n) => n.id === nodeDbId);
+    if (!node) return;
+    const newData = { ...node.data, title };
+    await api.graph.updateNode(storyId, nodeDbId, { data: newData as Record<string, unknown> });
+    if (node.type === "scene" && typeof (node.data as { scene_id?: number }).scene_id === "number") {
+      await api.scenes.update(storyId, (node.data as { scene_id: number }).scene_id, { title });
+    }
+    setNodes((nds) =>
+      nds.map((n) =>
+        n.id === String(nodeDbId) ? { ...n, data: { ...n.data, title } } : n
+      )
+    );
+  }, [storyId, setNodes]);
+
+  // Load graph on mount
+  useSWR(`graph-${storyId}`, async () => {
+    const [graph, scenes] = await Promise.all([api.graph.get(storyId), api.scenes.list(storyId)]);
+    if (!initialized.current) {
+      initialized.current = true;
+      // Auto-create start node if absent
+      let dbNodes = graph.nodes;
+      if (!dbNodes.find((n) => n.type === "start")) {
+        const startNode = await api.graph.createNode(storyId, { type: "start", position_x: 400, position_y: 80, data: {} });
+        dbNodes = [startNode, ...dbNodes];
+      }
+      const sceneTitles = new Map(scenes.map((s) => [s.id, s.title] as [number, string]));
+      const sceneInfoMap = new Map<number, SceneInfo>(scenes.map((s) => [s.id, {
+        backgroundAsset: s.background_asset,
+        characterIds: s.character_ids,
+        characterPositions: s.character_positions,
+      }]));
+      const flowNodes = dbNodes.map((n) => toFlowNode(n, storyId, selectedNodeId, handleRename, handleNavigateToScene, sceneTitles, sceneInfoMap, charactersRef.current));
+      const flowEdges = graph.edges.map(toFlowEdge);
+      setNodes(flowNodes);
+      setEdges(flowEdges);
+    }
+    return graph;
+  });
+
+  // Mettre à jour les personnages dans les noeuds scène quand ils arrivent après l'init
+  useEffect(() => {
+    if (characters.length === 0) return;
+    setNodes((nds) => nds.map((n) => {
+      if (n.type !== "scene") return n;
+      const d = n.data as { characterIds?: number[] };
+      if (!d.characterIds) return n;
+      const sceneChars = d.characterIds
+        .map((cid) => characters.find((c) => c.id === cid))
+        .filter((c): c is Character => !!c);
+      return { ...n, data: { ...n.data, characters: sceneChars } };
+    }));
+  }, [characters, setNodes]);
+
+  // ── position auto-save ──────────────────────────────────────────────────
+
+  const handleNodesChange = useCallback((changes: Parameters<typeof onNodesChange>[0]) => {
+    onNodesChange(changes);
+    for (const change of changes) {
+      if (change.type === "position" && change.dragging === false && change.id) {
+        const id = change.id;
+        const existing = debounceRef.current.get(id);
+        if (existing) clearTimeout(existing);
+        const timer = setTimeout(async () => {
+          debounceRef.current.delete(id);
+          const pos = change.position;
+          if (!pos) return;
+          await api.graph.updateNode(storyId, Number(id), { position_x: pos.x, position_y: pos.y });
+        }, 500);
+        debounceRef.current.set(id, timer);
+      }
+    }
+  }, [onNodesChange, storyId]);
+
+  // ── edge creation ───────────────────────────────────────────────────────
+
+  const onConnect: OnConnect = useCallback(async (params) => {
+    const sourceId = Number(params.source);
+    const targetId = Number(params.target);
+    const sourceHandle = params.sourceHandle ?? null;
+    try {
+      // Supprimer l'edge existant depuis ce même point de sortie
+      const duplicate = edges.find(
+        (e) => e.source === params.source && (e.sourceHandle ?? null) === sourceHandle
+      );
+      if (duplicate) {
+        const dbId = (duplicate.data as { dbId?: number })?.dbId;
+        if (dbId) await api.graph.deleteEdge(storyId, dbId);
+        setEdges((eds) => eds.filter((e) => e.id !== duplicate.id));
+      }
+      const dbEdge = await api.graph.createEdge(storyId, {
+        source_node_id: sourceId,
+        target_node_id: targetId,
+        label: null,
+        order: 0,
+        source_handle: sourceHandle,
+      });
+      setEdges((eds) => addEdge({ ...params, id: String(dbEdge.id), data: { dbId: dbEdge.id } }, eds));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Erreur";
+      alert(msg);
+    }
+  }, [storyId, edges, setEdges]);
+
+  // ── edge delete ─────────────────────────────────────────────────────────
+
+  const handleEdgesDelete = useCallback(async (deleted: Edge[]) => {
+    for (const edge of deleted) {
+      const dbId = (edge.data as { dbId?: number })?.dbId;
+      if (!dbId) continue;
+      try {
+        await api.graph.deleteEdge(storyId, dbId);
+      } catch {
+        // L'edge peut déjà avoir été supprimé en cascade par la suppression d'un nœud.
+      }
+    }
+  }, [storyId]);
+
+  // ── node delete ─────────────────────────────────────────────────────────
+
+  const handleNodesDelete = useCallback(async (deleted: Node[]) => {
+    for (const node of deleted) {
+      if (node.type === "start") continue; // non-deletable
+      await api.graph.deleteNode(storyId, Number(node.id));
+      // Canvas seul maître des scènes : supprimer le nœud scène supprime la scène.
+      if (node.type === "scene") {
+        const sceneId = (node.data as { sceneId?: number }).sceneId;
+        if (sceneId) {
+          try {
+            await api.scenes.delete(storyId, sceneId);
+          } catch {
+            // Scène déjà supprimée — ignorer.
+          }
+        }
+      }
+    }
+  }, [storyId]);
+
+  // ── double click → navigate to scene editor ────────────────────────────
+
+  const handleNodeDoubleClick: NodeMouseHandler = useCallback((_e, node) => {
+    if (node.type === "branch") {
+      setBranchModalNodeId(Number(node.id));
+      return;
+    }
+    const cb = (node.data as { onDoubleClick?: () => void }).onDoubleClick;
+    if (cb) cb();
+  }, []);
+
+  // ── node selection ──────────────────────────────────────────────────────
+
+  const handleNodeClick: NodeMouseHandler = useCallback((_e, node) => {
+    setSelectedNodeId((prev) => {
+      const next = prev === node.id ? prev : node.id;
+      setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, selected: n.id === next } })));
+      return next;
+    });
+  }, [setNodes]);
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setContextMenu(null);
+    setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, selected: false } })));
+  }, [setNodes]);
+
+  // ── context menu (right-click or left-click on empty area) ─────────────
+
+  const handlePaneContextMenu = useCallback((e: MouseEvent | React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, clientX: e.clientX, clientY: e.clientY });
+  }, []);
+
+  // ── create node ─────────────────────────────────────────────────────────
+
+  const createNode = useCallback(async (type: "scene" | "branch" | "end") => {
+    if (!contextMenu) return;
+    setContextMenu(null);
+    const { x: px, y: py } = screenToFlowPosition({ x: contextMenu.clientX, y: contextMenu.clientY });
+
+    let data: Record<string, unknown> = {};
+    let title = "";
+    if (type === "scene") {
+      const sceneCount = nodes.filter((n) => n.type === "scene").length;
+      title = `Scène ${sceneCount + 1}`;
+      const scene = await api.scenes.create(storyId, title);
+      data = { scene_id: scene.id, title };
+    } else if (type === "branch") {
+      const branchCount = nodes.filter((n) => n.type === "branch").length;
+      data = {
+        title: `Embranchement ${branchCount + 1}`,
+        show_visited: true,
+        choices: [
+          { id: makeChoiceId(), label: "Choix 1" },
+          { id: makeChoiceId(), label: "Choix 2" },
+        ],
+      };
+    } else {
+      data = { type: "neutral", title: "", text: "" };
+    }
+
+    const dbNode = await api.graph.createNode(storyId, { type, position_x: px, position_y: py, data });
+    const flowNode = toFlowNode(dbNode, storyId, null, handleRename, handleNavigateToScene);
+    setNodes((nds) => [...nds, flowNode]);
+  }, [contextMenu, nodes, storyId, handleRename, handleNavigateToScene, screenToFlowPosition, setNodes]);
+
+  // ── delete key → confirmation modale ───────────────────────────────────
+
+  const handleCanvasKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "Delete") return;
+    const selectedNodes = nodes.filter((n) => n.selected && n.type !== "start");
+    const selectedEdges = edges.filter((ed) => ed.selected);
+    if (selectedNodes.length === 0 && selectedEdges.length === 0) return;
+    e.preventDefault();
+    if (selectedNodes.length > 0) {
+      setPendingDeleteNodes(selectedNodes);
+    } else {
+      deleteElements({ edges: selectedEdges });
+    }
+  }, [nodes, edges, deleteElements]);
+
+  const deleteMessage = (() => {
+    if (pendingDeleteNodes.length === 1) {
+      const n = pendingDeleteNodes[0];
+      const title = (n.data as { title?: string }).title ?? "";
+      if (n.type === "scene") return `Supprimer la scène « ${title} » et tout son contenu ?`;
+      if (n.type === "branch") return `Supprimer l'embranchement « ${title} » ?`;
+      return "Supprimer ce nœud ?";
+    }
+    const sceneCount = pendingDeleteNodes.filter((n) => n.type === "scene").length;
+    if (sceneCount > 0)
+      return `Supprimer ${pendingDeleteNodes.length} nœuds (dont ${sceneCount} scène${sceneCount > 1 ? "s" : ""} et leur contenu) ?`;
+    return `Supprimer ${pendingDeleteNodes.length} nœuds ?`;
+  })();
+
+  const confirmDeleteNodes = useCallback(() => {
+    deleteElements({ nodes: pendingDeleteNodes });
+    setPendingDeleteNodes([]);
+  }, [pendingDeleteNodes, deleteElements]);
+
+  // ── branch settings save (data + edge reconciliation) ───────────────────
+
+  const handleBranchSave = useCallback(
+    async (nodeId: number, data: { title: string; show_visited: boolean; choices: GraphChoice[] }) => {
+      await api.graph.updateNode(storyId, nodeId, { data: data as Record<string, unknown> });
+      const validIds = new Set(data.choices.map((c) => c.id));
+      const orphans = edges.filter(
+        (e) => e.source === String(nodeId) && e.sourceHandle != null && !validIds.has(e.sourceHandle)
+      );
+      for (const e of orphans) {
+        const dbId = (e.data as { dbId?: number })?.dbId;
+        if (dbId) await api.graph.deleteEdge(storyId, dbId);
+      }
+      const orphanIds = new Set(orphans.map((e) => e.id));
+      setEdges((eds) => eds.filter((e) => !orphanIds.has(e.id)));
+      setNodes((nds) =>
+        nds.map((n) => (n.id === String(nodeId) ? { ...n, data: { ...n.data, ...data } } : n))
+      );
+      setBranchModalNodeId(null);
+    },
+    [storyId, edges, setEdges, setNodes]
+  );
+
+  // ── "Tester" button ────────────────────────────────────────────────────
+
+  const handleTest = useCallback(() => {
+    router.push(`/stories/${storyId}/play`);
+  }, [router, storyId]);
+
+  return (
+    <div className="w-full h-full relative" onClick={() => setContextMenu(null)}>
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onEdgesDelete={handleEdgesDelete}
+        onNodesDelete={handleNodesDelete}
+        onNodeDoubleClick={handleNodeDoubleClick}
+        onNodeClick={handleNodeClick}
+        onPaneClick={handlePaneClick}
+        onPaneContextMenu={handlePaneContextMenu}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
+        defaultEdgeOptions={{
+          type: "smoothstep",
+          style: { stroke: "#64748b", strokeWidth: 2 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: "#64748b" },
+        }}
+        deleteKeyCode={null}
+        onKeyDown={handleCanvasKeyDown}
+        fitView
+        className="bg-bg"
+      >
+        <MiniMap
+          className="!bg-sidebar !border !border-white/10 rounded-lg"
+          nodeColor="#334155"
+          maskColor="rgba(0,0,0,0.4)"
+        />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#334155" />
+      </ReactFlow>
+
+      {/* Test button */}
+      <div className="absolute top-4 right-4 z-10">
+        <button
+          onClick={handleTest}
+          className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary hover:bg-primary-hover text-white text-sm font-medium transition-colors shadow-lg"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Tester
+        </button>
+      </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <div
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-50 bg-elevated border border-white/10 rounded-lg shadow-xl py-1 min-w-[160px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => createNode("scene")}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-fore hover:bg-raised transition-colors"
+          >
+            <div className="w-2 h-2 rounded-full bg-blue-400" />
+            Scène
+          </button>
+          <button
+            onClick={() => createNode("branch")}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-fore hover:bg-raised transition-colors"
+          >
+            <div className="w-2 h-2 rounded-full bg-amber-400" />
+            Embranchement
+          </button>
+          <button
+            onClick={() => createNode("end")}
+            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-fore hover:bg-raised transition-colors"
+          >
+            <div className="w-2 h-2 rounded-full bg-red-400" />
+            Fin
+          </button>
+        </div>
+      )}
+      {pendingDeleteNodes.length > 0 && (
+        <ConfirmModal
+          message={deleteMessage}
+          onConfirm={confirmDeleteNodes}
+          onCancel={() => setPendingDeleteNodes([])}
+        />
+      )}
+      {branchModalNodeId != null && (() => {
+        const node = nodes.find((n) => n.id === String(branchModalNodeId));
+        if (!node) return null;
+        const d = node.data as { title?: string; show_visited?: boolean; choices?: GraphChoice[] };
+        return (
+          <BranchSettingsModal
+            initial={{
+              title: d.title ?? "",
+              show_visited: d.show_visited !== false,
+              choices: d.choices ?? [],
+            }}
+            onSave={(data) => handleBranchSave(branchModalNodeId, data)}
+            onCancel={() => setBranchModalNodeId(null)}
+          />
+        );
+      })()}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+
+export default function CanvasPage({ params }: { params: Params }) {
+  const { id } = use(params);
+  const storyId = Number(id);
+
+  const { data: story } = useSWR<Story>(`story-${storyId}`, () => api.stories.get(storyId));
+  const characters = story?.characters ?? [];
+
+  return (
+    <div className="h-screen bg-bg flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="flex-shrink-0 border-b border-white/5 bg-sidebar/80 backdrop-blur-md z-10">
+        <div className="flex items-center gap-4 px-4 py-3">
+          <Link
+            href={`/stories/${storyId}`}
+            className="w-8 h-8 rounded-full bg-raised hover:bg-elevated text-muted hover:text-fore transition-colors flex-shrink-0 flex items-center justify-center"
+            title="Retour à la story"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] text-subtle uppercase tracking-wide font-medium leading-none mb-1">
+              Canvas
+            </span>
+            <span className="text-fore font-bold text-lg truncate">{story?.title ?? "…"}</span>
+          </div>
+          <div className="ml-auto flex items-center gap-2 text-xs text-subtle">
+            <span>Clic droit sur le canvas pour créer un nœud</span>
+            <span className="text-subtle/40">·</span>
+            <span>Double-clic sur une scène pour l&apos;éditer</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Canvas — ReactFlowProvider required for useReactFlow inside CanvasInner */}
+      <div className="flex-1 overflow-hidden">
+        <ReactFlowProvider>
+          <CanvasInner storyId={storyId} characters={characters} />
+        </ReactFlowProvider>
+      </div>
+    </div>
+  );
+}

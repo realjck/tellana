@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, JSON, ForeignKey, DateTime, func
+from sqlalchemy import Column, Integer, Float, String, Boolean, JSON, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -22,6 +22,12 @@ class Story(Base):
     )
     characters = relationship(
         "Character", back_populates="story", cascade="all, delete-orphan"
+    )
+    graph_nodes = relationship(
+        "GraphNode", back_populates="story", cascade="all, delete-orphan"
+    )
+    graph_edges = relationship(
+        "GraphEdge", back_populates="story", cascade="all, delete-orphan"
     )
 
 
@@ -72,3 +78,32 @@ class Node(Base):
     data = Column(JSON, nullable=False, default=dict)
 
     scene = relationship("Scene", back_populates="nodes")
+
+
+class GraphNode(Base):
+    __tablename__ = "graph_nodes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    story_id = Column(Integer, ForeignKey("stories.id"), nullable=False)
+    type = Column(String, nullable=False)  # "start" | "scene" | "branch" | "end"
+    position_x = Column(Float, nullable=False, default=0.0)
+    position_y = Column(Float, nullable=False, default=0.0)
+    data = Column(JSON, nullable=False, default=dict)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    story = relationship("Story", back_populates="graph_nodes")
+
+
+class GraphEdge(Base):
+    __tablename__ = "graph_edges"
+
+    id = Column(Integer, primary_key=True, index=True)
+    story_id = Column(Integer, ForeignKey("stories.id"), nullable=False)
+    source_node_id = Column(Integer, ForeignKey("graph_nodes.id"), nullable=False)
+    target_node_id = Column(Integer, ForeignKey("graph_nodes.id"), nullable=False)
+    label = Column(String, nullable=True)
+    source_handle = Column(String, nullable=True)
+    order = Column(Integer, nullable=False, default=0)
+
+    story = relationship("Story", back_populates="graph_edges")

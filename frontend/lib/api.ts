@@ -1,4 +1,4 @@
-import type { AssetRef, Character, PublicStory, Scene, SceneSummary, Story, StorySummary, StoryNode } from "@/types";
+import type { AssetRef, Character, GraphEdge, GraphNode, GraphResponse, PublicStory, Scene, SceneSummary, Story, StorySummary, StoryNode } from "@/types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -135,6 +135,39 @@ export const api = {
       request<void>(`/api/stories/${storyId}/characters/${charId}`, {
         method: "DELETE",
       }),
+  },
+  graph: {
+    get: (storyId: number) =>
+      request<GraphResponse>(`/api/stories/${storyId}/graph`),
+    createNode: (
+      storyId: number,
+      data: { type: string; position_x: number; position_y: number; data: Record<string, unknown> }
+    ) =>
+      request<GraphNode>(`/api/stories/${storyId}/graph/nodes`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    updateNode: (
+      storyId: number,
+      nodeId: number,
+      data: { position_x?: number; position_y?: number; data?: Record<string, unknown> }
+    ) =>
+      request<GraphNode>(`/api/stories/${storyId}/graph/nodes/${nodeId}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
+    deleteNode: (storyId: number, nodeId: number) =>
+      request<void>(`/api/stories/${storyId}/graph/nodes/${nodeId}`, { method: "DELETE" }),
+    createEdge: (
+      storyId: number,
+      data: { source_node_id: number; target_node_id: number; label?: string | null; order?: number; source_handle?: string | null }
+    ) =>
+      request<GraphEdge>(`/api/stories/${storyId}/graph/edges`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    deleteEdge: (storyId: number, edgeId: number) =>
+      request<void>(`/api/stories/${storyId}/graph/edges/${edgeId}`, { method: "DELETE" }),
   },
   assets: {
     upload: async (file: File): Promise<AssetRef> => {

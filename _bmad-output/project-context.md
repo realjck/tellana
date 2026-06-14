@@ -26,6 +26,7 @@ _Règles et patterns critiques pour l'implémentation de code dans le projet Tel
 - Next.js 16.2.2 (App Router) · React 19.2.4 · TypeScript 5 strict
 - Tailwind CSS v4 (tokens `@theme` dans `globals.css` — **pas de `tailwind.config.js`**)
 - SWR 2.4.1 · react-markdown 10.1 + remark-gfm 4.0.1
+- **@xyflow/react** (React Flow v12) — canvas éditeur de graphe narratif
 - Vite 8.0.9 — build player standalone IIFE séparé (`npm run build:player`)
 - Tests : Jest 30 + React Testing Library 16 + Playwright 1.59
 
@@ -79,8 +80,17 @@ _Règles et patterns critiques pour l'implémentation de code dans le projet Tel
 #### ScenePlayer — conventions visuelles
 - Canvas fixe 1920×1080 scalé via `transform: scale(containerWidth / 1920)`, `transformOrigin: "top left"`
 - Ratio mesuré par `useLayoutEffect` + `ResizeObserver` sur `containerRef`
-- Positions personnages : `DEFAULT_POSITIONS` et `FALLBACK_POSITION` depuis `@/lib/scenePositions`
+- Positions personnages : `DEFAULT_POSITIONS` et `FALLBACK_POSITION` depuis `@/lib/scenePositions` — fallback = `DEFAULT_POSITIONS[slotIndex]`, jamais `{ x: 0, y: 0 }` directement
 - Styles player uniquement dans `app/styles/player.css` — jamais de Tailwind inline sur ces éléments
+- `.player-next-btn` définit `cursor: pointer` en CSS natif (pas via classe Tailwind) — le reset `cursor: default` des `<button>` écrase les utilities Tailwind dans le bundle standalone
+- Props fullscreen externes : `isFullscreen?: boolean` + `onToggleFullscreen?: () => void` — le fullscreen est géré par le parent (`GraphPlayer`), pas par `ScenePlayer` lui-même
+
+#### React Flow (@xyflow/react) — canvas
+- `NODE_TYPES` et `EDGE_TYPES` définis comme constantes stables hors du composant — ne jamais les définir inline dans `<ReactFlow>`
+- `deleteKeyCode={null}` — désactiver la suppression native et gérer manuellement via `onKeyDown` + `ConfirmModal`
+- Un seul edge par `(source, sourceHandle)` — supprimer l'existant dans `onConnect` avant création
+- `deleteElements()` depuis `useReactFlow()` déclenche `onNodesDelete`/`onEdgesDelete`
+- `GraphPlayer` : l'élément fullscreen est le `containerRef` racine (jamais unmounté) — `ScenePlayer` reçoit le contrôle fullscreen par props
 
 ### Testing Rules
 
@@ -176,4 +186,4 @@ _Règles et patterns critiques pour l'implémentation de code dans le projet Tel
 - Mettre à jour lors de changements de stack ou de conventions
 - Supprimer les règles devenues évidentes au fil du temps
 
-_Dernière mise à jour : 2026-06-12_
+_Dernière mise à jour : 2026-06-14 (TEL-24 — canvas, GraphPlayer, React Flow)_

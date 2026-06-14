@@ -4,8 +4,8 @@ import { use } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { api } from "@/lib/api";
-import type { PublicStory } from "@/types";
-import MultiScenePlayer from "@/components/MultiScenePlayer";
+import type { GraphResponse, PublicStory } from "@/types";
+import GraphPlayer from "@/components/GraphPlayer";
 
 type Params = Promise<{ id: string }>;
 
@@ -13,10 +13,17 @@ export default function PlayPage({ params }: { params: Params }) {
   const { id } = use(params);
   const storyId = Number(id);
 
-  const { data: story, isLoading } = useSWR<PublicStory>(
+  const { data: story, isLoading: storyLoading } = useSWR<PublicStory>(
     `story-play-full-${storyId}`,
     () => api.stories.getForPlay(storyId)
   );
+
+  const { data: graph, isLoading: graphLoading } = useSWR<GraphResponse>(
+    story ? `graph-play-${storyId}` : null,
+    () => api.graph.get(storyId)
+  );
+
+  const isLoading = storyLoading || graphLoading;
 
   if (isLoading) {
     return (
@@ -34,19 +41,17 @@ export default function PlayPage({ params }: { params: Params }) {
     );
   }
 
-  const scenes = story.scenes ?? [];
-
   return (
     <div className="min-h-screen bg-black flex flex-col">
       <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
         <Link
-          href={`/stories/${storyId}`}
+          href={`/stories/${storyId}/canvas`}
           className="px-3 py-1.5 rounded-lg bg-black/50 hover:bg-black/80 text-white/70 hover:text-white text-sm transition-colors backdrop-blur-sm border border-white/10 flex items-center gap-1.5"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Retour à l&apos;éditeur
+          Retour au canvas
         </Link>
       </div>
 
@@ -57,25 +62,13 @@ export default function PlayPage({ params }: { params: Params }) {
       </div>
 
       <div className="flex-1 flex items-center justify-center p-4">
-        {scenes.length > 0 ? (
-          <div className="w-full max-w-4xl">
-            <MultiScenePlayer
-              scenes={scenes}
-              characters={story.characters ?? []}
-              title={story.title}
-            />
-          </div>
-        ) : (
-          <div className="text-center text-slate-500">
-            <p className="text-lg mb-4">Cette story n&apos;a aucune scène.</p>
-            <Link
-              href={`/stories/${storyId}`}
-              className="text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              Aller dans l&apos;éditeur
-            </Link>
-          </div>
-        )}
+        <div className="w-full max-w-4xl">
+          <GraphPlayer
+            story={story}
+            graph={graph ?? { nodes: [], edges: [] }}
+            storyId={storyId}
+          />
+        </div>
       </div>
     </div>
   );
