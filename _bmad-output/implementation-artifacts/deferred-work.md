@@ -1,5 +1,17 @@
 # Deferred Work
 
+## Deferred from: code review of 2-5-assets-de-seed-alice-bob (2026-06-15)
+
+- `db.commit()` sans try/except dans `_load_seeds` : désync fichier/DB si le commit échoue à mi-parcours — auto-guérissant au prochain restart ; prototype SQLite — `backend/main.py`.
+- Race condition multi-worker : deux processus `lifespan` simultanés peuvent double-copier/double-insérer — prototype single-worker, `backend/main.py`.
+- `folder="."` si un PNG est à la racine de `seed_dir` : URL `/uploads/./foo.png` invalide — impossible avec la structure `seed_assets/characters/{persona}/` actuelle, `backend/main.py`.
+- N requêtes SELECT séparées dans `_load_seeds` (une par fichier) au lieu d'un batch — 6 fichiers, négligeable, `backend/main.py`.
+- `db_session` fixture : `drop_all` après `close()` — fonctionne avec StaticPool SQLite, `backend/tests/test_seed.py`.
+- Tests : contenu des fichiers copiés non vérifié (only `exists()`) — couverture acceptable prototype, `backend/tests/test_seed.py`.
+- `is_seed=False` pour les assets non-seed non testé — couverture acceptable, `backend/tests/test_seed.py`.
+- Docstring `_load_seeds` dit "Idempotent" — inexact si erreur partielle — nitpick, `backend/main.py`.
+- `seed_dir` est un fichier (pas un dossier) : comportement `rglob` non défini — extrêmement improbable, `backend/main.py`.
+
 ## Deferred from: code review of 2-4-renommage-inline-et-suppression-dassert (2026-06-15)
 
 - `commitRename` sans gestion d'erreur réseau : si `api.assets.rename` lève, la promesse rejette silencieusement, l'UI ne donne aucun feedback — `AssetGrid.tsx`. Hors scope : "Feedback erreur réseau (déféré globalement)" per spec.

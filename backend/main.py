@@ -1,3 +1,5 @@
+import shutil
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -6,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 import models
-from database import engine
+from database import engine, SessionLocal
 from routers import assets, characters, graph, nodes, scenes, stories
 
 # Create DB tables
@@ -58,7 +60,52 @@ with engine.begin() as _conn:
 Path("uploads").mkdir(exist_ok=True)
 Path("published").mkdir(exist_ok=True)
 
-app = FastAPI(title="Tellana API", version="0.1.0")
+SEED_ASSETS_DIR = Path("seed_assets")
+
+
+def _load_seeds(db, upload_dir: Path, seed_dir: Path) -> None:
+    """Copy seed PNGs to upload_dir and register in DB. Idempotent."""
+    if not seed_dir.exists():
+        return
+    for src_file in sorted(seed_dir.rglob("*.png")):
+        rel = src_file.relative_to(seed_dir)
+        folder = rel.parent.as_posix()
+        filename = src_file.name
+        dest_dir = upload_dir / folder
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest_file = dest_dir / filename
+        if not dest_file.exists():
+            shutil.copy2(src_file, dest_file)
+        existing = (
+            db.query(models.Asset)
+            .filter(models.Asset.folder == folder, models.Asset.filename == filename)
+            .first()
+        )
+        if not existing:
+            db.add(
+                models.Asset(
+                    filename=filename,
+                    url=f"/uploads/{folder}/{filename}",
+                    content_type="image/png",
+                    folder=folder,
+                    is_seed=True,
+                )
+            )
+    db.commit()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    import routers.assets as _assets_router
+    db = SessionLocal()
+    try:
+        _load_seeds(db, _assets_router.UPLOAD_DIR, SEED_ASSETS_DIR)
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(title="Tellana API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

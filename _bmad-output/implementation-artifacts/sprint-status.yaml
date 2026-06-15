@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-06-14"
-last_updated: "2026-06-15"  # Updated: Story 2.4 code review — done
+last_updated: "2026-06-15"  # Updated: Story 2.5 code review — done
 project: tellana
 project_key: NOKEY
 tracking_system: file-system
@@ -57,7 +57,7 @@ development_status:
   2-2-grille-de-miniatures: done
   2-3-upload-drag-drop-multi-fichiers: done
   2-4-renommage-inline-et-suppression-dassert: done
-  2-5-assets-de-seed-alice-bob: backlog
+  2-5-assets-de-seed-alice-bob: done
   epic-2-retrospective: optional
 
   # ─── Epic 3 : Intégration Médiathèque ─────────────────────────────────────
