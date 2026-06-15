@@ -73,7 +73,7 @@ export default function CharacterPosesDrawer({ characterName, sprites, highlight
                       ? "border-amber-500 bg-amber-900/20"
                       : "border-transparent hover:border-amber-700 hover:bg-amber-900/10"
                   }`}
-                  title={key === "default" ? "Défaut" : key}
+                  title={key}
                 >
                   <img
                     src={resolveAsset(ref)}
@@ -83,7 +83,7 @@ export default function CharacterPosesDrawer({ characterName, sprites, highlight
                   <span className={`text-[9px] font-medium leading-none ${
                     isActive ? "text-amber-400" : "text-subtle"
                   }`}>
-                    {key === "default" ? "défaut" : key}
+                    {key}
                   </span>
                 </button>
               );

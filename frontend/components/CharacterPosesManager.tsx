@@ -183,7 +183,7 @@ export default function CharacterPosesManager({
                 {isDefault ? (
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-semibold text-amber-400 px-2 py-0.5 bg-amber-900/30 border border-amber-700/40 rounded-full">
-                      défaut
+                      default
                     </span>
                   </div>
                 ) : (
