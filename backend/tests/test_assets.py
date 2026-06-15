@@ -563,3 +563,4 @@ def test_delete_seed_asset_allowed(client):
 
     res = client.delete(f"/api/assets/{asset_id}")
     assert res.status_code == 204
+    db.close()

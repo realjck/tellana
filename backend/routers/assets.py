@@ -190,10 +190,10 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset introuvable")
     file_path = UPLOAD_DIR / asset.folder / asset.filename
-    if file_path.exists():
-        file_path.unlink()
     db.delete(asset)
     db.commit()
+    if file_path.exists():
+        file_path.unlink()
 
 
 @router.post("/upload")

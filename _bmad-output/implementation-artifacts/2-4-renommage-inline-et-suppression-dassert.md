@@ -4,7 +4,7 @@ baseline_commit: "54a1014"
 
 # Story 2.4 : Renommage inline et suppression d'asset
 
-Status: review
+Status: done
 
 ## Story
 
@@ -460,7 +460,25 @@ claude-sonnet-4-6
 - `frontend/components/media-library/AssetGrid.tsx` — MODIFIÉ : rename inline + bouton × + ConfirmModal
 - `frontend/__tests__/media-library/AssetGrid.test.tsx` — MODIFIÉ : mocks enrichis + 6 nouveaux tests
 
+### Review Findings
+
+- [x] [Review][Patch] File deleted before DB commit — `unlink()` s'exécute avant `db.commit()` : si le commit lève, le fichier est supprimé mais la ligne DB reste (ghost row). Fix : committer d'abord, puis unlink. [`backend/routers/assets.py`]
+- [x] [Review][Patch] DB session leak in `test_delete_seed_asset_allowed` — `next(override())` ouvre une session SQLAlchemy qui n'est jamais fermée. Fix : ajouter `db.close()` ou `finally: db.close()`. [`backend/tests/test_assets.py`]
+- [x] [Review][Patch] Double rename on Enter+blur — `onKeyDown[Enter]` appelle `commitRename`, puis `onBlur` l'appelle à nouveau → double appel API possible. Fix : `escapeRef` + délégation Enter → `e.currentTarget.blur()`. [`frontend/components/media-library/AssetGrid.tsx`]
+- [x] [Review][Patch] Enter test missing mutate pair assertions — test 3 de T5 vérifie uniquement `mockRename`, pas les deux `mutate` (violation AC2 + Dev Note 1). Fix : ajout `waitFor` mutate pair. [`frontend/__tests__/media-library/AssetGrid.test.tsx`]
+- [x] [Review][Patch] Second mutate assertion outside `waitFor` — dans le test blur-rename, `expect(mockMutate).toHaveBeenCalledWith("asset-folders")` est hors `waitFor`, faux-positif potentiel. Fix : enveloppé dans `waitFor`. [`frontend/__tests__/media-library/AssetGrid.test.tsx`]
+- [x] [Review][Defer] `commitRename` sans gestion d'erreur réseau [`frontend/components/media-library/AssetGrid.tsx`] — deferred, "Feedback erreur réseau (déféré globalement)" per spec
+- [x] [Review][Defer] `onConfirm` delete sans gestion d'erreur réseau [`frontend/components/media-library/AssetGrid.tsx`] — deferred, même deferral global
+- [x] [Review][Defer] Pas de vérification d'intégrité référentielle sur delete [`backend/routers/assets.py`] — deferred, limitation prototype connue
+- [x] [Review][Defer] Path traversal risk sur `asset.folder`/`asset.filename` [`backend/routers/assets.py`] — deferred, prototype ; données venant de la DB ; même pattern que rename endpoint
+- [x] [Review][Defer] Race condition concurrent rename+delete [`backend/routers/assets.py`] — deferred, prototype ; SQLite sérialise les writes
+- [x] [Review][Defer] Vérification clé `mutate("asset-folders")` vs clé SWR réelle [`frontend/components/media-library/AssetGrid.tsx`] — deferred, vraisemblablement correct (pattern 2.3)
+- [x] [Review][Defer] Test manquant : double-clic absent en mode selector [`frontend/__tests__/media-library/AssetGrid.test.tsx`] — deferred, code correct, test défensif manquant
+- [x] [Review][Defer] Test manquant : bouton × absent en mode selector [`frontend/__tests__/media-library/AssetGrid.test.tsx`] — deferred, code correct, test défensif manquant
+- [x] [Review][Defer] `uploadMedia` 409 spread fragility [`frontend/lib/api.ts`] — deferred, pré-existant story 2.3, hors scope 2.4
+
 ## Change Log
 
 - 2026-06-15 — Story 2.4 créée (create-story workflow). Status → ready-for-dev.
 - 2026-06-15 — Story 2.4 implémentée : `DELETE /api/assets/{id}` backend (3 tests), `api.assets.rename/delete` api.ts, `AssetGrid.tsx` rename inline + suppression ConfirmModal (6 nouveaux tests). 120/120 backend, 107/107 frontend. Status → review.
+- 2026-06-15 — Code review : 5 patches, 9 defers, 10 dismissed. Status → in-progress.

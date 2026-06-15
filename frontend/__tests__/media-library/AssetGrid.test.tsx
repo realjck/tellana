@@ -163,10 +163,12 @@ describe("AssetGrid", () => {
     await waitFor(() =>
       expect(mockMutate).toHaveBeenCalledWith(["assets", "characters/alice"])
     );
-    expect(mockMutate).toHaveBeenCalledWith("asset-folders");
+    await waitFor(() =>
+      expect(mockMutate).toHaveBeenCalledWith("asset-folders")
+    );
   });
 
-  it("Entrée sur input appelle api.assets.rename", async () => {
+  it("Entrée sur input appelle api.assets.rename et mutate pair", async () => {
     const asset = makeAsset({ filename: "portrait.png" });
     mockUseSWR.mockReturnValue({ data: [asset] });
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
@@ -175,6 +177,12 @@ describe("AssetGrid", () => {
     fireEvent.change(input, { target: { value: "new.png" } });
     await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });
     expect(mockRename).toHaveBeenCalledWith(asset.id, "new.png");
+    await waitFor(() =>
+      expect(mockMutate).toHaveBeenCalledWith(["assets", "characters/alice"])
+    );
+    await waitFor(() =>
+      expect(mockMutate).toHaveBeenCalledWith("asset-folders")
+    );
   });
 
   // ── Story 2.4 — Delete ───────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import useSWR from "swr";
 import { useSWRConfig } from "swr";
 import { api, resolveAsset } from "@/lib/api";
@@ -23,6 +23,7 @@ export default function AssetGrid({ config, folder, onClose }: Props) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<Asset | null>(null);
+  const escapeRef = useRef(false);
 
   const assets = allAssets.filter(
     (a) =>
@@ -89,10 +90,13 @@ export default function AssetGrid({ config, folder, onClose }: Props) {
                     className="text-xs text-fore bg-transparent border-b border-primary outline-none w-full"
                     value={editingName}
                     onChange={(e) => setEditingName(e.target.value)}
-                    onBlur={() => commitRename(asset, editingName)}
+                    onBlur={() => {
+                      if (escapeRef.current) { escapeRef.current = false; return; }
+                      commitRename(asset, editingName);
+                    }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") commitRename(asset, editingName);
-                      if (e.key === "Escape") setEditingId(null);
+                      if (e.key === "Enter") e.currentTarget.blur();
+                      if (e.key === "Escape") { escapeRef.current = true; setEditingId(null); }
                     }}
                     onClick={(e) => e.stopPropagation()}
                   />
