@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import { api, resolveAsset, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
-import type { AssetRef, CharacterPosition, Scene, Story, StoryNode, NodeType, DialogueNodeData, Character } from "@/types";
+import type { AssetRef, CharacterPosition, Scene, Story, StoryNode, NodeType, DialogueNodeData, Character, Asset } from "@/types";
+import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 import ScenePlayer from "@/components/ScenePlayer";
 import NodeForm from "@/components/NodeForm";
 import SceneCharacterSelector from "@/components/SceneCharacterSelector";
@@ -667,6 +668,21 @@ function BackgroundTab({
   onRemoveCustom: (url: string) => void;
 }) {
   const currentUrl = currentAsset?.url ?? null;
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
+
+  const handleAssetSelect = (asset: Asset) => {
+    const ref: AssetRef = {
+      type: "upload",
+      url: asset.url,
+      opfs_key: null,
+      job_id: null,
+      mime_type: asset.content_type,
+      width: null,
+      height: null,
+    };
+    onSelect(ref);
+    setIsMediaLibraryOpen(false);
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -732,6 +748,17 @@ function BackgroundTab({
       })}
 
       <button
+        onClick={() => setIsMediaLibraryOpen(true)}
+        className="w-full py-3 rounded-md border border-white/10 hover:border-white/25 text-muted hover:text-fore text-sm transition-colors flex items-center justify-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        Choisir depuis la médiathèque
+      </button>
+
+      <button
         onClick={() => fileRef.current?.click()}
         disabled={uploading}
         className="w-full py-4 rounded-md border-2 border-dashed border-white/10 hover:border-white/25 text-muted hover:text-fore text-sm transition-colors flex flex-col items-center gap-2"
@@ -755,6 +782,17 @@ function BackgroundTab({
           if (file) onUpload(file);
           e.target.value = "";
         }}
+      />
+
+      <MediaLibraryModal
+        config={{
+          mode: "selector",
+          filter: "images",
+          initialFolder: "backgrounds",
+          onSelect: handleAssetSelect,
+        }}
+        isOpen={isMediaLibraryOpen}
+        onClose={() => setIsMediaLibraryOpen(false)}
       />
     </div>
   );

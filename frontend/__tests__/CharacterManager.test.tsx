@@ -1,18 +1,7 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import CharacterManager from "@/components/CharacterManager";
 import type { AssetRef, Character } from "@/types";
-
-const mockUploadUrl = "/uploads/custom.png";
-const mockUploadRef: AssetRef = {
-  type: "upload",
-  url: mockUploadUrl,
-  opfs_key: null,
-  job_id: null,
-  mime_type: "image/png",
-  width: null,
-  height: null,
-};
 
 jest.mock("@/lib/api", () => ({
   api: {
@@ -21,33 +10,24 @@ jest.mock("@/lib/api", () => ({
         id: 99,
         story_id: 1,
         name: "Nouveau",
-        sprites: { default: { type: "local", url: "/sprite_man.png", opfs_key: null, job_id: null, mime_type: null, width: null, height: null } },
+        sprites: { default: { type: "upload", url: "/uploads/characters/alice/default.png", opfs_key: null, job_id: null, mime_type: null, width: null, height: null } },
       }),
       update: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({}),
     },
-    assets: {
-      upload: jest.fn().mockResolvedValue({
-        type: "upload",
-        url: "/uploads/custom.png",
-        opfs_key: null,
-        job_id: null,
-        mime_type: "image/png",
-        width: null,
-        height: null,
-      }),
-    },
   },
-  DEFAULT_SPRITES: [
-    { label: "Homme", url: "/sprite_man.png" },
-    { label: "Femme", url: "/sprite_woman.png" },
-  ],
   randomCharacterColor: () => "#FF6B6B",
   resolveAsset: (ref: string | AssetRef | null | undefined) => {
     if (!ref) return "";
     if (typeof ref === "string") return ref;
     return ref.url ?? "";
   },
+}));
+
+jest.mock("@/components/media-library/MediaLibraryModal", () => ({
+  __esModule: true,
+  default: ({ isOpen }: { isOpen: boolean }) =>
+    isOpen ? <div data-testid="media-library-modal" /> : null,
 }));
 
 const makeChar = (overrides: Partial<Character> = {}): Character => ({
@@ -115,25 +95,21 @@ describe("CharacterManager — mode édition", () => {
   });
 });
 
-describe("CharacterManager — uploads custom", () => {
-  it("l'upload conserve l'image dans customUploads même si on change de sprite", async () => {
-    const { api } = require("@/lib/api");
+describe("CharacterManager — sélecteur médiathèque", () => {
+  it("affiche le bouton médiathèque en mode édition", () => {
     render(
       <CharacterManager storyId={1} characters={[makeChar()]} onRefresh={jest.fn()} />
     );
     fireEvent.click(screen.getByText("Alice"));
+    expect(screen.getByText(/médiathèque/i)).toBeInTheDocument();
+  });
 
-    const file = new File(["img"], "custom.png", { type: "image/png" });
-    const input = document.querySelector("input[type='file']") as HTMLInputElement;
-    fireEvent.change(input, { target: { files: [file] } });
-
-    await waitFor(() => expect(api.assets.upload).toHaveBeenCalled());
-
-    // Select a default sprite
-    fireEvent.click(screen.getByTitle("Homme"));
-
-    // Custom upload should still be visible
-    const customImg = document.querySelector(`img[src="${mockUploadUrl}"]`);
-    expect(customImg).toBeInTheDocument();
+  it("ouvre la modale médiathèque au clic sur le bouton", () => {
+    render(
+      <CharacterManager storyId={1} characters={[makeChar()]} onRefresh={jest.fn()} />
+    );
+    fireEvent.click(screen.getByText("Alice"));
+    fireEvent.click(screen.getByText(/médiathèque/i));
+    expect(screen.getByTestId("media-library-modal")).toBeInTheDocument();
   });
 });

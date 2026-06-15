@@ -22,11 +22,13 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   const [selected, setSelected] = useState<Character | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [previewDefaultSprite, setPreviewDefaultSprite] = useState<AssetRef | null>(null);
+  const [previewPoseKey, setPreviewPoseKey] = useState<string | null>(null);
 
   const goList = () => {
     setSelected(null);
     setMode("list");
     setPreviewDefaultSprite(null);
+    setPreviewPoseKey(null);
     onEditingCharacter?.(false);
   };
 
@@ -34,6 +36,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setSelected(c);
     setMode("edit");
     setPreviewDefaultSprite(null);
+    setPreviewPoseKey(null);
     onEditingCharacter?.(true);
   };
 
@@ -41,6 +44,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setSelected(null);
     setMode("add");
     setPreviewDefaultSprite(null);
+    setPreviewPoseKey(null);
     onEditingCharacter?.(true);
   };
 
@@ -48,6 +52,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setSelected(c);
     setMode("poses");
     setPreviewDefaultSprite(null);
+    setPreviewPoseKey(null);
     onEditingCharacter?.(true);
   };
 
@@ -130,16 +135,17 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
         <CharacterPosesManager
           storyId={storyId}
           character={selected}
-          characters={characters}
           onSaved={(c) => {
             setSelected(c);
             onRefresh();
           }}
           onBack={() => goEdit(selected)}
+          onPoseSelect={setPreviewPoseKey}
         />
         <CharacterPosesDrawer
           characterName={selected.name}
           sprites={selected.sprites}
+          highlightKey={previewPoseKey ?? undefined}
         />
       </>
     );

@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of Epic 3 stories 3.1/3.2/3.3 (2026-06-15)
+
+- `handleAddPose` dans `CharacterPosesManager` : UI optimiste non réversible si `saveToApi` échoue — pattern pré-existant dans `handleRename`/`handleDelete`. À traiter dans une story de robustesse future [`frontend/components/CharacterPosesManager.tsx`].
+
 ## Deferred from: code review of 2-5-assets-de-seed-alice-bob (2026-06-15)
 
 - `db.commit()` sans try/except dans `_load_seeds` : désync fichier/DB si le commit échoue à mi-parcours — auto-guérissant au prochain restart ; prototype SQLite — `backend/main.py`.

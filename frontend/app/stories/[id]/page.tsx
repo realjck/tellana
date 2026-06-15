@@ -9,6 +9,7 @@ import type { Character, SceneSummary, Story } from "@/types";
 import CharacterManager from "@/components/CharacterManager";
 import ScenePreviewThumbnail from "@/components/ScenePreviewThumbnail";
 import AlertModal from "@/components/AlertModal";
+import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 
 type Params = Promise<{ id: string }>;
 
@@ -28,6 +29,7 @@ export default function StoryEditorPage({ params }: { params: Params }) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [editingCharacter, setEditingCharacter] = useState(false);
+  const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -107,6 +109,11 @@ export default function StoryEditorPage({ params }: { params: Params }) {
       {exportError && (
         <AlertModal message={exportError} onClose={() => setExportError(null)} />
       )}
+      <MediaLibraryModal
+        config={{ mode: "navigation" }}
+        isOpen={isMediaLibraryOpen}
+        onClose={() => setIsMediaLibraryOpen(false)}
+      />
       {/* Header */}
       <header className="flex-shrink-0 border-b border-white/5 bg-sidebar/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-4 px-4 py-3">
@@ -152,6 +159,16 @@ export default function StoryEditorPage({ params }: { params: Params }) {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setIsMediaLibraryOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Médiathèque
+            </button>
             <Link
               href={`/stories/${storyId}/canvas`}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-raised hover:bg-elevated text-muted hover:text-fore text-sm transition-colors"

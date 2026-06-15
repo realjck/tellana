@@ -1,15 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
-import type { AssetRef, Character } from "@/types";
-import { api, DEFAULT_SPRITES, resolveAsset } from "@/lib/api";
+import { useState } from "react";
+import type { Asset, AssetRef, Character } from "@/types";
+import { api, resolveAsset } from "@/lib/api";
+import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 
 interface Props {
   storyId: number;
   character: Character;
-  characters: Character[];
   onSaved: (c: Character) => void;
   onBack: () => void;
+  onPoseSelect?: (key: string) => void;
 }
 
 interface PoseRow {
@@ -23,132 +24,17 @@ function buildRows(sprites: Record<string, AssetRef>): PoseRow[] {
   return Object.entries(sprites).map(([key, ref]) => ({ key, ref, savedKey: key }));
 }
 
-/** Collect all uploaded images from all story characters (deduped by URL) */
-function collectUploads(characters: Character[]): AssetRef[] {
-  const seen = new Set<string>();
-  const uploads: AssetRef[] = [];
-  for (const c of characters) {
-    for (const sprite of Object.values(c.sprites)) {
-      if (sprite.type === "upload" && sprite.url && !seen.has(sprite.url)) {
-        seen.add(sprite.url);
-        uploads.push(sprite);
-      }
-    }
-  }
-  return uploads;
-}
-
-/** Small image picker overlay for choosing a sprite */
-function SpritePicker({
-  current,
-  customUploads,
-  onPick,
-  onClose,
-}: {
-  current: AssetRef | null;
-  customUploads: AssetRef[];
-  onPick: (ref: AssetRef) => void;
-  onClose: () => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleUpload = async (file: File) => {
-    setUploading(true);
-    try {
-      const ref = await api.assets.upload(file);
-      onPick(ref);
-      onClose();
-    } catch {
-      alert("Échec de l'upload");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="fixed inset-0 z-[60]" onClick={onClose} />
-      <div className="absolute left-0 top-full mt-1 bg-elevated border border-white/10 rounded-md p-3 z-[70] shadow-2xl w-64">
-        <div className="text-xs text-muted mb-2 font-semibold">Choisir un sprite</div>
-
-        {/* Default sprites */}
-        <div className="grid grid-cols-3 gap-1.5 mb-2">
-          {DEFAULT_SPRITES.map((s) => (
-            <button
-              key={s.url}
-              onClick={() => {
-                onPick({ type: "local", url: s.url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null });
-                onClose();
-              }}
-              className={`p-0.5 rounded border-2 transition-colors ${
-                current?.url === s.url ? "border-white/50" : "border-transparent hover:border-white/20"
-              }`}
-              title={s.label}
-            >
-              <img src={s.url} alt={s.label} className="w-full h-16 object-contain" />
-            </button>
-          ))}
-        </div>
-
-        {/* Already uploaded images */}
-        {customUploads.length > 0 && (
-          <>
-            <div className="text-[10px] text-subtle uppercase tracking-wide mb-1.5">Déjà uploadées</div>
-            <div className="grid grid-cols-3 gap-1.5 mb-2">
-              {customUploads.map((ref) => (
-                <button
-                  key={ref.url}
-                  onClick={() => { onPick(ref); onClose(); }}
-                  className={`p-0.5 rounded border-2 transition-colors ${
-                    current?.url === ref.url ? "border-white/50" : "border-transparent hover:border-white/20"
-                  }`}
-                  title="Image uploadée"
-                >
-                  <img src={resolveAsset(ref)} alt="Uploaded" className="w-full h-16 object-contain" />
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-
-        <button
-          onClick={() => fileRef.current?.click()}
-          disabled={uploading}
-          className="w-full py-1.5 rounded border border-dashed border-white/10 hover:border-white/25 text-muted hover:text-fore text-xs transition-colors"
-        >
-          {uploading ? "Upload…" : "+ Uploader une nouvelle image"}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleUpload(file);
-            e.target.value = "";
-          }}
-        />
-      </div>
-    </>
-  );
-}
-
 export default function CharacterPosesManager({
   storyId,
   character,
-  characters,
   onSaved,
   onBack,
+  onPoseSelect,
 }: Props) {
   const [rows, setRows] = useState<PoseRow[]>(() => buildRows(character.sprites));
-  const [pickerForKey, setPickerForKey] = useState<string | null>(null);
-  const [addPickerOpen, setAddPickerOpen] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const customUploads = collectUploads(characters);
+  const [isMediaLibOpen, setIsMediaLibOpen] = useState(false);
 
   const toSpritesDict = (r: PoseRow[]): Record<string, AssetRef> =>
     Object.fromEntries(r.map((row) => [row.key, row.ref]));
@@ -196,14 +82,6 @@ export default function CharacterPosesManager({
     await saveToApi(newRows, trimmed);
   };
 
-  // ── Change image ──────────────────────────────────────────────────────────
-
-  const handleImageChange = async (idx: number, ref: AssetRef) => {
-    const newRows = rows.map((r, i) => (i === idx ? { ...r, ref } : r));
-    setRows(newRows);
-    await saveToApi(newRows, rows[idx].key);
-  };
-
   // ── Delete ────────────────────────────────────────────────────────────────
 
   const handleDelete = async (idx: number) => {
@@ -212,15 +90,24 @@ export default function CharacterPosesManager({
     await saveToApi(newRows);
   };
 
-  // ── Add new pose ──────────────────────────────────────────────────────────
+  // ── Add new pose from media library ──────────────────────────────────────
 
-  const addNewPose = async (ref: AssetRef) => {
+  const handleAddPose = async (asset: Asset) => {
+    const ref: AssetRef = {
+      type: "upload",
+      url: asset.url,
+      opfs_key: null,
+      job_id: null,
+      mime_type: asset.content_type,
+      width: null,
+      height: null,
+    };
     let n = 1;
-    while (rows.some((r) => r.key === `pose_${n}`)) n++;
+    while (rows.some((r) => r.key === `pose_${n}` || r.savedKey === `pose_${n}`)) n++;
     const newKey = `pose_${n}`;
     const newRows: PoseRow[] = [...rows, { key: newKey, ref, savedKey: newKey }];
     setRows(newRows);
-    setAddPickerOpen(false);
+    setIsMediaLibOpen(false);
     await saveToApi(newRows, newKey);
   };
 
@@ -279,33 +166,16 @@ export default function CharacterPosesManager({
               key={row.savedKey || idx}
               className="bg-amber-900/10 border border-amber-700/40 rounded-md p-2.5 flex items-center gap-2.5"
             >
-              {/* Thumbnail — click to change image */}
-              <div className="relative flex-shrink-0">
-                <button
-                  onClick={() => setPickerForKey(row.savedKey)}
-                  className="group relative block"
-                  title="Changer l'image"
-                >
-                  <img
-                    src={resolveAsset(row.ref)}
-                    alt={row.key}
-                    className="h-12 w-8 object-contain rounded bg-raised"
-                  />
-                  <div className="absolute inset-0 bg-black/50 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </div>
-                </button>
-                {pickerForKey === row.savedKey && (
-                  <SpritePicker
-                    current={row.ref}
-                    customUploads={customUploads}
-                    onPick={(ref) => { handleImageChange(idx, ref); setPickerForKey(null); }}
-                    onClose={() => setPickerForKey(null)}
-                  />
-                )}
+              {/* Thumbnail — click to preview in drawer */}
+              <div
+                className="flex-shrink-0 cursor-pointer"
+                onClick={() => onPoseSelect?.(row.key)}
+              >
+                <img
+                  src={resolveAsset(row.ref)}
+                  alt={row.key}
+                  className="h-12 w-8 object-contain rounded bg-raised"
+                />
               </div>
 
               {/* Key name */}
@@ -322,6 +192,7 @@ export default function CharacterPosesManager({
                       type="text"
                       value={row.key}
                       onChange={(e) => handleRenameChange(idx, e.target.value)}
+                      onFocus={() => onPoseSelect?.(row.key)}
                       onBlur={() => handleRenameCommit(idx)}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.currentTarget.blur(); } }}
                       className="w-full bg-elevated border border-white/10 rounded px-2 py-1 text-xs text-fore focus:outline-none focus:border-white/25"
@@ -358,25 +229,26 @@ export default function CharacterPosesManager({
       </div>
 
       {/* Add new pose */}
-      <div className="relative">
-        <button
-          onClick={() => setAddPickerOpen((v) => !v)}
-          className="w-full py-2 rounded border border-dashed border-amber-700/50 hover:border-amber-500 text-amber-600 hover:text-amber-400 text-sm transition-colors flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Ajouter une pose
-        </button>
-        {addPickerOpen && (
-          <SpritePicker
-            current={null}
-            customUploads={customUploads}
-            onPick={addNewPose}
-            onClose={() => setAddPickerOpen(false)}
-          />
-        )}
-      </div>
+      <button
+        onClick={() => setIsMediaLibOpen(true)}
+        className="w-full py-2 rounded border border-dashed border-amber-700/50 hover:border-amber-500 text-amber-600 hover:text-amber-400 text-sm transition-colors flex items-center justify-center gap-2"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        Ajouter une pose
+      </button>
+
+      <MediaLibraryModal
+        config={{
+          mode: "selector",
+          filter: "images",
+          allowedFolders: ["characters"],
+          onSelect: handleAddPose,
+        }}
+        isOpen={isMediaLibOpen}
+        onClose={() => setIsMediaLibOpen(false)}
+      />
     </div>
   );
 }

@@ -46,9 +46,14 @@ describe("UploadDropZone", () => {
     expect(screen.getByText(/déposer des fichiers/i)).toBeInTheDocument();
   });
 
-  it("retourne null en mode selector", () => {
+  it("rend la zone de drop en mode selector", () => {
+    render(<UploadDropZone folder="backgrounds" config={selectorConfig} />);
+    expect(screen.getByTestId("upload-drop-zone")).toBeInTheDocument();
+  });
+
+  it("retourne null en mode folder-selector", () => {
     const { container } = render(
-      <UploadDropZone folder="backgrounds" config={selectorConfig} />
+      <UploadDropZone folder="characters" config={{ mode: "folder-selector" }} />
     );
     expect(container.firstChild).toBeNull();
   });

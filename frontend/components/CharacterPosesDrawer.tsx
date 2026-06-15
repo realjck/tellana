@@ -7,9 +7,10 @@ import { resolveAsset } from "@/lib/api";
 interface Props {
   characterName: string;
   sprites: Record<string, AssetRef>;
+  highlightKey?: string;
 }
 
-export default function CharacterPosesDrawer({ characterName, sprites }: Props) {
+export default function CharacterPosesDrawer({ characterName, sprites, highlightKey }: Props) {
   const poses = Object.entries(sprites);
   const [activeKey, setActiveKey] = useState<string>(poses[0]?.[0] ?? "default");
 
@@ -19,6 +20,13 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
       setActiveKey(poses[0][0]);
     }
   }, [sprites, activeKey, poses]);
+
+  // Sync to external highlight (pose clicked/focused in manager)
+  useEffect(() => {
+    if (highlightKey && sprites[highlightKey]) {
+      setActiveKey(highlightKey);
+    }
+  }, [highlightKey, sprites]);
 
   const activeRef = sprites[activeKey] ?? poses[0]?.[1];
 
