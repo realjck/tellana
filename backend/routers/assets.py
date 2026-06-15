@@ -184,6 +184,18 @@ def rename_file(asset_id: int, payload: schemas.FileRename, db: Session = Depend
     return asset
 
 
+@router.delete("/{asset_id}", status_code=204)
+def delete_asset(asset_id: int, db: Session = Depends(get_db)):
+    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Asset introuvable")
+    file_path = UPLOAD_DIR / asset.folder / asset.filename
+    if file_path.exists():
+        file_path.unlink()
+    db.delete(asset)
+    db.commit()
+
+
 @router.post("/upload")
 async def upload_asset(file: UploadFile = File(...)):
     content = await file.read()

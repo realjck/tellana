@@ -199,6 +199,35 @@ export const api = {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       }),
+    uploadMedia: async (
+      file: File,
+      folder: string,
+      replace = false
+    ): Promise<
+      | { ok: true; asset: Asset }
+      | { ok: false; status: 409; existing_id: number; references: { scenes: number; nodes: number } }
+    > => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", folder);
+      const res = await fetch(
+        `${API_BASE}/api/assets${replace ? "?replace=true" : ""}`,
+        { method: "POST", body: formData }
+      );
+      if (res.status === 409) {
+        const data = await res.json();
+        return { ok: false, status: 409, ...data };
+      }
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      return { ok: true, asset: await res.json() };
+    },
+    rename: (id: number, filename: string): Promise<Asset> =>
+      request<Asset>(`/api/assets/${id}/rename`, {
+        method: "PATCH",
+        body: JSON.stringify({ filename }),
+      }),
+    delete: (id: number): Promise<void> =>
+      request<void>(`/api/assets/${id}`, { method: "DELETE" }),
   },
 };
 

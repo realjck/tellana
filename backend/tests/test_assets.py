@@ -521,3 +521,45 @@ def test_upload_keep_appears_in_folders_list(client):
     res = client.get("/api/assets/folders")
     assert res.status_code == 200
     assert "characters/new-folder" in res.json()
+
+
+# ── Story 2.4 — Suppression d'asset ─────────────────────────────────────────
+
+
+def test_delete_asset_removes_from_db_and_disk(client, tmp_path):
+    asset_id = _upload(client, "portrait.png", "characters/alice").json()["id"]
+    assert (tmp_path / "characters" / "alice" / "portrait.png").exists()
+
+    res = client.delete(f"/api/assets/{asset_id}")
+    assert res.status_code == 204
+
+    assert not (tmp_path / "characters" / "alice" / "portrait.png").exists()
+    listing = client.get("/api/assets?folder=characters/alice").json()
+    assert all(a["id"] != asset_id for a in listing)
+
+
+def test_delete_asset_not_found(client):
+    res = client.delete("/api/assets/999")
+    assert res.status_code == 404
+
+
+def test_delete_seed_asset_allowed(client):
+    from main import app
+    from database import get_db
+    from models import Asset as AssetModel
+
+    override = app.dependency_overrides.get(get_db)
+    db = next(override())
+    asset = AssetModel(
+        filename="seed.png",
+        url="/uploads/characters/alice/seed.png",
+        content_type="image/png",
+        folder="characters/alice",
+        is_seed=True,
+    )
+    db.add(asset)
+    db.commit()
+    asset_id = asset.id
+
+    res = client.delete(f"/api/assets/{asset_id}")
+    assert res.status_code == 204

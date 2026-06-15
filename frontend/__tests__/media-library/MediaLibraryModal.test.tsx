@@ -12,7 +12,17 @@ jest.mock("swr", () => ({
 jest.mock("@/lib/api", () => ({
   API_BASE: "http://localhost:8000",
   api: { assets: { getFolders: jest.fn(), list: jest.fn() } },
+  resolveAsset: (url: string) => `http://localhost:8000${url}`,
   randomCharacterColor: () => "#FF6B6B",
+}));
+
+jest.mock("@/components/media-library/AssetGrid", () => ({
+  __esModule: true,
+  default: ({ folder }: { folder: string | null }) => (
+    <div data-testid="asset-grid">
+      {folder ? `Dossier : ${folder}` : "Sélectionnez un dossier"}
+    </div>
+  ),
 }));
 
 const navConfig: MediaLibraryConfig = { mode: "navigation" };

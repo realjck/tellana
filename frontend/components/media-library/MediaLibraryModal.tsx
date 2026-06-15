@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MediaLibraryConfig } from "@/types";
 import FolderTree from "./FolderTree";
+import AssetGrid from "./AssetGrid";
 
 interface Props {
   config: MediaLibraryConfig;
@@ -69,10 +70,7 @@ export default function MediaLibraryModal({ config, isOpen, onClose }: Props) {
               </div>
             )}
           </div>
-          {/* Placeholder — remplacé par AssetGrid en story 2.2 */}
-          <div className="flex-1 p-4 flex items-center justify-center text-muted text-sm">
-            {currentFolder ? `Dossier : ${currentFolder}` : "Sélectionnez un dossier"}
-          </div>
+          <AssetGrid config={config} folder={currentFolder} onClose={onClose} />
         </div>
       </div>
     </div>
