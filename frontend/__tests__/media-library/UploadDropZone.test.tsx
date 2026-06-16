@@ -22,8 +22,14 @@ jest.mock("@/lib/api", () => ({
   randomCharacterColor: () => "#FF6B6B",
 }));
 
+jest.mock("@/lib/assetBust", () => ({
+  bustAssetCache: jest.fn(),
+}));
+
 import { api } from "@/lib/api";
+import { bustAssetCache } from "@/lib/assetBust";
 const mockUploadMedia = api.assets.uploadMedia as jest.Mock;
+const mockBustAssetCache = bustAssetCache as jest.Mock;
 
 const navConfig: MediaLibraryConfig = { mode: "navigation" };
 const selectorConfig: MediaLibraryConfig = { mode: "selector", onSelect: jest.fn() };
@@ -69,12 +75,12 @@ describe("UploadDropZone", () => {
     expect(mockMutate).toHaveBeenCalledWith("asset-folders");
   });
 
-  it("affiche ConfirmModal après réponse 409", async () => {
+  it("affiche ConfirmModal après réponse 409 avec le message incluant characters", async () => {
     mockUploadMedia.mockResolvedValueOnce({
       ok: false,
       status: 409,
       existing_id: 5,
-      references: { scenes: 2, nodes: 1 },
+      references: { scenes: 2, nodes: 1, characters: 3 },
     });
     render(<UploadDropZone folder="backgrounds" config={navConfig} />);
     const file = new File(["x"], "portrait.png", { type: "image/png" });
@@ -84,31 +90,47 @@ describe("UploadDropZone", () => {
     await waitFor(() => {
       expect(screen.getByText(/Ce fichier remplacera "portrait\.png"/)).toBeInTheDocument();
     });
-    expect(screen.getByText(/2 scène\(s\) et 1 nœud\(s\)/)).toBeInTheDocument();
+    expect(screen.getByText(/2 scène\(s\), 1 nœud\(s\) et 3 personnage\(s\)/)).toBeInTheDocument();
   });
 
-  it("confirme le remplacement : uploadMedia appelé avec replace=true", async () => {
+  it("affiche le bouton 'Remplacer' (pas 'Supprimer') dans le ConfirmModal", async () => {
+    mockUploadMedia.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      existing_id: 5,
+      references: { scenes: 0, nodes: 0, characters: 0 },
+    });
+    render(<UploadDropZone folder="backgrounds" config={navConfig} />);
+    const file = new File(["x"], "portrait.png", { type: "image/png" });
+    await act(async () => { selectFile(file); });
+    await waitFor(() => screen.getByText("Remplacer"));
+    expect(screen.getByText("Remplacer")).toBeInTheDocument();
+    expect(screen.queryByText("Supprimer")).not.toBeInTheDocument();
+  });
+
+  it("confirme le remplacement : uploadMedia appelé avec replace=true, bustAssetCache appelé", async () => {
     mockUploadMedia
       .mockResolvedValueOnce({
         ok: false,
         status: 409,
         existing_id: 5,
-        references: { scenes: 1, nodes: 0 },
+        references: { scenes: 1, nodes: 0, characters: 0 },
       })
-      .mockResolvedValueOnce({ ok: true, asset: { id: 5 } });
+      .mockResolvedValueOnce({ ok: true, asset: { id: 5, url: "/uploads/backgrounds/photo.png" } });
     render(<UploadDropZone folder="backgrounds" config={navConfig} />);
     const file = new File(["x"], "photo.png", { type: "image/png" });
     await act(async () => {
       selectFile(file);
     });
-    await waitFor(() => screen.getByText("Supprimer"));
+    await waitFor(() => screen.getByText("Remplacer"));
     await act(async () => {
-      fireEvent.click(screen.getByText("Supprimer"));
+      fireEvent.click(screen.getByText("Remplacer"));
     });
     await waitFor(() => {
       expect(mockUploadMedia).toHaveBeenNthCalledWith(2, file, "backgrounds", true);
     });
     expect(mockMutate).toHaveBeenCalledWith(["assets", "backgrounds"]);
+    expect(mockBustAssetCache).toHaveBeenCalled();
   });
 
   it("drop de fichier → uploadMedia et mutate appelés", async () => {
@@ -130,7 +152,7 @@ describe("UploadDropZone", () => {
       ok: false,
       status: 409,
       existing_id: 5,
-      references: { scenes: 0, nodes: 0 },
+      references: { scenes: 0, nodes: 0, characters: 0 },
     });
     render(<UploadDropZone folder="backgrounds" config={navConfig} />);
     const file = new File(["x"], "audio.mp3", { type: "audio/mpeg" });

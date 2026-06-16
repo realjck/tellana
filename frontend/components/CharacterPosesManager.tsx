@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Asset, AssetRef, Character } from "@/types";
 import { api, resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 
 interface Props {
@@ -33,6 +34,7 @@ export default function CharacterPosesManager({
   onPoseSelect,
   showHeader = true,
 }: Props) {
+  const bust = useAssetBust(); // reload pose previews when an asset is replaced in place
   const [rows, setRows] = useState<PoseRow[]>(() => buildRows(character.sprites));
   const [saving, setSaving] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -177,7 +179,7 @@ export default function CharacterPosesManager({
                 onClick={() => onPoseSelect?.(row.key)}
               >
                 <img
-                  src={resolveAsset(row.ref)}
+                  src={resolveAsset(row.ref, bust)}
                   alt={row.key}
                   className="h-12 w-8 object-contain rounded bg-raised"
                 />

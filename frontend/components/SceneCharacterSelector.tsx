@@ -2,6 +2,7 @@
 
 import type { Character, CharacterPosition } from "@/types";
 import { resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 
 interface Props {
   allCharacters: Character[];
@@ -24,6 +25,7 @@ export default function SceneCharacterSelector({
   onSelectCharacter,
   onReorder,
 }: Props) {
+  const bust = useAssetBust(); // reload character thumbnails when an asset is replaced in place
   const selectedChars = selectedIds
     .map((id) => allCharacters.find((c) => c.id === id))
     .filter((c): c is Character => !!c);
@@ -91,7 +93,7 @@ export default function SceneCharacterSelector({
                   >
                     {firstSprite && (
                       <img
-                        src={resolveAsset(firstSprite)}
+                        src={resolveAsset(firstSprite, bust)}
                         alt={c.name}
                         className="w-8 h-8 object-contain rounded"
                       />
@@ -160,7 +162,7 @@ export default function SceneCharacterSelector({
                 >
                   {firstSprite && (
                     <img
-                      src={resolveAsset(firstSprite)}
+                      src={resolveAsset(firstSprite, bust)}
                       alt={c.name}
                       className="w-8 h-8 object-contain rounded"
                     />

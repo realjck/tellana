@@ -3,6 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import type { AssetRef, Character, CharacterPosition } from "@/types";
 import { resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import { DEFAULT_POSITIONS, FALLBACK_POSITION } from "@/lib/scenePositions";
 
 const BASE_W = 1920;
@@ -21,6 +22,7 @@ export default function ScenePreviewThumbnail({
   characterPositions,
   className = "",
 }: Props) {
+  const bust = useAssetBust(); // reload previews when an asset is replaced in place
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -61,7 +63,7 @@ export default function ScenePreviewThumbnail({
           style={
             backgroundAsset
               ? {
-                  backgroundImage: `url("${resolveAsset(backgroundAsset)}")`,
+                  backgroundImage: `url("${resolveAsset(backgroundAsset, bust)}")`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }
@@ -79,7 +81,7 @@ export default function ScenePreviewThumbnail({
             return (
               <img
                 key={c.id}
-                src={resolveAsset(sprite)}
+                src={resolveAsset(sprite, bust)}
                 alt={c.name}
                 className="absolute object-contain"
                 style={{

@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of Epic 4 stories 4.1/4.2/4.3 (2026-06-16)
+
+- `mapSpritesFromAssets` (`frontend/components/media-library/AssetGrid.tsx`) : collision de clés de pose si deux fichiers partagent le même stem mais des extensions différentes (`happy.png` + `happy.webp`). L'un écrase l'autre silencieusement dans le `Record<string, AssetRef>`. Faible probabilité ; correctif non univoque (suffixer la clé ou avertir l'utilisateur).
+
 ## Deferred from: code review of Epic 3 stories 3.1/3.2/3.3 (2026-06-15)
 
 - `handleAddPose` dans `CharacterPosesManager` : UI optimiste non réversible si `saveToApi` échoue — pattern pré-existant dans `handleRename`/`handleDelete`. À traiter dans une story de robustesse future [`frontend/components/CharacterPosesManager.tsx`].

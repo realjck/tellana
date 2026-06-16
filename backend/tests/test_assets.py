@@ -359,6 +359,38 @@ def test_rename_folder_normalizes_backslash(client, tmp_path):
     assert (tmp_path / "characters" / "anna" / "x.png").exists()
 
 
+def _make_char_with_sprite(client, url, folder_name="Alice"):
+    story_id = client.post("/api/stories/", json={"title": "S"}).json()["id"]
+    sprites = {"default": {"type": "upload", "url": url, "opfs_key": None, "job_id": None, "mime_type": "image/png", "width": None, "height": None}}
+    client.post(f"/api/stories/{story_id}/characters/", json={"name": folder_name, "color": "#FF0000", "sprites": sprites})
+    return story_id
+
+
+def test_rename_folder_rewrites_character_sprite_refs(client):
+    url = _upload(client, "default.png", "characters/alice").json()["url"]
+    story_id = _make_char_with_sprite(client, url)
+
+    res = client.patch(
+        "/api/assets/folders",
+        json={"from": "characters/alice", "to": "characters/anna"},
+    )
+    assert res.status_code == 200
+
+    chars = client.get(f"/api/stories/{story_id}/characters/").json()
+    assert chars[0]["sprites"]["default"]["url"] == "/uploads/characters/anna/default.png"
+
+
+def test_delete_folder_purges_character_sprite_refs(client):
+    url = _upload(client, "default.png", "characters/alice").json()["url"]
+    story_id = _make_char_with_sprite(client, url)
+
+    res = client.delete("/api/assets/folders?path=characters/alice")
+    assert res.status_code == 204
+
+    chars = client.get(f"/api/stories/{story_id}/characters/").json()
+    assert chars[0]["sprites"] == {}
+
+
 def test_rename_file_updates_db_and_disk(client, tmp_path):
     asset_id = _upload(client, "portrait.png", "characters/alice").json()["id"]
 
@@ -407,7 +439,7 @@ def test_upload_same_name_conflict_with_references(client):
     assert res.status_code == 409
     body = res.json()
     assert body["existing_id"] == up["id"]  # top-level, pas sous "detail"
-    assert body["references"] == {"scenes": 1, "nodes": 1}
+    assert body["references"] == {"scenes": 1, "nodes": 1, "characters": 0}
 
 
 def test_upload_same_name_conflict_no_references(client):
@@ -418,7 +450,26 @@ def test_upload_same_name_conflict_no_references(client):
         data={"folder": "characters/alice"},
     )
     assert res.status_code == 409
-    assert res.json()["references"] == {"scenes": 0, "nodes": 0}
+    assert res.json()["references"] == {"scenes": 0, "nodes": 0, "characters": 0}
+
+
+def test_upload_same_name_conflict_with_character_sprites(client):
+    up = _upload(client, "default.png", "characters/alice").json()
+    url = up["url"]  # /uploads/characters/alice/default.png
+
+    story_id = client.post("/api/stories/", json={"title": "S"}).json()["id"]
+    # Créer 2 personnages dont les sprites référencent l'asset
+    sprites = {"default": {"type": "upload", "url": url, "opfs_key": None, "job_id": None, "mime_type": "image/png", "width": None, "height": None}}
+    client.post(f"/api/stories/{story_id}/characters/", json={"name": "Alice", "color": "#FF0000", "sprites": sprites})
+    client.post(f"/api/stories/{story_id}/characters/", json={"name": "Alice2", "color": "#00FF00", "sprites": sprites})
+
+    res = client.post(
+        "/api/assets",
+        files={"file": ("default.png", io.BytesIO(MINIMAL_PNG), "image/png")},
+        data={"folder": "characters/alice"},
+    )
+    assert res.status_code == 409
+    assert res.json()["references"] == {"scenes": 0, "nodes": 0, "characters": 2}
 
 
 def test_upload_replace_overwrites_same_id(client, tmp_path):

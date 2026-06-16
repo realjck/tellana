@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { AssetRef, Character } from "@/types";
 import { api, randomCharacterColor, resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 
 interface PoseRow {
@@ -32,6 +33,7 @@ export default function CharacterBasicForm({
   onPreviewAsset,
   onSpritesChange,
 }: Props) {
+  const bust = useAssetBust(); // reload sprite previews when an asset is replaced in place
   const [name, setName] = useState(initial?.name ?? "");
   const [color, setColor] = useState(initial?.color ?? randomCharacterColor());
   const colorInputRef = useRef<HTMLInputElement>(null);
@@ -155,7 +157,7 @@ export default function CharacterBasicForm({
               className="bg-amber-900/10 border border-amber-700/40 rounded-md p-2.5 flex items-center gap-2.5"
             >
               <img
-                src={resolveAsset(row.ref)}
+                src={resolveAsset(row.ref, bust)}
                 alt={row.key}
                 className="h-12 w-8 object-contain rounded bg-raised flex-shrink-0"
               />

@@ -1,12 +1,12 @@
 ---
-baseline_commit: ""
+baseline_commit: "e129d7d9b8153ed4f4047ee183bc49f3bc7e86b5"
 ---
 
 # Story 4.2 — Menu contextuel clic droit dans la médiathèque
 
 ## Statut
 
-ready-for-dev
+done
 
 ## Contexte
 
@@ -90,25 +90,25 @@ afin d'avoir une interface cohérente et d'être capable de renommer mes dossier
 
 ## Tasks/Subtasks
 
-- [ ] T1: Ajouter `api.assets.renameFolder` dans `lib/api.ts`
-  - [ ] T1a: `renameFolder: (from: string, to: string) => Promise<void>` → `PATCH /api/assets/folders`
-- [ ] T2: Créer composant `ContextMenu` dans `components/media-library/ContextMenu.tsx`
-  - [ ] T2a: Props : `x, y, items: { label, onClick }[], onClose`
-  - [ ] T2b: Positionné en `fixed`, z-index élevé (au-dessus de la modale : `z-50`)
-  - [ ] T2c: Fermeture sur clic extérieur (`mousedown` sur document) + Escape
-  - [ ] T2d: Ajustement position pour rester dans les limites viewport
-- [ ] T3: Mettre à jour `AssetGrid.tsx`
-  - [ ] T3a: Supprimer les boutons × sur fichiers et dossiers
-  - [ ] T3b: Supprimer le double-clic pour renommer les fichiers
-  - [ ] T3c: Ajouter `onContextMenu` sur les cartes fichiers → ouvre `ContextMenu` avec "Renommer" / "Supprimer"
-  - [ ] T3d: Ajouter `onContextMenu` sur les cartes dossiers → ouvre `ContextMenu` avec "Renommer" / "Supprimer"
-  - [ ] T3e: Implémenter le renommage inline de dossier (état local `editingFolder` analogue à `editingId`)
-  - [ ] T3f: Câbler `api.assets.renameFolder` + gestion erreur 409 via `AlertModal`
-- [ ] T4: Tests unitaires
-  - [ ] T4a: `ContextMenu.test.tsx` — rendu, fermeture clic extérieur, fermeture Escape
-  - [ ] T4b: `AssetGrid.test.tsx` — clic droit fichier affiche menu, clic "Renommer" active l'input, clic "Supprimer" ouvre ConfirmModal
-  - [ ] T4c: `AssetGrid.test.tsx` — clic droit dossier affiche menu, clic "Renommer" appelle renameFolder, 409 affiche AlertModal
-  - [ ] T4d: Mettre à jour les tests existants qui testaient le double-clic ou le bouton ×
+- [x] T1: Ajouter `api.assets.renameFolder` dans `lib/api.ts`
+  - [x] T1a: `renameFolder: (from: string, to: string) => Promise<void>` → `PATCH /api/assets/folders`
+- [x] T2: Créer composant `ContextMenu` dans `components/media-library/ContextMenu.tsx`
+  - [x] T2a: Props : `x, y, items: { label, onClick }[], onClose`
+  - [x] T2b: Positionné en `fixed`, z-index élevé (au-dessus de la modale : `z-50`)
+  - [x] T2c: Fermeture sur clic extérieur (`mousedown` sur document) + Escape
+  - [x] T2d: Ajustement position pour rester dans les limites viewport
+- [x] T3: Mettre à jour `AssetGrid.tsx`
+  - [x] T3a: Supprimer les boutons × sur fichiers et dossiers
+  - [x] T3b: Supprimer le double-clic pour renommer les fichiers
+  - [x] T3c: Ajouter `onContextMenu` sur les cartes fichiers → ouvre `ContextMenu` avec "Renommer" / "Supprimer"
+  - [x] T3d: Ajouter `onContextMenu` sur les cartes dossiers → ouvre `ContextMenu` avec "Renommer" / "Supprimer"
+  - [x] T3e: Implémenter le renommage inline de dossier (état local `editingFolder` analogue à `editingId`)
+  - [x] T3f: Câbler `api.assets.renameFolder` + gestion erreur 409 via `AlertModal`
+- [x] T4: Tests unitaires
+  - [x] T4a: `ContextMenu.test.tsx` — rendu, fermeture clic extérieur, fermeture Escape
+  - [x] T4b: `AssetGrid.test.tsx` — clic droit fichier affiche menu, clic "Renommer" active l'input, clic "Supprimer" ouvre ConfirmModal
+  - [x] T4c: `AssetGrid.test.tsx` — clic droit dossier affiche menu, clic "Renommer" appelle renameFolder, 409 affiche AlertModal
+  - [x] T4d: Mettre à jour les tests existants qui testaient le double-clic ou le bouton ×
 
 ## Périmètre
 
@@ -184,16 +184,31 @@ Vérifier dans `backend/schemas.py` le schéma `FolderRename` pour confirmer le 
 
 ### Debug Log
 
-_Vide_
+_Aucun blocage._
 
 ### Completion Notes
 
-_Vide_
+- `api.assets.renameFolder` ajouté dans `lib/api.ts` — envoie `PATCH /api/assets/folders` avec body `{ from, to }` (Pydantic alias géré côté backend).
+- Composant `ContextMenu` créé (`fixed`, `z-50`) avec fermeture sur `mousedown` extérieur et `Escape`, ajustement viewport via `useLayoutEffect` + `getBoundingClientRect`.
+- `AssetGrid` refactorisé : suppression des boutons × et du double-clic ; clic droit (`onContextMenu`) sur fichiers et dossiers ouvre le menu contextuel. Nouveau state `editingFolder`/`editingFolderName` pour le renommage inline de dossier. Erreur 409 catchée → `AlertModal`.
+- `ContextMenu` mocké dans les tests `AssetGrid` (pattern identique à `UploadDropZone`).
+- 138 tests Jest passent, 0 erreur TypeScript.
 
 ## File List
 
-_À remplir par l'agent dev_
+- `frontend/lib/api.ts`
+- `frontend/components/media-library/ContextMenu.tsx` (nouveau)
+- `frontend/components/media-library/AssetGrid.tsx`
+- `frontend/__tests__/media-library/ContextMenu.test.tsx` (nouveau)
+- `frontend/__tests__/media-library/AssetGrid.test.tsx`
 
 ## Change Log
 
-_À remplir par l'agent dev_
+- Ajout `api.assets.renameFolder` dans `lib/api.ts` (Date: 2026-06-16)
+- Création composant `ContextMenu` réutilisable (Date: 2026-06-16)
+- Remplacement double-clic + boutons × par menu contextuel clic droit dans `AssetGrid` (Date: 2026-06-16)
+- Ajout renommage inline de dossier avec gestion 409 via `AlertModal` (Date: 2026-06-16)
+
+## Review Findings
+
+- [x] [Review][Patch] (CORRIGÉ 2026-06-16) Renommer/Supprimer un dossier via le menu contextuel corrompt les références JSON (sprites perso + fond de scène) [backend/routers/assets.py:144,167] — le menu clic droit (cette story) expose désormais en première classe deux opérations dossier qui ne maintiennent pas l'intégrité référentielle. `rename_folder` met à jour `Asset.url` des lignes affectées mais PAS les URLs stockées dans `Character.sprites` ni `Scene.background_asset` (JSON) → après renommage du dossier, tous les sprites/fonds qui le référencent pointent vers un chemin disparu → images cassées dans l'éditeur et le player. `delete_folder` supprime les assets/fichiers mais ne purge pas non plus `Character.sprites`/`Scene.background_asset` (contrairement à `delete_asset` qui le fait). Côté frontend, le `onConfirm` de suppression de dossier ne mute que `asset-folders` + `["assets", folder]`, pas les clés SWR `story-`/`scene-` (la suppression de fichier, elle, les mute). La logique backend préexiste mais n'était déclenchable que via le bouton ×/cas marginaux ; la story la rend triviale à atteindre. Fix : refléter le nettoyage de `delete_asset` dans `delete_folder`, et réécrire les références JSON dans `rename_folder`.

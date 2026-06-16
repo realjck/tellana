@@ -4,9 +4,12 @@ import { useState, useRef } from "react";
 import useSWR from "swr";
 import { useSWRConfig } from "swr";
 import { api, resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import type { MediaLibraryConfig, Asset, AssetRef } from "@/types";
 import ConfirmModal from "@/components/ConfirmModal";
+import AlertModal from "@/components/AlertModal";
 import UploadDropZone from "./UploadDropZone";
+import ContextMenu from "./ContextMenu";
 
 interface Props {
   config: MediaLibraryConfig;
@@ -14,6 +17,12 @@ interface Props {
   onClose: () => void;
   onNavigate?: (folder: string) => void;
 }
+
+type ContextMenuPayload =
+  | { type: "file"; asset: Asset }
+  | { type: "folder"; folderPath: string };
+
+type ContextMenuState = ({ x: number; y: number } & ContextMenuPayload) | null;
 
 export default function AssetGrid({ config, folder, onClose, onNavigate }: Props) {
   const { data: allAssets = [] } = useSWR<Asset[]>(
@@ -24,9 +33,14 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
   const { mutate } = useSWRConfig();
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingFolder, setEditingFolder] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
   const [pendingDelete, setPendingDelete] = useState<Asset | null>(null);
   const [pendingDeleteFolder, setPendingDeleteFolder] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const escapeRef = useRef(false);
+  const bust = useAssetBust(); // re-render this grid when an asset is replaced in place
 
   const assets = allAssets.filter(
     (a) =>
@@ -62,9 +76,34 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
   const commitRename = async (asset: Asset, name: string) => {
     setEditingId(null);
     if (!name.trim() || name.trim() === asset.filename) return;
-    await api.assets.rename(asset.id, name.trim());
-    await mutate(["assets", folder!]);
-    await mutate("asset-folders");
+    try {
+      await api.assets.rename(asset.id, name.trim());
+      await mutate(["assets", folder!]);
+      await mutate("asset-folders");
+    } catch {
+      setAlertMessage("Un fichier avec ce nom existe déjà dans ce dossier.");
+    }
+  };
+
+  const commitFolderRename = async (folderPath: string, newName: string) => {
+    setEditingFolder(null);
+    const currentName = folderPath.slice(folder!.length + 1);
+    if (!newName.trim() || newName.trim() === currentName) return;
+    const newPath = folder + "/" + newName.trim();
+    try {
+      await api.assets.renameFolder(folderPath, newPath);
+      await mutate("asset-folders");
+      await mutate(["assets", folder!]);
+      await mutate((key) => typeof key === "string" && (key.startsWith("story-") || key.startsWith("scene-")));
+    } catch {
+      setAlertMessage("Un dossier avec ce nom existe déjà.");
+    }
+  };
+
+  const openContextMenu = (e: React.MouseEvent, payload: ContextMenuPayload) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, ...payload });
   };
 
   const handleSelectFolder = () => {
@@ -85,26 +124,40 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
             return (
               <div
                 key={f}
-                onClick={() => onNavigate?.(f)}
+                onClick={() => {
+                  if (editingFolder === f) return;
+                  onNavigate?.(f);
+                }}
+                onContextMenu={(e) =>
+                  openContextMenu(e, { type: "folder", folderPath: f })
+                }
                 className="relative rounded-lg overflow-hidden border border-white/10 bg-elevated group cursor-pointer hover:border-primary/60"
               >
                 <div className="aspect-square bg-bg flex items-center justify-center">
                   <FolderIcon />
                 </div>
                 <div className="p-1.5">
-                  <p className="text-xs text-fore truncate" title={name}>{name}</p>
+                  {editingFolder === f ? (
+                    <input
+                      autoFocus
+                      className="text-xs text-fore bg-transparent border-b border-primary outline-none w-full"
+                      value={editingFolderName}
+                      onChange={(e) => setEditingFolderName(e.target.value)}
+                      onBlur={() => {
+                        if (escapeRef.current) { escapeRef.current = false; return; }
+                        commitFolderRename(f, editingFolderName);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.currentTarget.blur();
+                        if (e.key === "Escape") { escapeRef.current = true; setEditingFolder(null); }
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <p className="text-xs text-fore truncate" title={name}>{name}</p>
+                  )}
                   <p className="text-xs text-subtle">dossier</p>
                 </div>
-                <button
-                  aria-label="Supprimer le dossier"
-                  className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-red-600 text-white rounded text-xs w-5 h-5 flex items-center justify-center leading-none transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setPendingDeleteFolder(f);
-                  }}
-                >
-                  ×
-                </button>
               </div>
             );
           })}
@@ -113,6 +166,9 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
               key={asset.id}
               data-testid="asset-card"
               onClick={() => handleClick(asset)}
+              onContextMenu={(e) =>
+                openContextMenu(e, { type: "file", asset })
+              }
               className={`relative rounded-lg overflow-hidden border border-white/10 bg-elevated group ${
                 config.mode === "selector" ? "cursor-pointer hover:border-primary/60" : ""
               }`}
@@ -120,7 +176,7 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
               <div className="aspect-square bg-bg flex items-center justify-center overflow-hidden">
                 {asset.content_type.startsWith("image/") ? (
                   <img
-                    src={resolveAsset(asset.url)}
+                    src={resolveAsset(asset.url, bust)}
                     alt={asset.filename}
                     className="w-full h-full object-contain"
                   />
@@ -151,27 +207,12 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
                   <p
                     className="text-xs text-fore truncate"
                     title={asset.filename}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      setEditingId(asset.id);
-                      setEditingName(asset.filename);
-                    }}
                   >
                     {asset.filename}
                   </p>
                 )}
                 <p className="text-xs text-subtle">{_typeLabel(asset.content_type)}</p>
               </div>
-              <button
-                aria-label="Supprimer"
-                className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 bg-black/60 hover:bg-red-600 text-white rounded text-xs w-5 h-5 flex items-center justify-center leading-none transition-opacity"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPendingDelete(asset);
-                }}
-              >
-                ×
-              </button>
               {asset.is_seed && (
                 <span className="absolute top-1 right-1 bg-amber-600/80 text-white text-[10px] px-1 rounded leading-tight">
                   seed
@@ -190,6 +231,53 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
             Choisir ce dossier personnage
           </button>
         </div>
+      )}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={() => setContextMenu(null)}
+          items={
+            contextMenu.type === "file"
+              ? [
+                  {
+                    label: "Renommer",
+                    onClick: () => {
+                      setContextMenu(null);
+                      setEditingId(contextMenu.asset.id);
+                      setEditingName(contextMenu.asset.filename);
+                    },
+                  },
+                  {
+                    label: "Supprimer",
+                    onClick: () => {
+                      setContextMenu(null);
+                      setPendingDelete(contextMenu.asset);
+                    },
+                    variant: "danger",
+                  },
+                ]
+              : [
+                  {
+                    label: "Renommer",
+                    onClick: () => {
+                      const name = contextMenu.folderPath.slice(folder.length + 1);
+                      setContextMenu(null);
+                      setEditingFolder(contextMenu.folderPath);
+                      setEditingFolderName(name);
+                    },
+                  },
+                  {
+                    label: "Supprimer",
+                    onClick: () => {
+                      setContextMenu(null);
+                      setPendingDeleteFolder(contextMenu.folderPath);
+                    },
+                    variant: "danger",
+                  },
+                ]
+          }
+        />
       )}
       {pendingDelete && (
         <ConfirmModal
@@ -214,9 +302,13 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
             await api.assets.deleteFolder(target);
             await mutate("asset-folders");
             await mutate(["assets", folder!]);
+            await mutate((key) => typeof key === "string" && (key.startsWith("story-") || key.startsWith("scene-")));
           }}
           onCancel={() => setPendingDeleteFolder(null)}
         />
+      )}
+      {alertMessage && (
+        <AlertModal message={alertMessage} onClose={() => setAlertMessage(null)} />
       )}
     </div>
   );

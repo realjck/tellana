@@ -45,7 +45,7 @@ def _normalize_folder(folder: str) -> str:
 
 
 def _count_references(db: Session, url: str) -> dict:
-    """Count scenes and nodes whose JSON references the given asset url."""
+    """Count scenes, nodes, and characters whose JSON references the given asset url."""
     scene_count = 0
     for scene in db.query(models.Scene).all():
         bg = scene.background_asset
@@ -56,7 +56,47 @@ def _count_references(db: Session, url: str) -> dict:
     node_count = sum(
         1 for node in db.query(models.Node).all() if url in json.dumps(node.data or {})
     )
-    return {"scenes": scene_count, "nodes": node_count}
+    character_count = sum(
+        1 for char in db.query(models.Character).all()
+        if url in json.dumps(char.sprites or {})
+    )
+    return {"scenes": scene_count, "nodes": node_count, "characters": character_count}
+
+
+def _purge_asset_references(db: Session, urls: set) -> None:
+    """Drop sprites/backgrounds pointing at any of the given asset urls."""
+    for character in db.query(models.Character).all():
+        sprites = character.sprites or {}
+        cleaned = {
+            k: v for k, v in sprites.items()
+            if not (isinstance(v, dict) and v.get("url") in urls)
+        }
+        if len(cleaned) != len(sprites):
+            character.sprites = cleaned
+            flag_modified(character, "sprites")
+    for scene in db.query(models.Scene).all():
+        bg = scene.background_asset
+        if isinstance(bg, dict) and bg.get("url") in urls:
+            scene.background_asset = None
+            flag_modified(scene, "background_asset")
+
+
+def _rewrite_asset_references(db: Session, url_map: dict) -> None:
+    """Rewrite sprite/background urls in place after a folder rename."""
+    for character in db.query(models.Character).all():
+        sprites = character.sprites or {}
+        changed = False
+        for ref in sprites.values():
+            if isinstance(ref, dict) and ref.get("url") in url_map:
+                ref["url"] = url_map[ref["url"]]
+                changed = True
+        if changed:
+            flag_modified(character, "sprites")
+    for scene in db.query(models.Scene).all():
+        bg = scene.background_asset
+        if isinstance(bg, dict) and bg.get("url") in url_map:
+            bg["url"] = url_map[bg["url"]]
+            flag_modified(scene, "background_asset")
 
 
 @router.get("/folders", response_model=List[str])
@@ -152,10 +192,14 @@ def rename_folder(payload: schemas.FolderRename, db: Session = Depends(get_db)):
         .filter((models.Asset.folder == src) | (models.Asset.folder.like(f"{src}/%")))
         .all()
     )
+    url_map = {}
     for asset in affected:
+        old_url = asset.url
         new_folder = dst + asset.folder[len(src):]
         asset.folder = new_folder
         asset.url = f"/uploads/{new_folder}/{asset.filename}"
+        url_map[old_url] = asset.url
+    _rewrite_asset_references(db, url_map)
     db.commit()
     return {"updated": len(affected)}
 
@@ -171,6 +215,7 @@ def delete_folder(path: str = Query(...), db: Session = Depends(get_db)):
         )
         .all()
     )
+    _purge_asset_references(db, {asset.url for asset in assets})
     for asset in assets:
         file_path = UPLOAD_DIR / asset.folder / asset.filename
         db.delete(asset)
@@ -214,20 +259,8 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset introuvable")
     file_path = UPLOAD_DIR / asset.folder / asset.filename
-    url = asset.url
 
-    for character in db.query(models.Character).all():
-        sprites = character.sprites or {}
-        cleaned = {k: v for k, v in sprites.items() if not (isinstance(v, dict) and v.get("url") == url)}
-        if len(cleaned) != len(sprites):
-            character.sprites = cleaned
-            flag_modified(character, "sprites")
-
-    for scene in db.query(models.Scene).all():
-        bg = scene.background_asset
-        if isinstance(bg, dict) and bg.get("url") == url:
-            scene.background_asset = None
-            flag_modified(scene, "background_asset")
+    _purge_asset_references(db, {asset.url})
 
     db.delete(asset)
     db.commit()

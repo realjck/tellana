@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AssetRef } from "@/types";
 import { resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 
 interface Props {
   characterName: string;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function CharacterPosesDrawer({ characterName, sprites, highlightKey }: Props) {
+  const bust = useAssetBust(); // reload pose preview when an asset is replaced in place
   const poses = Object.entries(sprites);
   const [activeKey, setActiveKey] = useState<string>(poses[0]?.[0] ?? "default");
 
@@ -47,8 +49,8 @@ export default function CharacterPosesDrawer({ characterName, sprites, highlight
       <div className="flex-1 flex items-end justify-center overflow-hidden px-4 pt-4">
         {activeRef ? (
           <img
-            key={activeKey + resolveAsset(activeRef)}
-            src={resolveAsset(activeRef)}
+            key={activeKey + resolveAsset(activeRef, bust)}
+            src={resolveAsset(activeRef, bust)}
             alt={activeKey}
             className="max-h-full w-auto object-contain"
             style={{ maxHeight: "calc(100% - 1rem)" }}
@@ -76,7 +78,7 @@ export default function CharacterPosesDrawer({ characterName, sprites, highlight
                   title={key}
                 >
                   <img
-                    src={resolveAsset(ref)}
+                    src={resolveAsset(ref, bust)}
                     alt={key}
                     className="h-12 w-8 object-contain rounded"
                   />

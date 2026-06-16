@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AssetRef, Character } from "@/types";
 import { api, resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import ConfirmModal from "@/components/ConfirmModal";
 import CharacterBasicForm from "@/components/CharacterBasicForm";
 import CharacterPosesManager from "@/components/CharacterPosesManager";
@@ -18,6 +19,7 @@ interface Props {
 type Mode = "list" | "add" | "edit";
 
 export default function CharacterManager({ storyId, characters, onRefresh, onEditingCharacter }: Props) {
+  const bust = useAssetBust(); // reload sprite previews when an asset is replaced in place
   const [mode, setMode] = useState<Mode>("list");
   const [selected, setSelected] = useState<Character | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -170,7 +172,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
               >
                 {firstSprite ? (
                   <img
-                    src={resolveAsset(firstSprite)}
+                    src={resolveAsset(firstSprite, bust)}
                     alt={c.name}
                     className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
                     onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}

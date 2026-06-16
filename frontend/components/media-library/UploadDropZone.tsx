@@ -4,12 +4,13 @@ import { useState, useRef } from "react";
 import { useSWRConfig } from "swr";
 import ConfirmModal from "@/components/ConfirmModal";
 import { api } from "@/lib/api";
-import type { MediaLibraryConfig } from "@/types";
+import { bustAssetCache } from "@/lib/assetBust";
+import type { Asset, MediaLibraryConfig } from "@/types";
 
 type ConflictInfo = {
   file: File;
   existingId: number;
-  references: { scenes: number; nodes: number };
+  references: { scenes: number; nodes: number; characters: number };
 };
 
 interface Props {
@@ -23,14 +24,16 @@ export default function UploadDropZone({ folder, config }: Props) {
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function uploadFile(file: File, replace = false): Promise<void> {
+  async function uploadFile(file: File, replace = false): Promise<Asset | null> {
     const result = await api.assets.uploadMedia(file, folder, replace);
     if (!result.ok) {
       setConflicts((prev) => [
         ...prev,
         { file, existingId: result.existing_id, references: result.references },
       ]);
+      return null;
     }
+    return result.asset;
   }
 
   async function handleFiles(files: FileList | File[]): Promise<void> {
@@ -78,14 +81,15 @@ export default function UploadDropZone({ folder, config }: Props) {
       </div>
       {conflict && (
         <ConfirmModal
-          message={`Ce fichier remplacera "${conflict.file.name}" utilisé dans ${conflict.references.scenes} scène(s) et ${conflict.references.nodes} nœud(s). Continuer ?`}
-          onConfirm={() => {
+          message={`Ce fichier remplacera "${conflict.file.name}" utilisé dans ${conflict.references.scenes} scène(s), ${conflict.references.nodes} nœud(s) et ${conflict.references.characters} personnage(s). Continuer ?`}
+          confirmLabel="Remplacer"
+          onConfirm={async () => {
             const pending = conflict;
             setConflicts((prev) => prev.slice(1));
-            uploadFile(pending.file, true).then(() => {
-              mutate(["assets", folder]);
-              mutate("asset-folders");
-            });
+            const replaced = await uploadFile(pending.file, true);
+            if (replaced) bustAssetCache();
+            await mutate(["assets", folder]);
+            await mutate("asset-folders");
           }}
           onCancel={() => setConflicts((prev) => prev.slice(1))}
         />

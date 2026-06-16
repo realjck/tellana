@@ -14,8 +14,27 @@ jest.mock("swr", () => ({
 
 jest.mock("@/components/media-library/UploadDropZone", () => ({
   __esModule: true,
-  default: ({ folder }: { folder: string }) => (
+  default: ({ folder }: { folder: string; onReplaceSuccess?: (id: number) => void }) => (
     <div data-testid="upload-drop-zone">{folder}</div>
+  ),
+}));
+
+jest.mock("@/components/media-library/ContextMenu", () => ({
+  __esModule: true,
+  default: ({
+    items,
+    onClose,
+  }: {
+    items: Array<{ label: string; onClick: () => void }>;
+    onClose: () => void;
+  }) => (
+    <div data-testid="context-menu">
+      {items.map((item) => (
+        <button key={item.label} onClick={() => { item.onClick(); onClose(); }}>
+          {item.label}
+        </button>
+      ))}
+    </div>
   ),
 }));
 
@@ -28,6 +47,7 @@ jest.mock("@/lib/api", () => ({
       delete: jest.fn(),
       getFolders: jest.fn(),
       deleteFolder: jest.fn(),
+      renameFolder: jest.fn(),
     },
   },
   resolveAsset: (url: string) => `http://localhost:8000${url}`,
@@ -40,6 +60,7 @@ const mockUseSWR = useSWR as jest.Mock;
 const mockRename = api.assets.rename as jest.Mock;
 const mockDelete = api.assets.delete as jest.Mock;
 const mockDeleteFolder = api.assets.deleteFolder as jest.Mock;
+const mockRenameFolder = api.assets.renameFolder as jest.Mock;
 
 const makeAsset = (overrides: Partial<Asset> = {}): Asset => ({
   id: 1,
@@ -81,6 +102,7 @@ beforeEach(() => {
   });
   mockDelete.mockResolvedValue(undefined);
   mockDeleteFolder.mockResolvedValue(undefined);
+  mockRenameFolder.mockResolvedValue(undefined);
 });
 
 describe("AssetGrid", () => {
@@ -165,46 +187,34 @@ describe("AssetGrid", () => {
     expect(onNavigate).toHaveBeenCalledWith("characters/alice/poses");
   });
 
-  it("clic × sur dossier affiche ConfirmModal", () => {
-    mockSWR([], ["characters/alice", "characters/alice/poses"]);
-    render(
-      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
-    );
-    const btn = screen.getByLabelText("Supprimer le dossier");
-    fireEvent.click(btn);
-    expect(screen.getByText(/Supprimer le dossier "poses"/)).toBeInTheDocument();
+  // ── Story 4.2 — Menu contextuel fichiers ─────────────────────────────────
+
+  it("clic droit sur un fichier affiche le menu contextuel", () => {
+    mockSWR([makeAsset({ filename: "portrait.png" })]);
+    render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    expect(screen.getByTestId("context-menu")).toBeInTheDocument();
+    expect(screen.getByText("Renommer")).toBeInTheDocument();
+    expect(screen.getByText("Supprimer")).toBeInTheDocument();
   });
 
-  it("confirmer suppression dossier appelle deleteFolder et mutate", async () => {
-    mockSWR([], ["characters/alice", "characters/alice/poses"]);
-    render(
-      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
-    );
-    fireEvent.click(screen.getByLabelText("Supprimer le dossier"));
-    const buttons = screen.getAllByText("Supprimer");
-    await act(async () => { fireEvent.click(buttons[buttons.length - 1]); });
-    expect(mockDeleteFolder).toHaveBeenCalledWith("characters/alice/poses");
-    await waitFor(() => expect(mockMutate).toHaveBeenCalledWith("asset-folders"));
-  });
-
-  // ── Story 2.4 — Rename inline ────────────────────────────────────────────
-
-  it("double-clic sur nom en mode navigation affiche un input pré-rempli", () => {
+  it("clic droit puis Renommer sur un fichier active l'input inline", () => {
     const asset = makeAsset({ filename: "portrait.png" });
     mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
-    const nameEl = screen.getByTitle("portrait.png");
-    fireEvent.dblClick(nameEl);
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    fireEvent.click(screen.getByText("Renommer"));
     const input = screen.getByRole("textbox") as HTMLInputElement;
     expect(input).toBeInTheDocument();
     expect(input.value).toBe("portrait.png");
   });
 
-  it("blur sur input appelle api.assets.rename et mutate pair", async () => {
+  it("blur sur input fichier appelle api.assets.rename et mutate pair", async () => {
     const asset = makeAsset({ filename: "portrait.png" });
     mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
-    fireEvent.dblClick(screen.getByTitle("portrait.png"));
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    fireEvent.click(screen.getByText("Renommer"));
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "nouveau.png" } });
     await act(async () => { fireEvent.blur(input); });
@@ -217,40 +227,34 @@ describe("AssetGrid", () => {
     );
   });
 
-  it("Entrée sur input appelle api.assets.rename et mutate pair", async () => {
+  it("Entrée sur input fichier appelle api.assets.rename", async () => {
     const asset = makeAsset({ filename: "portrait.png" });
     mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
-    fireEvent.dblClick(screen.getByTitle("portrait.png"));
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    fireEvent.click(screen.getByText("Renommer"));
     const input = screen.getByRole("textbox");
     fireEvent.change(input, { target: { value: "new.png" } });
     await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });
     expect(mockRename).toHaveBeenCalledWith(asset.id, "new.png");
-    await waitFor(() =>
-      expect(mockMutate).toHaveBeenCalledWith(["assets", "characters/alice"])
-    );
-    await waitFor(() =>
-      expect(mockMutate).toHaveBeenCalledWith("asset-folders")
-    );
   });
 
-  // ── Story 2.4 — Delete ───────────────────────────────────────────────────
-
-  it("clic × en mode navigation affiche ConfirmModal", () => {
+  it("clic droit puis Supprimer sur un fichier ouvre ConfirmModal", () => {
     const asset = makeAsset({ filename: "portrait.png" });
     mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
-    const btn = screen.getByLabelText("Supprimer");
-    fireEvent.click(btn);
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    fireEvent.click(screen.getByText("Supprimer"));
     expect(screen.getByText(/Supprimer "portrait\.png"/)).toBeInTheDocument();
   });
 
-  it('clic "Supprimer" dans ConfirmModal appelle api.assets.delete et mutate pair', async () => {
+  it('confirmer suppression fichier appelle api.assets.delete et mutate pair', async () => {
     const asset = makeAsset({ filename: "portrait.png" });
     mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText("Supprimer"));
-    // "Supprimer" apparaît deux fois : bouton × (aria-label) + bouton ConfirmModal
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    fireEvent.click(screen.getByText("Supprimer"));
+    // "Supprimer" apparaît dans ConfirmModal comme bouton de confirmation
     const buttons = screen.getAllByText("Supprimer");
     await act(async () => { fireEvent.click(buttons[buttons.length - 1]); });
     expect(mockDelete).toHaveBeenCalledWith(asset.id);
@@ -260,13 +264,133 @@ describe("AssetGrid", () => {
     expect(mockMutate).toHaveBeenCalledWith("asset-folders");
   });
 
-  it('clic "Annuler" dans ConfirmModal ne supprime pas', async () => {
+  it('clic "Annuler" dans ConfirmModal fichier ne supprime pas', async () => {
     const asset = makeAsset({ filename: "portrait.png" });
     mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
-    fireEvent.click(screen.getByLabelText("Supprimer"));
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    fireEvent.click(screen.getByText("Supprimer"));
     await act(async () => { fireEvent.click(screen.getByText("Annuler")); });
     expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it("erreur 409 sur rename fichier affiche AlertModal", async () => {
+    mockRename.mockRejectedValueOnce(new Error("Un asset porte déjà ce nom dans ce dossier"));
+    const asset = makeAsset({ filename: "portrait.png" });
+    mockSWR([asset]);
+    render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
+    fireEvent.contextMenu(screen.getByTestId("asset-card"));
+    fireEvent.click(screen.getByText("Renommer"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "existant.png" } });
+    await act(async () => { fireEvent.blur(input); });
+    await waitFor(() =>
+      expect(screen.getByText("Un fichier avec ce nom existe déjà dans ce dossier.")).toBeInTheDocument()
+    );
+  });
+
+  it("pas de bouton × sur les fichiers", () => {
+    mockSWR([makeAsset()]);
+    render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
+    expect(screen.queryByLabelText("Supprimer")).not.toBeInTheDocument();
+  });
+
+  // ── Story 4.2 — Menu contextuel dossiers ─────────────────────────────────
+
+  it("clic droit sur un dossier affiche le menu contextuel", () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    const folderCard = screen.getByTitle("poses").closest("div")!.parentElement!;
+    fireEvent.contextMenu(folderCard);
+    expect(screen.getByTestId("context-menu")).toBeInTheDocument();
+    expect(screen.getByText("Renommer")).toBeInTheDocument();
+    expect(screen.getByText("Supprimer")).toBeInTheDocument();
+  });
+
+  it("clic droit puis Renommer sur dossier active l'input inline avec le nom courant", () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    const folderCard = screen.getByTitle("poses").closest("div")!.parentElement!;
+    fireEvent.contextMenu(folderCard);
+    fireEvent.click(screen.getByText("Renommer"));
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input).toBeInTheDocument();
+    expect(input.value).toBe("poses");
+  });
+
+  it("valider renommage dossier (Enter) appelle renameFolder et mutate", async () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    const folderCard = screen.getByTitle("poses").closest("div")!.parentElement!;
+    fireEvent.contextMenu(folderCard);
+    fireEvent.click(screen.getByText("Renommer"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "poses-v2" } });
+    await act(async () => { fireEvent.keyDown(input, { key: "Enter" }); });
+    expect(mockRenameFolder).toHaveBeenCalledWith(
+      "characters/alice/poses",
+      "characters/alice/poses-v2"
+    );
+    await waitFor(() => expect(mockMutate).toHaveBeenCalledWith("asset-folders"));
+    await waitFor(() =>
+      expect(mockMutate).toHaveBeenCalledWith(["assets", "characters/alice"])
+    );
+  });
+
+  it("erreur 409 sur renameFolder affiche AlertModal", async () => {
+    mockRenameFolder.mockRejectedValueOnce(new Error("Le dossier cible existe déjà"));
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    const folderCard = screen.getByTitle("poses").closest("div")!.parentElement!;
+    fireEvent.contextMenu(folderCard);
+    fireEvent.click(screen.getByText("Renommer"));
+    const input = screen.getByRole("textbox");
+    fireEvent.change(input, { target: { value: "existant" } });
+    await act(async () => { fireEvent.blur(input); });
+    await waitFor(() =>
+      expect(screen.getByText("Un dossier avec ce nom existe déjà.")).toBeInTheDocument()
+    );
+  });
+
+  it("clic droit puis Supprimer sur dossier ouvre ConfirmModal", () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    const folderCard = screen.getByTitle("poses").closest("div")!.parentElement!;
+    fireEvent.contextMenu(folderCard);
+    fireEvent.click(screen.getByText("Supprimer"));
+    expect(screen.getByText(/Supprimer le dossier "poses"/)).toBeInTheDocument();
+  });
+
+  it("confirmer suppression dossier appelle deleteFolder et mutate", async () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    const folderCard = screen.getByTitle("poses").closest("div")!.parentElement!;
+    fireEvent.contextMenu(folderCard);
+    fireEvent.click(screen.getByText("Supprimer"));
+    const buttons = screen.getAllByText("Supprimer");
+    await act(async () => { fireEvent.click(buttons[buttons.length - 1]); });
+    expect(mockDeleteFolder).toHaveBeenCalledWith("characters/alice/poses");
+    await waitFor(() => expect(mockMutate).toHaveBeenCalledWith("asset-folders"));
+  });
+
+  it("pas de bouton × sur les dossiers", () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    expect(screen.queryByLabelText("Supprimer le dossier")).not.toBeInTheDocument();
   });
 
   // ── Story 4.1 — Bouton "Choisir ce dossier personnage" ───────────────────

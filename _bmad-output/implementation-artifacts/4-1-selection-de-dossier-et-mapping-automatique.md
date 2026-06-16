@@ -5,7 +5,7 @@ baseline_commit: 31f51b296f6663b2e06610ac38169204f809b97b
 # Story 4.1 — Sélection de dossier et mapping automatique des poses
 
 ## Statut
-review
+done
 
 ## Contexte
 
@@ -124,3 +124,8 @@ Implémentation complète en 4 tâches :
 - Le stem d'un filename : `"happy.png".replace(/\.[^.]+$/, "")` → `"happy"`
 - `AssetRef` à construire depuis un `Asset` : `{ type: "upload", url: asset.url, opfs_key: null, job_id: null, mime_type: asset.content_type, width: null, height: null }`
 - Le bouton "Sélectionner ce dossier" existant dans `FolderTree` reste inchangé (il sert à d'autres usages `folder-selector`)
+
+## Review Findings
+
+- [x] [Review][Decision] Édition perso : deux listes de poses concurrentes → un ré-import écrase silencieusement les poses gérées en dessous [frontend/components/CharacterManager.tsx:108,130] — RÉSOLU : conservé tel quel (décision jck, 2026-06-16, comportement « replace entirely » assumé). En mode edit, `CharacterBasicForm` affiche une liste ambre de poses « en attente » après ré-import de dossier (`pendingPoseRows`), tandis que `CharacterPosesManager` inline reste affiché avec les poses ACTUELLES. `handleSave` remplace alors la totalité des sprites par `pendingSprites` (comportement « replace entirely » documenté, intentionnel), ce qui efface toute pose ajoutée/renommée via le `CharacterPosesManager` qui ne figure pas dans le dossier réimporté. L'utilisateur voit deux listes contradictoires et peut perdre des données sans avertissement. Décision requise : masquer/désactiver `CharacterPosesManager` tant qu'un import est en attente, afficher un avertissement « le ré-import remplacera toutes les poses », ou conserver tel quel.
+- [x] [Review][Defer] `mapSpritesFromAssets` : collision de clés sur des stems identiques [frontend/components/media-library/AssetGrid.tsx:318] — deferred, faible probabilité — la clé de pose est le stem du filename (`default.png` → `default`). Deux fichiers de même stem mais d'extensions différentes (`happy.png` + `happy.webp`, ou `default.png` + `default.jpg`) écrasent silencieusement l'un l'autre dans le `Record`. Probabilité faible ; le correctif n'est pas univoque (suffixer ? avertir ?).

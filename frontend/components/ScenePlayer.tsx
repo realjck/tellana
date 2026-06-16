@@ -5,6 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AssetRef, Character, CharacterPosition, QuizNodeData, StoryNode } from "@/types";
 import { resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import { DEFAULT_POSITIONS, FALLBACK_POSITION } from "@/lib/scenePositions";
 
 const BASE_W = 1920;
@@ -49,6 +50,7 @@ export default function ScenePlayer({
   isFullscreen: externalFullscreen,
   onToggleFullscreen: externalToggle,
 }: Props) {
+  const bust = useAssetBust(); // reload previews when an asset is replaced in place
   const [index, setIndex] = useState(startIndex);
   const [quizState, setQuizState] = useState<QuizState | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
@@ -184,7 +186,7 @@ export default function ScenePlayer({
             style={
               backgroundAsset
                 ? {
-                    backgroundImage: `url("${resolveAsset(backgroundAsset)}")`,
+                    backgroundImage: `url("${resolveAsset(backgroundAsset, bust)}")`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }
@@ -225,7 +227,7 @@ export default function ScenePlayer({
               return (
                 <img
                   key={c.id}
-                  src={resolveAsset(resolvedSprite)}
+                  src={resolveAsset(resolvedSprite, bust)}
                   alt={c.name}
                   className={`absolute object-contain ${isPreviewMode ? "" : "transition-all duration-200"}`}
                   style={{

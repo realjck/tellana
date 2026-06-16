@@ -115,7 +115,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+class NoCacheStaticFiles(StaticFiles):
+    """Force browser revalidation so replaced files (same url) are never served stale."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/uploads", NoCacheStaticFiles(directory="uploads"), name="uploads")
 app.mount("/published", StaticFiles(directory="published", html=True), name="published")
 
 app.include_router(stories.router, prefix="/api")
