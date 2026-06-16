@@ -13,7 +13,7 @@ interface Props {
   onCancel: () => void;
   onDelete?: () => void;
   onPreviewAsset?: (ref: AssetRef) => void;
-  onManagePoses?: () => void;
+  onSpritesChange?: (sprites: Record<string, AssetRef> | null) => void;
 }
 
 export default function CharacterBasicForm({
@@ -24,7 +24,7 @@ export default function CharacterBasicForm({
   onCancel,
   onDelete,
   onPreviewAsset,
-  onManagePoses,
+  onSpritesChange,
 }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [color, setColor] = useState(initial?.color ?? randomCharacterColor());
@@ -44,6 +44,7 @@ export default function CharacterBasicForm({
       setActiveAsset(defaultSprite);
       onPreviewAsset?.(defaultSprite);
     }
+    onSpritesChange?.(sprites);
     setIsMediaLibraryOpen(false);
   };
 
@@ -88,23 +89,9 @@ export default function CharacterBasicForm({
         {initial ? "Modifier le personnage" : "Nouveau personnage"}
       </div>
 
-      {/* Sprite par défaut */}
+      {/* Media library import */}
       <div>
-        <div className="text-xs text-muted mb-2">Sprite par défaut</div>
-        {activeAsset && (
-          <div className="mb-2 flex justify-center bg-raised rounded-md p-2">
-            <img
-              src={resolveAsset(activeAsset)}
-              alt="Sprite actif"
-              className="h-24 object-contain"
-            />
-          </div>
-        )}
-        {pendingSprites && Object.keys(pendingSprites).length > 1 && (
-          <p className="text-[11px] text-green-400 mb-2 text-center">
-            {Object.keys(pendingSprites).length} poses importées
-          </p>
-        )}
+        <div className="text-xs text-muted mb-2">Sprites</div>
         <button
           onClick={() => setIsMediaLibraryOpen(true)}
           className="w-full py-2 rounded-md border border-white/10 hover:border-white/25 text-muted hover:text-fore text-sm transition-colors flex items-center justify-center gap-2"
@@ -120,18 +107,32 @@ export default function CharacterBasicForm({
         )}
       </div>
 
-      {/* Manage poses shortcut (only when editing) */}
-      {onManagePoses && (
-        <button
-          onClick={onManagePoses}
-          className="w-full py-2 rounded border border-amber-600/60 hover:border-amber-500 bg-amber-900/20 hover:bg-amber-900/40 text-amber-400 hover:text-amber-300 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Gérer les poses ({Object.keys(initial?.sprites ?? {}).length})
-        </button>
+      {/* Inline pose list — shown for new characters after folder import */}
+      {!initial && pendingSprites && Object.keys(pendingSprites).length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-semibold text-subtle uppercase tracking-wide">
+            Poses ({Object.keys(pendingSprites).length})
+          </div>
+          {Object.entries(pendingSprites).map(([key, ref]) => (
+            <div
+              key={key}
+              className="bg-amber-900/10 border border-amber-700/40 rounded-md p-2.5 flex items-center gap-2.5"
+            >
+              <img
+                src={resolveAsset(ref)}
+                alt={key}
+                className="h-12 w-8 object-contain rounded bg-raised flex-shrink-0"
+              />
+              {key === "default" ? (
+                <span className="text-xs font-semibold text-amber-400 px-2 py-0.5 bg-amber-900/30 border border-amber-700/40 rounded-full">
+                  default
+                </span>
+              ) : (
+                <span className="text-xs text-fore">{key}</span>
+              )}
+            </div>
+          ))}
+        </div>
       )}
 
       {/* Name + color picker */}

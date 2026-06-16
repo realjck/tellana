@@ -15,7 +15,7 @@ interface Props {
   onEditingCharacter?: (editing: boolean) => void;
 }
 
-type Mode = "list" | "add" | "edit" | "poses";
+type Mode = "list" | "add" | "edit";
 
 export default function CharacterManager({ storyId, characters, onRefresh, onEditingCharacter }: Props) {
   const [mode, setMode] = useState<Mode>("list");
@@ -23,12 +23,14 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [previewDefaultSprite, setPreviewDefaultSprite] = useState<AssetRef | null>(null);
   const [previewPoseKey, setPreviewPoseKey] = useState<string | null>(null);
+  const [addPendingSprites, setAddPendingSprites] = useState<Record<string, AssetRef> | null>(null);
 
   const goList = () => {
     setSelected(null);
     setMode("list");
     setPreviewDefaultSprite(null);
     setPreviewPoseKey(null);
+    setAddPendingSprites(null);
     onEditingCharacter?.(false);
   };
 
@@ -37,6 +39,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setMode("edit");
     setPreviewDefaultSprite(null);
     setPreviewPoseKey(null);
+    setAddPendingSprites(null);
     onEditingCharacter?.(true);
   };
 
@@ -45,20 +48,8 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setMode("add");
     setPreviewDefaultSprite(null);
     setPreviewPoseKey(null);
+    setAddPendingSprites(null);
     onEditingCharacter?.(true);
-  };
-
-  const goPoses = (c: Character) => {
-    setSelected(c);
-    setMode("poses");
-    setPreviewDefaultSprite(null);
-    setPreviewPoseKey(null);
-    onEditingCharacter?.(true);
-  };
-
-  const refreshAndGoList = () => {
-    onRefresh();
-    goList();
   };
 
   const drawerSprites = selected
@@ -68,17 +59,25 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
       }
     : {};
 
-  const showDrawer = (mode === "edit" || mode === "poses") && selected !== null;
-
   // ── Add mode ────────────────────────────────────────────────────────────────
   if (mode === "add") {
+    const showAddDrawer = addPendingSprites !== null && Object.keys(addPendingSprites).length > 0;
     return (
-      <CharacterBasicForm
-        storyId={storyId}
-        characters={characters}
-        onSaved={(c) => { onRefresh(); goPoses(c); }}
-        onCancel={goList}
-      />
+      <>
+        <CharacterBasicForm
+          storyId={storyId}
+          characters={characters}
+          onSaved={(c) => { onRefresh(); goEdit(c); }}
+          onCancel={goList}
+          onSpritesChange={setAddPendingSprites}
+        />
+        {showAddDrawer && (
+          <CharacterPosesDrawer
+            characterName="Nouveau personnage"
+            sprites={addPendingSprites}
+          />
+        )}
+      </>
     );
   }
 
@@ -86,20 +85,23 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   if (mode === "edit" && selected) {
     return (
       <>
-        {showDrawer && (
-          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer" onClick={goList} />
-        )}
+        <div
+          className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer"
+          onClick={goList}
+        />
         {confirmDelete && (
           <ConfirmModal
             message={`Supprimer "${selected.name}" ? Cette action est irréversible.`}
             onConfirm={async () => {
               await api.characters.delete(storyId, selected.id);
               setConfirmDelete(false);
-              refreshAndGoList();
+              goList();
+              onRefresh();
             }}
             onCancel={() => setConfirmDelete(false)}
           />
         )}
+
         <div className="flex flex-col gap-4">
           <CharacterBasicForm
             storyId={storyId}
@@ -113,38 +115,29 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
             onCancel={goList}
             onDelete={() => setConfirmDelete(true)}
             onPreviewAsset={setPreviewDefaultSprite}
-            onManagePoses={() => goPoses(selected)}
           />
+
+          <div className="border-t border-white/10 pt-2">
+            <div className="text-xs font-semibold text-subtle uppercase tracking-wide mb-3">
+              Poses
+            </div>
+            <CharacterPosesManager
+              storyId={storyId}
+              character={selected}
+              onSaved={(c) => {
+                setSelected(c);
+                onRefresh();
+              }}
+              onBack={goList}
+              onPoseSelect={setPreviewPoseKey}
+              showHeader={false}
+            />
+          </div>
         </div>
 
         <CharacterPosesDrawer
           characterName={selected.name}
           sprites={drawerSprites}
-        />
-      </>
-    );
-  }
-
-  // ── Poses mode ──────────────────────────────────────────────────────────────
-  if (mode === "poses" && selected) {
-    return (
-      <>
-        {showDrawer && (
-          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer" onClick={goList} />
-        )}
-        <CharacterPosesManager
-          storyId={storyId}
-          character={selected}
-          onSaved={(c) => {
-            setSelected(c);
-            onRefresh();
-          }}
-          onBack={() => goEdit(selected)}
-          onPoseSelect={setPreviewPoseKey}
-        />
-        <CharacterPosesDrawer
-          characterName={selected.name}
-          sprites={selected.sprites}
           highlightKey={previewPoseKey ?? undefined}
         />
       </>

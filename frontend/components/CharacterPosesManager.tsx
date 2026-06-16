@@ -11,6 +11,7 @@ interface Props {
   onSaved: (c: Character) => void;
   onBack: () => void;
   onPoseSelect?: (key: string) => void;
+  showHeader?: boolean;
 }
 
 interface PoseRow {
@@ -30,6 +31,7 @@ export default function CharacterPosesManager({
   onSaved,
   onBack,
   onPoseSelect,
+  showHeader = true,
 }: Props) {
   const [rows, setRows] = useState<PoseRow[]>(() => buildRows(character.sprites));
   const [saving, setSaving] = useState<string | null>(null);
@@ -137,22 +139,25 @@ export default function CharacterPosesManager({
         </div>
       )}
       {/* Header */}
-      <button
-        onClick={onBack}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-white/20 bg-elevated hover:bg-raised text-muted hover:text-fore text-sm transition-colors self-start"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Retour
-      </button>
-
-      <div className="text-xs font-semibold text-subtle uppercase tracking-wide">
-        Poses de {character.name}
-        {poseCount > 0 && (
-          <span className="ml-1 text-subtle/60">({poseCount} pose{poseCount > 1 ? "s" : ""})</span>
-        )}
-      </div>
+      {showHeader && (
+        <>
+          <button
+            onClick={onBack}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-white/10 hover:border-white/20 bg-elevated hover:bg-raised text-muted hover:text-fore text-sm transition-colors self-start"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Retour
+          </button>
+          <div className="text-xs font-semibold text-subtle uppercase tracking-wide">
+            Poses de {character.name}
+            {poseCount > 0 && (
+              <span className="ml-1 text-subtle/60">({poseCount} pose{poseCount > 1 ? "s" : ""})</span>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Pose rows */}
       <div className="flex flex-col gap-2">
