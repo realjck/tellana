@@ -52,6 +52,7 @@ cd frontend && npm run build:player   # compile le player bundle standalone (pla
 - Composants `"use client"` — tous les composants interactifs.
 - Fetch de données via **SWR** avec `mutate()` pour les rechargements. `await mutate()` retourne la donnée fraîche — utiliser son retour plutôt que les closures périmées.
 - Résolution d'URL d'assets : toujours utiliser `resolveAsset(ref: string | AssetRef)` importé depuis `@/lib/api` (gère `/uploads/` → URL complète backend, rétrocompatible `string`). Ne jamais utiliser `ref.url` directement pour afficher une image.
+- **Cache-busting des assets remplacés** : tout composant qui affiche un asset remplaçable doit appeler `useAssetBust()` (depuis `@/lib/assetBust`) et passer son retour à `resolveAsset(ref, bust)`. Le `bust` DOIT être un **argument explicite** — sinon React Compiler mémoïse l'ancienne URL et l'image reste périmée après un remplacement de fichier (même nom = même URL). `bustAssetCache()` (appelé après un remplacement réussi dans `UploadDropZone`) incrémente une version globale → re-render des abonnés → `?v=N` ajouté aux URLs `/uploads/`.
 - **Types de nœuds** : ne pas fermer le `Literal` à `"dialogue"|"text"|"quiz"` — les types `"image"`, `"video"`, `"image_text"` sont prévus (spec Media Creator).
 - **Sprites personnages** : `sprites: Record<string, AssetRef>` sur `Character` — `Object.values(c.sprites)[0]` pour le sprite par défaut.
 - **Couleur personnage** : `color?: string | null` sur `Character`. `RAINBOW_COLORS` + `randomCharacterColor()` exportés depuis `@/lib/api` pour la valeur par défaut aléatoire.
@@ -228,7 +229,11 @@ Composant interne de `GraphPlayer` — même mécanique 1920×1080 que `ScenePla
 - `{ mode: "selector", filter?: "images", allowedFolders?, onSelect? }` — sélectionner un fichier → `onSelect(asset)`.
 - `{ mode: "folder-selector", allowedFolders?, initialFolder?, onSelectFolderWithSprites? }` — sélectionner un dossier entier → `onSelectFolderWithSprites(folder, sprites)`. Bouton "Choisir ce dossier personnage" en bas de grille si des images sont présentes.
 
-`UploadDropZone` : upload par clic ou drag-and-drop, disponible dans **tous les modes** (y compris `folder-selector`). Gestion des conflits de nom via `ConfirmModal`.
+`UploadDropZone` : upload par clic ou drag-and-drop, disponible dans **tous les modes** (y compris `folder-selector`). Gestion des conflits de nom via `ConfirmModal` (bouton "Remplacer", message incluant les références scènes/nœuds/personnages).
+
+`AssetGrid` — actions fichier/dossier via **menu contextuel clic droit** (`ContextMenu.tsx`) : Renommer (input inline) / Supprimer. Remplace les anciens boutons × et le double-clic. Renommage inline de dossier avec gestion 409 via `AlertModal`.
+
+**Intégrité référentielle (backend `routers/assets.py`)** : `rename_folder` réécrit et `delete_folder` purge les références dans `Character.sprites` / `Scene.background_asset` (helpers `_rewrite_asset_references` / `_purge_asset_references`, même esprit que `delete_asset`). `/uploads` est servi avec `Cache-Control: no-cache` (`NoCacheStaticFiles` dans `main.py`) pour éviter le cache navigateur sur les fichiers remplacés.
 
 `mapSpritesFromAssets` (dans `AssetGrid`) : construit `Record<string, AssetRef>` depuis les images d'un dossier. La clé `"default"` est toujours insérée en premier (fichier `default.*` en priorité, sinon premier fichier). Clé = stem du filename (sans extension).
 

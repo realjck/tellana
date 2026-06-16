@@ -47,6 +47,7 @@ _Règles et patterns critiques pour l'implémentation de code dans le projet Tel
 - Double cast obligatoire : `as unknown as TargetType` (entre `Record<string,unknown>` et types union NodeData)
 - `"use client"` requis sur tous les composants interactifs — aucun composant dans `components/` n'est server-only
 - `resolveAsset(ref)` depuis `@/lib/api` pour toute URL d'asset — **jamais `ref.url` directement**
+- Cache-busting : composant affichant un asset remplaçable → `useAssetBust()` (depuis `@/lib/assetBust`) + passer le retour en **argument explicite** `resolveAsset(ref, bust)`. Sinon React Compiler mémoïse l'ancienne URL → image périmée après remplacement de fichier (même nom = même URL)
 - Pas de `<button>` imbriqués — utiliser `<div role="button" tabIndex={0} onKeyDown={...}>`
 
 #### Python (Backend)
@@ -55,6 +56,8 @@ _Règles et patterns critiques pour l'implémentation de code dans le projet Tel
 - **`_touch_story(story_id, db)`** avant chaque `db.commit()` dans scenes.py, nodes.py, characters.py — seul mécanisme de détection des modifications non publiées
 - `character_ids` sur Scene = tableau **ordonné** (ordre = index Z, dernier = avant-plan) — ne pas traiter comme un set
 - `sprites` sur Character : `dict[str, AssetRef]` — clé = nom de pose (ex : `"default"`), pas un ID
+- Opérations dossier (`routers/assets.py`) : `rename_folder`/`delete_folder` doivent maintenir l'intégrité référentielle via `_rewrite_asset_references` / `_purge_asset_references` (refs `Character.sprites` + `Scene.background_asset`), même esprit que `delete_asset`
+- `/uploads` servi avec `Cache-Control: no-cache` (`NoCacheStaticFiles`, `main.py`) — fichiers remplacés jamais en cache
 - Migrations : `try/except ALTER TABLE ADD COLUMN` dans `main.py` uniquement — ne pas introduire Alembic
 - Slug : `unicodedata.normalize("NFKD")` + `.encode("ascii", "ignore")` avant regex
 
@@ -151,7 +154,7 @@ _Règles et patterns critiques pour l'implémentation de code dans le projet Tel
 ### Critical Don't-Miss Rules
 
 **Frontend :**
-- `resolveAsset(ref)` obligatoire — jamais `.url` directement
+- `resolveAsset(ref)` obligatoire — jamais `.url` directement ; passer `useAssetBust()` en arg (`resolveAsset(ref, bust)`) dans tout composant affichant un asset remplaçable
 - NodeData Literal ouvert — `"image"`, `"video"`, `"image_text"` réservés (spec Media Creator), en commentaire seulement
 - Player CSS isolé — jamais de Tailwind inline sur les éléments `.player-*`
 - Pas de `useMemo`/`useCallback` manuels — React Compiler gère
@@ -186,4 +189,4 @@ _Règles et patterns critiques pour l'implémentation de code dans le projet Tel
 - Mettre à jour lors de changements de stack ou de conventions
 - Supprimer les règles devenues évidentes au fil du temps
 
-_Dernière mise à jour : 2026-06-14 (TEL-24 — canvas, GraphPlayer, React Flow)_
+_Dernière mise à jour : 2026-06-17 (TEL-29 — médiathèque, cache-busting assets, intégrité réf. dossiers)_
