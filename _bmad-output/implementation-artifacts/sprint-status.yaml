@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-06-14"
-last_updated: "2026-06-15"  # Updated: Epic 3 code review — stories 3.1/3.2/3.3 → done
+last_updated: "2026-06-16"  # Updated: story 4.2 remplacée par menu contextuel clic droit
 project: tellana
 project_key: NOKEY
 tracking_system: file-system
@@ -70,5 +70,5 @@ development_status:
   # ─── Epic 4 : Import de personnage par dossier ────────────────────────────
   epic-4: in-progress
   4-1-selection-de-dossier-et-mapping-automatique: review
-  4-2-confirmation-enregistrement-et-compatibilite: backlog
+  4-2-menu-contextuel-clic-droit-mediatheque: ready-for-dev
   epic-4-retrospective: optional
