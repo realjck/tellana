@@ -135,6 +135,11 @@ export default function CharacterBasicForm({
         {!initial && !activeAsset && (
           <p className="text-[11px] text-subtle mt-1 text-center">Requis pour créer le personnage</p>
         )}
+        {initial && pendingPoseRows && pendingPoseRows.length > 0 && (
+          <p className="text-[11px] text-amber-400/80 mt-1 text-center">
+            {pendingPoseRows.length} pose{pendingPoseRows.length > 1 ? "s" : ""} chargée{pendingPoseRows.length > 1 ? "s" : ""} — enregistrer pour valider les changements
+          </p>
+        )}
       </div>
 
       {/* Editable pose list — new character only, after folder import */}

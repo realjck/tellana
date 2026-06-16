@@ -24,6 +24,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   const [previewDefaultSprite, setPreviewDefaultSprite] = useState<AssetRef | null>(null);
   const [previewPoseKey, setPreviewPoseKey] = useState<string | null>(null);
   const [addPendingSprites, setAddPendingSprites] = useState<Record<string, AssetRef> | null>(null);
+  const [editPendingSprites, setEditPendingSprites] = useState<Record<string, AssetRef> | null>(null);
   const [posesManagerKey, setPosesManagerKey] = useState(0);
 
   const goList = () => {
@@ -41,6 +42,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setPreviewDefaultSprite(null);
     setPreviewPoseKey(null);
     setAddPendingSprites(null);
+    setEditPendingSprites(null);
     onEditingCharacter?.(true);
   };
 
@@ -54,7 +56,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   };
 
   const drawerSprites = selected
-    ? {
+    ? editPendingSprites ?? {
         ...selected.sprites,
         ...(previewDefaultSprite ? { default: previewDefaultSprite } : {}),
       }
@@ -111,12 +113,14 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
             onSaved={(c) => {
               setSelected(c);
               setPreviewDefaultSprite(null);
+              setEditPendingSprites(null);
               setPosesManagerKey(k => k + 1);
               onRefresh();
             }}
             onCancel={goList}
             onDelete={() => setConfirmDelete(true)}
             onPreviewAsset={setPreviewDefaultSprite}
+            onSpritesChange={setEditPendingSprites}
           />
 
           <div className="border-t border-white/10 pt-2">
