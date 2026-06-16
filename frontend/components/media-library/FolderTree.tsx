@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { api, API_BASE } from "@/lib/api";
 import type { MediaLibraryConfig } from "@/types";
@@ -75,6 +76,9 @@ export default function FolderTree({ config, selectedFolder, onSelectFolder }: P
     "asset-folders",
     api.assets.getFolders
   );
+  const [showModal, setShowModal] = useState(false);
+  const [newName, setNewName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const filtered = config.allowedFolders
     ? folders.filter((f) =>
@@ -86,9 +90,13 @@ export default function FolderTree({ config, selectedFolder, onSelectFolder }: P
 
   const tree = buildTree(filtered);
 
-  const handleNewFolder = async () => {
-    const name = prompt("Nom du nouveau dossier :")?.trim();
+  const openModal = () => { setNewName(""); setShowModal(true); };
+  const closeModal = () => setShowModal(false);
+
+  const handleCreate = async () => {
+    const name = newName.trim();
     if (!name) return;
+    closeModal();
     const folder = selectedFolder ? `${selectedFolder}/${name}` : name;
     const formData = new FormData();
     formData.append("file", new Blob([], { type: "application/x-empty" }), ".keep");
@@ -97,6 +105,10 @@ export default function FolderTree({ config, selectedFolder, onSelectFolder }: P
     if (!res.ok) return;
     await mutate();
   };
+
+  useEffect(() => {
+    if (showModal) inputRef.current?.focus();
+  }, [showModal]);
 
   return (
     <div className="flex flex-col h-full py-2">
@@ -113,12 +125,49 @@ export default function FolderTree({ config, selectedFolder, onSelectFolder }: P
       </div>
       <div className="px-2 py-2 flex-shrink-0 border-t border-white/10">
         <button
-          onClick={handleNewFolder}
+          onClick={openModal}
           className="w-full text-left text-xs text-muted hover:text-fore px-2 py-1 rounded hover:bg-elevated transition-colors"
         >
           + Nouveau dossier
         </button>
       </div>
+      {showModal && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div className="bg-elevated border border-white/10 rounded-lg shadow-2xl px-6 py-5 w-full max-w-sm mx-4">
+            <p className="text-fore text-sm font-medium mb-3">Nouveau dossier</p>
+            <input
+              ref={inputRef}
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreate();
+                if (e.key === "Escape") closeModal();
+              }}
+              placeholder={selectedFolder ? `Sous-dossier de ${selectedFolder}` : "Nom du dossier"}
+              className="w-full bg-bg border border-white/10 rounded px-3 py-2 text-sm text-fore placeholder:text-subtle outline-none focus:border-primary/60 mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 rounded bg-raised hover:bg-elevated/80 text-fore/70 text-sm transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={!newName.trim()}
+                className="px-4 py-2 rounded bg-primary hover:bg-primary-hover text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
