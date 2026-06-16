@@ -5,6 +5,12 @@ import type { AssetRef, Character } from "@/types";
 import { api, randomCharacterColor, resolveAsset } from "@/lib/api";
 import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 
+interface PoseRow {
+  key: string;
+  ref: AssetRef;
+  savedKey: string;
+}
+
 interface Props {
   storyId: number;
   characters: Character[];
@@ -34,18 +40,38 @@ export default function CharacterBasicForm({
     initial?.sprites?.["default"] ?? null
   );
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
-  const [pendingSprites, setPendingSprites] = useState<Record<string, AssetRef> | null>(null);
+  const [pendingPoseRows, setPendingPoseRows] = useState<PoseRow[] | null>(null);
   const [saving, setSaving] = useState(false);
 
   const handleFolderSelect = (_folder: string, sprites: Record<string, AssetRef>) => {
-    setPendingSprites(sprites);
+    const rows: PoseRow[] = Object.entries(sprites).map(([key, ref]) => ({ key, ref, savedKey: key }));
+    setPendingPoseRows(rows);
+    onSpritesChange?.(sprites);
     const defaultSprite = sprites["default"] ?? Object.values(sprites)[0] ?? null;
     if (defaultSprite) {
       setActiveAsset(defaultSprite);
       onPreviewAsset?.(defaultSprite);
     }
-    onSpritesChange?.(sprites);
     setIsMediaLibraryOpen(false);
+  };
+
+  const handlePoseKeyChange = (idx: number, newKey: string) => {
+    setPendingPoseRows(prev => prev?.map((r, i) => i === idx ? { ...r, key: newKey } : r) ?? null);
+  };
+
+  const handlePoseKeyBlur = (idx: number) => {
+    if (!pendingPoseRows) return;
+    const row = pendingPoseRows[idx];
+    const trimmed = row.key.trim();
+    if (!trimmed || pendingPoseRows.some((r, i) => i !== idx && r.key === trimmed)) {
+      setPendingPoseRows(prev => prev?.map((r, i) => i === idx ? { ...r, key: row.savedKey } : r) ?? null);
+      return;
+    }
+    const updated = pendingPoseRows.map((r, i) =>
+      i === idx ? { ...r, key: trimmed, savedKey: trimmed } : r
+    );
+    setPendingPoseRows(updated);
+    onSpritesChange?.(Object.fromEntries(updated.map(r => [r.key, r.ref])));
   };
 
   const handleSave = async () => {
@@ -53,6 +79,9 @@ export default function CharacterBasicForm({
     setSaving(true);
     try {
       const existingSprites = initial?.sprites ?? {};
+      const pendingSprites = pendingPoseRows
+        ? Object.fromEntries(pendingPoseRows.map(r => [r.savedKey, r.ref]))
+        : null;
       const sprites = pendingSprites
         ? { ...existingSprites, ...pendingSprites }
         : activeAsset
@@ -107,28 +136,36 @@ export default function CharacterBasicForm({
         )}
       </div>
 
-      {/* Inline pose list — shown for new characters after folder import */}
-      {!initial && pendingSprites && Object.keys(pendingSprites).length > 0 && (
+      {/* Editable pose list — new character only, after folder import */}
+      {!initial && pendingPoseRows && pendingPoseRows.length > 0 && (
         <div className="flex flex-col gap-2">
           <div className="text-xs font-semibold text-subtle uppercase tracking-wide">
-            Poses ({Object.keys(pendingSprites).length})
+            Poses ({pendingPoseRows.length})
           </div>
-          {Object.entries(pendingSprites).map(([key, ref]) => (
+          {pendingPoseRows.map((row, idx) => (
             <div
-              key={key}
+              key={row.savedKey || idx}
               className="bg-amber-900/10 border border-amber-700/40 rounded-md p-2.5 flex items-center gap-2.5"
             >
               <img
-                src={resolveAsset(ref)}
-                alt={key}
+                src={resolveAsset(row.ref)}
+                alt={row.key}
                 className="h-12 w-8 object-contain rounded bg-raised flex-shrink-0"
               />
-              {key === "default" ? (
+              {row.savedKey === "default" ? (
                 <span className="text-xs font-semibold text-amber-400 px-2 py-0.5 bg-amber-900/30 border border-amber-700/40 rounded-full">
                   default
                 </span>
               ) : (
-                <span className="text-xs text-fore">{key}</span>
+                <input
+                  type="text"
+                  value={row.key}
+                  onChange={(e) => handlePoseKeyChange(idx, e.target.value)}
+                  onBlur={() => handlePoseKeyBlur(idx)}
+                  onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                  className="flex-1 bg-elevated border border-white/10 rounded px-2 py-1 text-xs text-fore focus:outline-none focus:border-white/25"
+                  placeholder="Nom de la pose"
+                />
               )}
             </div>
           ))}
@@ -167,11 +204,7 @@ export default function CharacterBasicForm({
           disabled={!name.trim() || saving || (!initial && !activeAsset)}
           className="flex-1 py-2 rounded bg-neutral-100 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed text-zinc-900 text-sm font-semibold transition-colors"
         >
-          {saving
-            ? "Enregistrement…"
-            : initial
-            ? "Enregistrer"
-            : "Créer le personnage"}
+          {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
         {onDelete && (
           <button

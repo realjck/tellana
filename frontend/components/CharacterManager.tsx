@@ -67,7 +67,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
         <CharacterBasicForm
           storyId={storyId}
           characters={characters}
-          onSaved={(c) => { onRefresh(); goEdit(c); }}
+          onSaved={() => { onRefresh(); goList(); }}
           onCancel={goList}
           onSpritesChange={setAddPendingSprites}
         />
