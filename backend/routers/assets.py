@@ -159,6 +159,29 @@ def rename_folder(payload: schemas.FolderRename, db: Session = Depends(get_db)):
     return {"updated": len(affected)}
 
 
+@router.delete("/folders", status_code=204)
+def delete_folder(path: str = Query(...), db: Session = Depends(get_db)):
+    """Delete a folder and all its assets (including subfolders) recursively."""
+    folder = _normalize_folder(path)
+    assets = (
+        db.query(models.Asset)
+        .filter(
+            (models.Asset.folder == folder) | (models.Asset.folder.like(f"{folder}/%"))
+        )
+        .all()
+    )
+    for asset in assets:
+        file_path = UPLOAD_DIR / asset.folder / asset.filename
+        db.delete(asset)
+        if file_path.exists():
+            file_path.unlink()
+    db.commit()
+    folder_path = UPLOAD_DIR / folder
+    if folder_path.exists():
+        import shutil
+        shutil.rmtree(folder_path)
+
+
 @router.patch("/{asset_id}/rename", response_model=schemas.Asset)
 def rename_file(asset_id: int, payload: schemas.FileRename, db: Session = Depends(get_db)):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()

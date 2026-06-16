@@ -111,16 +111,14 @@ export default function FolderTree({ config, selectedFolder, onSelectFolder }: P
           />
         ))}
       </div>
-      {config.mode === "navigation" && (
-        <div className="px-2 py-2 flex-shrink-0 border-t border-white/10">
-          <button
-            onClick={handleNewFolder}
-            className="w-full text-left text-xs text-muted hover:text-fore px-2 py-1 rounded hover:bg-elevated transition-colors"
-          >
-            + Nouveau dossier
-          </button>
-        </div>
-      )}
+      <div className="px-2 py-2 flex-shrink-0 border-t border-white/10">
+        <button
+          onClick={handleNewFolder}
+          className="w-full text-left text-xs text-muted hover:text-fore px-2 py-1 rounded hover:bg-elevated transition-colors"
+        >
+          + Nouveau dossier
+        </button>
+      </div>
     </div>
   );
 }

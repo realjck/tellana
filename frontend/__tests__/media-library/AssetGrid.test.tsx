@@ -26,6 +26,8 @@ jest.mock("@/lib/api", () => ({
       list: jest.fn(),
       rename: jest.fn(),
       delete: jest.fn(),
+      getFolders: jest.fn(),
+      deleteFolder: jest.fn(),
     },
   },
   resolveAsset: (url: string) => `http://localhost:8000${url}`,
@@ -37,6 +39,7 @@ import { api } from "@/lib/api";
 const mockUseSWR = useSWR as jest.Mock;
 const mockRename = api.assets.rename as jest.Mock;
 const mockDelete = api.assets.delete as jest.Mock;
+const mockDeleteFolder = api.assets.deleteFolder as jest.Mock;
 
 const makeAsset = (overrides: Partial<Asset> = {}): Asset => ({
   id: 1,
@@ -48,6 +51,14 @@ const makeAsset = (overrides: Partial<Asset> = {}): Asset => ({
   ...overrides,
 });
 
+/** Helper: mock both SWR calls in AssetGrid (assets + asset-folders). */
+function mockSWR(assets: Asset[] = [], folders: string[] = []) {
+  mockUseSWR.mockImplementation((key: unknown) => {
+    if (key === "asset-folders") return { data: folders };
+    return { data: assets };
+  });
+}
+
 const navConfig: MediaLibraryConfig = { mode: "navigation" };
 const selectorConfig: MediaLibraryConfig = {
   mode: "selector",
@@ -58,7 +69,7 @@ const onClose = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockUseSWR.mockReturnValue({ data: [] });
+  mockSWR();
   mockMutate.mockResolvedValue(undefined);
   mockRename.mockResolvedValue({
     id: 1,
@@ -69,6 +80,7 @@ beforeEach(() => {
     is_seed: false,
   });
   mockDelete.mockResolvedValue(undefined);
+  mockDeleteFolder.mockResolvedValue(undefined);
 });
 
 describe("AssetGrid", () => {
@@ -78,12 +90,10 @@ describe("AssetGrid", () => {
   });
 
   it("filtre les assets .keep et affiche les vrais assets", () => {
-    mockUseSWR.mockReturnValue({
-      data: [
-        makeAsset({ id: 1, filename: ".keep" }),
-        makeAsset({ id: 2, filename: "portrait.png" }),
-      ],
-    });
+    mockSWR([
+      makeAsset({ id: 1, filename: ".keep" }),
+      makeAsset({ id: 2, filename: "portrait.png" }),
+    ]);
     render(
       <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
     );
@@ -92,9 +102,7 @@ describe("AssetGrid", () => {
   });
 
   it("affiche badge seed sur asset is_seed=true", () => {
-    mockUseSWR.mockReturnValue({
-      data: [makeAsset({ is_seed: true })],
-    });
+    mockSWR([makeAsset({ is_seed: true })]);
     render(
       <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
     );
@@ -103,7 +111,7 @@ describe("AssetGrid", () => {
 
   it("en mode selector, clic appelle onSelect et onClose", () => {
     const asset = makeAsset();
-    mockUseSWR.mockReturnValue({ data: [asset] });
+    mockSWR([asset]);
     render(
       <AssetGrid config={selectorConfig} folder="characters/alice" onClose={onClose} />
     );
@@ -113,12 +121,10 @@ describe("AssetGrid", () => {
   });
 
   it("en mode selector + filter images, les assets non-image sont exclus", () => {
-    mockUseSWR.mockReturnValue({
-      data: [
-        makeAsset({ id: 1, filename: "portrait.png", content_type: "image/png" }),
-        makeAsset({ id: 2, filename: "theme.mp3", content_type: "audio/mpeg" }),
-      ],
-    });
+    mockSWR([
+      makeAsset({ id: 1, filename: "portrait.png", content_type: "image/png" }),
+      makeAsset({ id: 2, filename: "theme.mp3", content_type: "audio/mpeg" }),
+    ]);
     render(
       <AssetGrid config={selectorConfig} folder="characters/alice" onClose={onClose} />
     );
@@ -127,7 +133,7 @@ describe("AssetGrid", () => {
   });
 
   it("img src utilise resolveAsset (préfixe API_BASE)", () => {
-    mockUseSWR.mockReturnValue({ data: [makeAsset()] });
+    mockSWR([makeAsset()]);
     render(
       <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
     );
@@ -138,11 +144,54 @@ describe("AssetGrid", () => {
     );
   });
 
+  // ── Sous-dossiers ────────────────────────────────────────────────────────
+
+  it("affiche les sous-dossiers immédiats comme cards", () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses", "characters/bob"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    expect(screen.getByTitle("poses")).toBeInTheDocument();
+    expect(screen.queryByTitle("bob")).not.toBeInTheDocument();
+  });
+
+  it("clic sur un dossier appelle onNavigate", () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    const onNavigate = jest.fn();
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} onNavigate={onNavigate} />
+    );
+    fireEvent.click(screen.getByTitle("poses").closest("div")!.parentElement!);
+    expect(onNavigate).toHaveBeenCalledWith("characters/alice/poses");
+  });
+
+  it("clic × sur dossier affiche ConfirmModal", () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    const btn = screen.getByLabelText("Supprimer le dossier");
+    fireEvent.click(btn);
+    expect(screen.getByText(/Supprimer le dossier "poses"/)).toBeInTheDocument();
+  });
+
+  it("confirmer suppression dossier appelle deleteFolder et mutate", async () => {
+    mockSWR([], ["characters/alice", "characters/alice/poses"]);
+    render(
+      <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+    );
+    fireEvent.click(screen.getByLabelText("Supprimer le dossier"));
+    const buttons = screen.getAllByText("Supprimer");
+    await act(async () => { fireEvent.click(buttons[buttons.length - 1]); });
+    expect(mockDeleteFolder).toHaveBeenCalledWith("characters/alice/poses");
+    await waitFor(() => expect(mockMutate).toHaveBeenCalledWith("asset-folders"));
+  });
+
   // ── Story 2.4 — Rename inline ────────────────────────────────────────────
 
   it("double-clic sur nom en mode navigation affiche un input pré-rempli", () => {
     const asset = makeAsset({ filename: "portrait.png" });
-    mockUseSWR.mockReturnValue({ data: [asset] });
+    mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
     const nameEl = screen.getByTitle("portrait.png");
     fireEvent.dblClick(nameEl);
@@ -153,7 +202,7 @@ describe("AssetGrid", () => {
 
   it("blur sur input appelle api.assets.rename et mutate pair", async () => {
     const asset = makeAsset({ filename: "portrait.png" });
-    mockUseSWR.mockReturnValue({ data: [asset] });
+    mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
     fireEvent.dblClick(screen.getByTitle("portrait.png"));
     const input = screen.getByRole("textbox");
@@ -170,7 +219,7 @@ describe("AssetGrid", () => {
 
   it("Entrée sur input appelle api.assets.rename et mutate pair", async () => {
     const asset = makeAsset({ filename: "portrait.png" });
-    mockUseSWR.mockReturnValue({ data: [asset] });
+    mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
     fireEvent.dblClick(screen.getByTitle("portrait.png"));
     const input = screen.getByRole("textbox");
@@ -189,7 +238,7 @@ describe("AssetGrid", () => {
 
   it("clic × en mode navigation affiche ConfirmModal", () => {
     const asset = makeAsset({ filename: "portrait.png" });
-    mockUseSWR.mockReturnValue({ data: [asset] });
+    mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
     const btn = screen.getByLabelText("Supprimer");
     fireEvent.click(btn);
@@ -198,7 +247,7 @@ describe("AssetGrid", () => {
 
   it('clic "Supprimer" dans ConfirmModal appelle api.assets.delete et mutate pair', async () => {
     const asset = makeAsset({ filename: "portrait.png" });
-    mockUseSWR.mockReturnValue({ data: [asset] });
+    mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
     fireEvent.click(screen.getByLabelText("Supprimer"));
     // "Supprimer" apparaît deux fois : bouton × (aria-label) + bouton ConfirmModal
@@ -213,7 +262,7 @@ describe("AssetGrid", () => {
 
   it('clic "Annuler" dans ConfirmModal ne supprime pas', async () => {
     const asset = makeAsset({ filename: "portrait.png" });
-    mockUseSWR.mockReturnValue({ data: [asset] });
+    mockSWR([asset]);
     render(<AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />);
     fireEvent.click(screen.getByLabelText("Supprimer"));
     await act(async () => { fireEvent.click(screen.getByText("Annuler")); });

@@ -228,6 +228,8 @@ export const api = {
       }),
     delete: (id: number): Promise<void> =>
       request<void>(`/api/assets/${id}`, { method: "DELETE" }),
+    deleteFolder: (folder: string): Promise<void> =>
+      request<void>(`/api/assets/folders?path=${encodeURIComponent(folder)}`, { method: "DELETE" }),
   },
 };
 

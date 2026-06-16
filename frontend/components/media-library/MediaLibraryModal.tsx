@@ -70,7 +70,7 @@ export default function MediaLibraryModal({ config, isOpen, onClose }: Props) {
               </div>
             )}
           </div>
-          <AssetGrid config={config} folder={currentFolder} onClose={onClose} />
+          <AssetGrid config={config} folder={currentFolder} onClose={onClose} onNavigate={setCurrentFolder} />
         </div>
       </div>
     </div>

@@ -101,14 +101,14 @@ describe("FolderTree — bouton Nouveau dossier", () => {
     expect(screen.getByText(/nouveau dossier/i)).toBeInTheDocument();
   });
 
-  it("n'affiche pas le bouton Nouveau dossier en mode selector", () => {
+  it("affiche le bouton Nouveau dossier en mode selector", () => {
     render(
       <FolderTree config={selectorConfig} selectedFolder={null} onSelectFolder={jest.fn()} />
     );
-    expect(screen.queryByText(/nouveau dossier/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/nouveau dossier/i)).toBeInTheDocument();
   });
 
-  it("n'affiche pas le bouton Nouveau dossier en mode folder-selector", () => {
+  it("affiche le bouton Nouveau dossier en mode folder-selector", () => {
     render(
       <FolderTree
         config={folderSelectorConfig}
@@ -116,7 +116,7 @@ describe("FolderTree — bouton Nouveau dossier", () => {
         onSelectFolder={jest.fn()}
       />
     );
-    expect(screen.queryByText(/nouveau dossier/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/nouveau dossier/i)).toBeInTheDocument();
   });
 });
 
