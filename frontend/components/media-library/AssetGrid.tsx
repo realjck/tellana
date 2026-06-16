@@ -225,27 +225,24 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
 }
 
 function mapSpritesFromAssets(images: Asset[]): Record<string, AssetRef> {
-  const sprites: Record<string, AssetRef> = {};
-  const hasDefault = images.some((a) => a.filename.replace(/\.[^.]+$/, "") === "default");
-  let firstAssigned = false;
+  const toRef = (a: Asset): AssetRef => ({
+    type: "upload",
+    url: a.url,
+    opfs_key: null,
+    job_id: null,
+    mime_type: a.content_type,
+    width: null,
+    height: null,
+  });
 
+  const defaultImg = images.find((a) => a.filename.replace(/\.[^.]+$/, "") === "default") ?? images[0];
+  if (!defaultImg) return {};
+
+  // Insert "default" first so it always appears first in the poses list
+  const sprites: Record<string, AssetRef> = { default: toRef(defaultImg) };
   for (const a of images) {
-    const stem = a.filename.replace(/\.[^.]+$/, "");
-    const ref: AssetRef = {
-      type: "upload",
-      url: a.url,
-      opfs_key: null,
-      job_id: null,
-      mime_type: a.content_type,
-      width: null,
-      height: null,
-    };
-    if (!hasDefault && !firstAssigned) {
-      sprites["default"] = ref;
-      firstAssigned = true;
-    } else {
-      sprites[stem] = ref;
-    }
+    if (a === defaultImg) continue;
+    sprites[a.filename.replace(/\.[^.]+$/, "")] = toRef(a);
   }
   return sprites;
 }

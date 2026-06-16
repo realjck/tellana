@@ -360,6 +360,20 @@ describe("AssetGrid", () => {
       expect(Object.keys(sprites)).toEqual(["default"]);
     });
 
+    it("la clé 'default' est toujours en première position dans les sprites", () => {
+      mockSWR([
+        makeAsset({ id: 1, filename: "happy.png", url: "/uploads/characters/alice/happy.png", content_type: "image/png" }),
+        makeAsset({ id: 2, filename: "default.png", url: "/uploads/characters/alice/default.png", content_type: "image/png" }),
+        makeAsset({ id: 3, filename: "surprised.png", url: "/uploads/characters/alice/surprised.png", content_type: "image/png" }),
+      ]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      fireEvent.click(screen.getByText("Choisir ce dossier personnage"));
+      const [, sprites] = onSelectFolderWithSprites.mock.calls[0];
+      expect(Object.keys(sprites)[0]).toBe("default");
+    });
+
     it("AssetRef généré a le bon format type:'upload'", () => {
       mockSWR([
         makeAsset({ id: 1, filename: "default.png", url: "/uploads/characters/alice/default.png", content_type: "image/png" }),
