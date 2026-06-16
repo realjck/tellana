@@ -151,15 +151,11 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
                   <p
                     className="text-xs text-fore truncate"
                     title={asset.filename}
-                    onDoubleClick={
-                      config.mode === "navigation"
-                        ? (e) => {
-                            e.stopPropagation();
-                            setEditingId(asset.id);
-                            setEditingName(asset.filename);
-                          }
-                        : undefined
-                    }
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      setEditingId(asset.id);
+                      setEditingName(asset.filename);
+                    }}
                   >
                     {asset.filename}
                   </p>

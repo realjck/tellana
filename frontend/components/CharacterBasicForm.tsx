@@ -143,8 +143,8 @@ export default function CharacterBasicForm({
         )}
       </div>
 
-      {/* Editable pose list — new character only, after folder import */}
-      {!initial && pendingPoseRows && pendingPoseRows.length > 0 && (
+      {/* Editable pose list — after folder import (creation or re-import in edit) */}
+      {pendingPoseRows && pendingPoseRows.length > 0 && (
         <div className="flex flex-col gap-2">
           <div className="text-xs font-semibold text-subtle uppercase tracking-wide">
             Poses ({pendingPoseRows.length})
