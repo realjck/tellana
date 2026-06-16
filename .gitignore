@@ -74,6 +74,7 @@ CLAUDE.local.md
 
 # Git worktrees
 .worktrees/
+.claude/worktrees/
 
 # Database & uploads
 tellana.db
