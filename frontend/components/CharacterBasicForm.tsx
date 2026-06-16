@@ -94,6 +94,7 @@ export default function CharacterBasicForm({
       } else {
         saved = await api.characters.create(storyId, { name: name.trim(), color, sprites });
       }
+      setPendingPoseRows(null);
       onSaved(saved);
     } catch {
       alert("Erreur lors de l'enregistrement");
