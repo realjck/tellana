@@ -168,11 +168,16 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
                 onClick={() => goEdit(c)}
                 className="flex items-center gap-3 bg-elevated hover:bg-raised rounded-md px-3 py-2 border border-white/7 hover:border-white/15 transition-colors text-left w-full group"
               >
-                <img
-                  src={firstSprite ? resolveAsset(firstSprite) : ""}
-                  alt={c.name}
-                  className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
-                />
+                {firstSprite ? (
+                  <img
+                    src={resolveAsset(firstSprite)}
+                    alt={c.name}
+                    className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+                  />
+                ) : (
+                  <div className="w-10 h-12 rounded bg-raised flex-shrink-0" />
+                )}
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-fore truncate">{c.name}</span>
                 </div>

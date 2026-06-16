@@ -221,10 +221,11 @@ export default function ScenePlayer({
               const resolvedSprite = (poseKey && c.sprites[poseKey])
                 ? c.sprites[poseKey]
                 : Object.values(c.sprites)[0];
+              if (!resolvedSprite) return null;
               return (
                 <img
                   key={c.id}
-                  src={resolvedSprite ? resolveAsset(resolvedSprite) : ""}
+                  src={resolveAsset(resolvedSprite)}
                   alt={c.name}
                   className={`absolute object-contain ${isPreviewMode ? "" : "transition-all duration-200"}`}
                   style={{
@@ -234,6 +235,7 @@ export default function ScenePlayer({
                     transform: `translateX(-50%) scale(${pos.scale}) scaleX(${pos.flip_x ? -1 : 1})`,
                     filter: isSpeaking ? "url(#outline-white)" : "none",
                   }}
+                  onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
                 />
               );
             })}

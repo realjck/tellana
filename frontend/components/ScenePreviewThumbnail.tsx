@@ -75,10 +75,11 @@ export default function ScenePreviewThumbnail({
           {characters.map((c) => {
             const pos = getCharPosition(c);
             const sprite = Object.values(c.sprites)[0];
+            if (!sprite) return null;
             return (
               <img
                 key={c.id}
-                src={sprite ? resolveAsset(sprite) : ""}
+                src={resolveAsset(sprite)}
                 alt={c.name}
                 className="absolute object-contain"
                 style={{
@@ -87,6 +88,7 @@ export default function ScenePreviewThumbnail({
                   left: `${((pos.x + 1) / 2) * 100}%`,
                   transform: `translateX(-50%) scale(${pos.scale}) scaleX(${pos.flip_x ? -1 : 1})`,
                 }}
+                onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
               />
             );
           })}

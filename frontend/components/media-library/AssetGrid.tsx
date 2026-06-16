@@ -184,6 +184,7 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
             await api.assets.delete(target.id);
             await mutate(["assets", folder!]);
             await mutate("asset-folders");
+            await mutate((key) => typeof key === "string" && (key.startsWith("story-") || key.startsWith("scene-")));
           }}
           onCancel={() => setPendingDelete(null)}
         />

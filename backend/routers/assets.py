@@ -8,6 +8,7 @@ import filetype
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 import models
 import schemas
@@ -213,6 +214,21 @@ def delete_asset(asset_id: int, db: Session = Depends(get_db)):
     if asset is None:
         raise HTTPException(status_code=404, detail="Asset introuvable")
     file_path = UPLOAD_DIR / asset.folder / asset.filename
+    url = asset.url
+
+    for character in db.query(models.Character).all():
+        sprites = character.sprites or {}
+        cleaned = {k: v for k, v in sprites.items() if not (isinstance(v, dict) and v.get("url") == url)}
+        if len(cleaned) != len(sprites):
+            character.sprites = cleaned
+            flag_modified(character, "sprites")
+
+    for scene in db.query(models.Scene).all():
+        bg = scene.background_asset
+        if isinstance(bg, dict) and bg.get("url") == url:
+            scene.background_asset = None
+            flag_modified(scene, "background_asset")
+
     db.delete(asset)
     db.commit()
     if file_path.exists():
