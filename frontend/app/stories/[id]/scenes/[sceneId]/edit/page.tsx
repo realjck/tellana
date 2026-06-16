@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, use, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
-import { api, resolveAsset, DEFAULT_BACKGROUNDS, API_BASE } from "@/lib/api";
+import { api, resolveAsset } from "@/lib/api";
 import type { AssetRef, CharacterPosition, Scene, Story, StoryNode, NodeType, DialogueNodeData, Character, Asset } from "@/types";
 import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 import ScenePlayer from "@/components/ScenePlayer";
@@ -14,7 +14,7 @@ import SceneCharacterEditorOverlay from "@/components/SceneCharacterEditorOverla
 
 type Params = Promise<{ id: string; sceneId: string }>;
 
-type Tab = "nodes" | "perso" | "background";
+type Tab = "nodes" | "perso-bg";
 
 const NODE_TYPE_LABELS: Record<NodeType, string> = {
   dialogue: "Dialogue",
@@ -55,10 +55,6 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [previewIndex, setPreviewIndex] = useState(0);
-  const [uploadingBg, setUploadingBg] = useState(false);
-  const bgFileRef = useRef<HTMLInputElement>(null);
-  const [bgCustomUploads, setBgCustomUploads] = useState<string[]>([]);
-  const bgCustomInitialized = useRef(false);
   const [localPositions, setLocalPositions] = useState<Record<string, CharacterPosition>>({});
   const positionsInitialized = useRef(false);
   const [selectedCharId, setSelectedCharId] = useState<number | null>(null);
@@ -76,10 +72,6 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   }, [previewPct]);
 
   useEffect(() => {
-    if (!bgCustomInitialized.current && scene) {
-      bgCustomInitialized.current = true;
-      setBgCustomUploads(scene.bg_custom_uploads ?? []);
-    }
     if (!positionsInitialized.current && scene) {
       positionsInitialized.current = true;
       setLocalPositions(scene.character_positions ?? {});
@@ -197,39 +189,8 @@ export default function SceneEditorPage({ params }: { params: Params }) {
   };
 
   const setBackground = async (asset: AssetRef | null) => {
-    await api.scenes.update(storyId, sceneId, { background_asset: asset ?? undefined });
+    await api.scenes.update(storyId, sceneId, { background_asset: asset });
     await mutateScene();
-  };
-
-  const persistBgCustomUploads = async (uploads: string[]) => {
-    await api.scenes.update(storyId, sceneId, { bg_custom_uploads: uploads });
-  };
-
-  const uploadBackground = async (file: File) => {
-    setUploadingBg(true);
-    try {
-      const ref = await api.assets.upload(file);
-      const url = ref.url!;
-      const next = bgCustomUploads.includes(url) ? bgCustomUploads : [...bgCustomUploads, url];
-      setBgCustomUploads(next);
-      await persistBgCustomUploads(next);
-      await setBackground(ref);
-    } catch {
-      alert("Échec de l'upload");
-    } finally {
-      setUploadingBg(false);
-    }
-  };
-
-  const removeBgCustom = async (url: string) => {
-    const next = bgCustomUploads.filter((u) => u !== url);
-    setBgCustomUploads(next);
-    await persistBgCustomUploads(next);
-    const currentUrl = scene.background_asset?.url;
-    if (currentUrl === url) {
-      const fallback = DEFAULT_BACKGROUNDS[0];
-      await setBackground({ type: "local", url: fallback.url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null });
-    }
   };
 
   const updateCharacters = async (ids: number[], positions: Record<string, CharacterPosition>) => {
@@ -353,17 +314,17 @@ export default function SceneEditorPage({ params }: { params: Params }) {
         <aside className="w-72 flex-shrink-0 border-r border-white/5 bg-sidebar flex flex-col overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-white/5">
-            {(["nodes", "perso", "background"] as Tab[]).map((t) => (
+            {(["nodes", "perso-bg"] as Tab[]).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-2.5 text-xs font-medium transition-colors capitalize ${
+                className={`flex-1 py-2.5 text-xs font-medium transition-colors ${
                   tab === t
                     ? "text-fore border-b-2 border-white/50"
                     : "text-subtle hover:text-muted"
                 }`}
               >
-                {t === "nodes" ? "Script" : t === "perso" ? "Perso." : "Décor"}
+                {t === "nodes" ? "Script" : "Perso. et décor"}
               </button>
             ))}
           </div>
@@ -384,30 +345,27 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                 onMove={moveNode}
               />
             )}
-            {tab === "perso" && (
-              <div className="flex-1 overflow-y-auto p-3">
-                <SceneCharacterSelector
-                  allCharacters={allCharacters}
-                  selectedIds={scene.character_ids}
-                  characterPositions={localPositions}
-                  selectedCharId={selectedCharId}
-                  onChange={updateCharacters}
-                  onSelectCharacter={setSelectedCharId}
-                  onReorder={handleCharacterReorder}
-                />
-              </div>
-            )}
-            {tab === "background" && (
-              <div className="flex-1 overflow-y-auto p-3">
-                <BackgroundTab
-                  currentAsset={scene.background_asset}
-                  uploading={uploadingBg}
-                  fileRef={bgFileRef}
-                  onSelect={setBackground}
-                  onUpload={uploadBackground}
-                  customUploads={bgCustomUploads}
-                  onRemoveCustom={removeBgCustom}
-                />
+            {tab === "perso-bg" && (
+              <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-5">
+                <div>
+                  <div className="text-xs font-semibold text-subtle uppercase tracking-wide mb-2">Décor</div>
+                  <BackgroundTab
+                    currentAsset={scene.background_asset}
+                    onSelect={setBackground}
+                  />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-subtle uppercase tracking-wide mb-2">Personnages</div>
+                  <SceneCharacterSelector
+                    allCharacters={allCharacters}
+                    selectedIds={scene.character_ids}
+                    characterPositions={localPositions}
+                    selectedCharId={selectedCharId}
+                    onChange={updateCharacters}
+                    onSelectCharacter={setSelectedCharId}
+                    onReorder={handleCharacterReorder}
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -425,7 +383,7 @@ export default function SceneEditorPage({ params }: { params: Params }) {
               style={tab === "nodes" ? { height: "100%", aspectRatio: "16/9", maxWidth: "100%" } : {}}
             >
               {nodes.length > 0 || tab !== "nodes" ? (
-                <div className={tab === "perso" ? "relative" : ""}>
+                <div className={tab === "perso-bg" ? "relative" : ""}>
                   <ScenePlayer
                     nodes={previewNodes}
                     characters={sceneCharacters}
@@ -436,18 +394,14 @@ export default function SceneEditorPage({ params }: { params: Params }) {
                     key={`${tab}-${sceneId}-${previewIndex}-${scene.background_asset?.url}-${JSON.stringify(nodes)}-${JSON.stringify(scene.character_ids)}`}
                     compact
                     onEnd={() => {}}
-                    showMode={
-                      tab === "perso" ? "characters-only"
-                      : tab === "background" ? "background-only"
-                      : undefined
-                    }
+                    showMode={tab === "perso-bg" ? "characters-only" : undefined}
                     onIndexChange={tab === "nodes" ? (idx) => {
                       setPreviewIndex(idx);
                       setPreviewPatch(null);
                       if (idx < nodes.length) setSelectedNodeId(nodes[idx].id);
                     } : undefined}
                   />
-                  {tab === "perso" && (
+                  {tab === "perso-bg" && (
                     <SceneCharacterEditorOverlay
                       characters={sceneCharacters}
                       characterPositions={localPositions}
@@ -652,26 +606,16 @@ function NodesTab({
 
 function BackgroundTab({
   currentAsset,
-  uploading,
-  fileRef,
   onSelect,
-  onUpload,
-  customUploads,
-  onRemoveCustom,
 }: {
   currentAsset: AssetRef | null;
-  uploading: boolean;
-  fileRef: React.RefObject<HTMLInputElement | null>;
   onSelect: (asset: AssetRef | null) => void;
-  onUpload: (file: File) => void;
-  customUploads: string[];
-  onRemoveCustom: (url: string) => void;
 }) {
   const currentUrl = currentAsset?.url ?? null;
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
 
   const handleAssetSelect = (asset: Asset) => {
-    const ref: AssetRef = {
+    onSelect({
       type: "upload",
       url: asset.url,
       opfs_key: null,
@@ -679,74 +623,23 @@ function BackgroundTab({
       mime_type: asset.content_type,
       width: null,
       height: null,
-    };
-    onSelect(ref);
-    setIsMediaLibraryOpen(false);
+    });
   };
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-xs font-semibold text-subtle uppercase tracking-wide mb-1">
-        Décors disponibles
-      </div>
-
-      {DEFAULT_BACKGROUNDS.map((bg) => (
-        <button
-          key={bg.url}
-          onClick={() =>
-            onSelect({ type: "local", url: bg.url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null })
-          }
-          className={`relative rounded-md overflow-hidden border-2 transition-all ${
-            currentUrl === bg.url ? "border-white/50" : "border-transparent hover:border-white/20"
-          }`}
-        >
-          <img src={bg.url} alt={bg.label} className="w-full h-24 object-cover" />
-          <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">{bg.label}</div>
-          {currentUrl === bg.url && (
-            <div className="absolute top-2 right-2 w-5 h-5 bg-white/90 rounded-full flex items-center justify-center">
-              <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-            </div>
-          )}
-        </button>
-      ))}
-
-      {customUploads.map((url) => {
-        const src = url.startsWith("/uploads/") ? `${API_BASE}${url}` : url;
-        return (
-          <div key={url} className="relative">
-            <button
-              onClick={() =>
-                onSelect({ type: "upload", url, opfs_key: null, job_id: null, mime_type: null, width: null, height: null })
-              }
-              className={`relative w-full rounded-md overflow-hidden border-2 transition-all ${
-                currentUrl === url ? "border-white/50" : "border-transparent hover:border-white/20"
-              }`}
-            >
-              <img src={src} alt="Décor importé" className="w-full h-24 object-cover" />
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-xs text-white">Décor importé</div>
-              {currentUrl === url && (
-                <div className="absolute top-2 right-2 w-5 h-5 bg-white/90 rounded-full flex items-center justify-center">
-                  <svg className="w-3 h-3 text-zinc-900" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                </div>
-              )}
-            </button>
-            <button
-              onClick={() => onRemoveCustom(url)}
-              className="absolute top-2 left-2 w-5 h-5 bg-red-500 hover:bg-red-400 rounded-full flex items-center justify-center transition-colors"
-              title="Supprimer ce décor"
-            >
-              <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
-        );
-      })}
-
+      {currentUrl && (
+        <div className="relative rounded-md overflow-hidden border border-white/10">
+          <img src={resolveAsset(currentAsset)} alt="Décor actuel" className="w-full h-24 object-cover" />
+          <button
+            onClick={() => onSelect(null)}
+            className="absolute top-1 right-1 w-5 h-5 bg-black/60 hover:bg-red-600 text-white rounded flex items-center justify-center text-xs transition-colors"
+            title="Retirer le décor"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <button
         onClick={() => setIsMediaLibraryOpen(true)}
         className="w-full py-3 rounded-md border border-white/10 hover:border-white/25 text-muted hover:text-fore text-sm transition-colors flex items-center justify-center gap-2"
@@ -757,33 +650,6 @@ function BackgroundTab({
         </svg>
         Choisir depuis la médiathèque
       </button>
-
-      <button
-        onClick={() => fileRef.current?.click()}
-        disabled={uploading}
-        className="w-full py-4 rounded-md border-2 border-dashed border-white/10 hover:border-white/25 text-muted hover:text-fore text-sm transition-colors flex flex-col items-center gap-2"
-      >
-        {uploading ? "Upload en cours…" : (
-          <>
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Uploader une image
-          </>
-        )}
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onUpload(file);
-          e.target.value = "";
-        }}
-      />
-
       <MediaLibraryModal
         config={{
           mode: "selector",
