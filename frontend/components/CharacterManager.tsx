@@ -24,6 +24,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   const [previewDefaultSprite, setPreviewDefaultSprite] = useState<AssetRef | null>(null);
   const [previewPoseKey, setPreviewPoseKey] = useState<string | null>(null);
   const [addPendingSprites, setAddPendingSprites] = useState<Record<string, AssetRef> | null>(null);
+  const [posesManagerKey, setPosesManagerKey] = useState(0);
 
   const goList = () => {
     setSelected(null);
@@ -110,6 +111,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
             onSaved={(c) => {
               setSelected(c);
               setPreviewDefaultSprite(null);
+              setPosesManagerKey(k => k + 1);
               onRefresh();
             }}
             onCancel={goList}
@@ -122,6 +124,7 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
               Poses
             </div>
             <CharacterPosesManager
+              key={posesManagerKey}
               storyId={storyId}
               character={selected}
               onSaved={(c) => {

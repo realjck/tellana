@@ -82,8 +82,9 @@ export default function CharacterBasicForm({
       const pendingSprites = pendingPoseRows
         ? Object.fromEntries(pendingPoseRows.map(r => [r.savedKey, r.ref]))
         : null;
+      // Folder import replaces all sprites entirely; single-asset change updates only default
       const sprites = pendingSprites
-        ? { ...existingSprites, ...pendingSprites }
+        ? pendingSprites
         : activeAsset
         ? { ...existingSprites, default: activeAsset }
         : existingSprites;
