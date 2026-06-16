@@ -1,22 +1,32 @@
-import type { AssetRef, Character, GraphEdge, GraphNode, GraphResponse, PublicStory, Scene, SceneSummary, Story, StorySummary, StoryNode } from "@/types";
+import type { Asset, AssetRef, Character, GraphEdge, GraphNode, GraphResponse, PublicStory, Scene, SceneSummary, Story, StorySummary, StoryNode } from "@/types";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-/** Resolve a relative /uploads/ path to a full backend URL */
-export function resolveImage(url: string | null | undefined): string {
+/**
+ * Resolve a relative /uploads/ path to a full backend URL.
+ * `bust` (from `useAssetBust()`) is appended as `?v=` so a re-render after an
+ * in-place file replace produces a new url — passing it explicitly makes it a
+ * visible dependency that React Compiler cannot memoize away.
+ */
+export function resolveImage(url: string | null | undefined, bust = 0): string {
   if (!url) return "";
-  if (url.startsWith("http")) return url;
-  if (url.startsWith("/uploads/")) return `${API_BASE}${url}`;
-  return url;
+  let full: string;
+  if (url.startsWith("http")) full = url;
+  else if (url.startsWith("/uploads/")) full = `${API_BASE}${url}`;
+  else return url;
+  if (bust > 0 && full.includes("/uploads/")) {
+    full += (full.includes("?") ? "&" : "?") + "v=" + bust;
+  }
+  return full;
 }
 
 /** Resolve an AssetRef (or legacy string) to a displayable URL */
-export function resolveAsset(ref: string | AssetRef | null | undefined): string {
+export function resolveAsset(ref: string | AssetRef | null | undefined, bust = 0): string {
   if (!ref) return "";
-  if (typeof ref === "string") return resolveImage(ref);
+  if (typeof ref === "string") return resolveImage(ref, bust);
   if (!ref.url) return "";
-  if (ref.type === "upload") return resolveImage(ref.url);
+  if (ref.type === "upload") return resolveImage(ref.url, bust);
   return ref.url;
 }
 
@@ -189,6 +199,52 @@ export const api = {
         height: null,
       };
     },
+    getFolders: (): Promise<string[]> =>
+      fetch(`${API_BASE}/api/assets/folders`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
+    list: (folder: string): Promise<Asset[]> =>
+      fetch(`${API_BASE}/api/assets?folder=${encodeURIComponent(folder)}`).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
+    uploadMedia: async (
+      file: File,
+      folder: string,
+      replace = false
+    ): Promise<
+      | { ok: true; asset: Asset }
+      | { ok: false; status: 409; existing_id: number; references: { scenes: number; nodes: number; characters: number } }
+    > => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", folder);
+      const res = await fetch(
+        `${API_BASE}/api/assets${replace ? "?replace=true" : ""}`,
+        { method: "POST", body: formData }
+      );
+      if (res.status === 409) {
+        const data = await res.json();
+        return { ok: false, status: 409, ...data };
+      }
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      return { ok: true, asset: await res.json() };
+    },
+    rename: (id: number, filename: string): Promise<Asset> =>
+      request<Asset>(`/api/assets/${id}/rename`, {
+        method: "PATCH",
+        body: JSON.stringify({ filename }),
+      }),
+    delete: (id: number): Promise<void> =>
+      request<void>(`/api/assets/${id}`, { method: "DELETE" }),
+    deleteFolder: (folder: string): Promise<void> =>
+      request<void>(`/api/assets/folders?path=${encodeURIComponent(folder)}`, { method: "DELETE" }),
+    renameFolder: (from: string, to: string): Promise<void> =>
+      request<void>(`/api/assets/folders`, {
+        method: "PATCH",
+        body: JSON.stringify({ from, to }),
+      }),
   },
 };
 

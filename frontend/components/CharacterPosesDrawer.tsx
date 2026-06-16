@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import type { AssetRef } from "@/types";
 import { resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 
 interface Props {
   characterName: string;
   sprites: Record<string, AssetRef>;
+  highlightKey?: string;
 }
 
-export default function CharacterPosesDrawer({ characterName, sprites }: Props) {
+export default function CharacterPosesDrawer({ characterName, sprites, highlightKey }: Props) {
+  const bust = useAssetBust(); // reload pose preview when an asset is replaced in place
   const poses = Object.entries(sprites);
   const [activeKey, setActiveKey] = useState<string>(poses[0]?.[0] ?? "default");
 
@@ -19,6 +22,13 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
       setActiveKey(poses[0][0]);
     }
   }, [sprites, activeKey, poses]);
+
+  // Sync to external highlight (pose clicked/focused in manager)
+  useEffect(() => {
+    if (highlightKey && sprites[highlightKey]) {
+      setActiveKey(highlightKey);
+    }
+  }, [highlightKey, sprites]);
 
   const activeRef = sprites[activeKey] ?? poses[0]?.[1];
 
@@ -39,8 +49,8 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
       <div className="flex-1 flex items-end justify-center overflow-hidden px-4 pt-4">
         {activeRef ? (
           <img
-            key={activeKey + resolveAsset(activeRef)}
-            src={resolveAsset(activeRef)}
+            key={activeKey + resolveAsset(activeRef, bust)}
+            src={resolveAsset(activeRef, bust)}
             alt={activeKey}
             className="max-h-full w-auto object-contain"
             style={{ maxHeight: "calc(100% - 1rem)" }}
@@ -65,17 +75,17 @@ export default function CharacterPosesDrawer({ characterName, sprites }: Props) 
                       ? "border-amber-500 bg-amber-900/20"
                       : "border-transparent hover:border-amber-700 hover:bg-amber-900/10"
                   }`}
-                  title={key === "default" ? "Défaut" : key}
+                  title={key}
                 >
                   <img
-                    src={resolveAsset(ref)}
+                    src={resolveAsset(ref, bust)}
                     alt={key}
                     className="h-12 w-8 object-contain rounded"
                   />
                   <span className={`text-[9px] font-medium leading-none ${
                     isActive ? "text-amber-400" : "text-subtle"
                   }`}>
-                    {key === "default" ? "défaut" : key}
+                    {key}
                   </span>
                 </button>
               );

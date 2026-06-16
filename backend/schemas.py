@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List, Any, Dict, Literal
 from datetime import datetime
 
@@ -8,6 +8,28 @@ NodeType = Literal["dialogue", "text", "quiz"]
 GraphNodeType = Literal["start", "scene", "branch", "end"]
 
 AssetSourceType = Literal["upload", "remote", "local", "generated"]
+
+
+# ── Asset ──────────────────────────────────────────────────────────────────
+
+class Asset(BaseModel):
+    id: int
+    filename: str
+    url: str
+    content_type: str
+    folder: str
+    is_seed: bool
+
+    model_config = {"from_attributes": True}
+
+
+class FolderRename(BaseModel):
+    from_: str = Field(alias="from")  # `from` is a reserved keyword
+    to: str
+
+
+class FileRename(BaseModel):
+    filename: str
 
 
 # ── AssetRef ───────────────────────────────────────────────────────────────

@@ -1,0 +1,65 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import type { MediaLibraryConfig } from "@/types";
+import FolderTree from "./FolderTree";
+import AssetGrid from "./AssetGrid";
+
+interface Props {
+  config: MediaLibraryConfig;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function MediaLibraryModal({ config, isOpen, onClose }: Props) {
+  const [currentFolder, setCurrentFolder] = useState<string | null>(
+    config.initialFolder ?? null
+  );
+
+  useEffect(() => {
+    if (isOpen) setCurrentFolder(config.initialFolder ?? null);
+  }, [isOpen, config.initialFolder]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-bg border border-white/10 rounded-lg shadow-2xl w-full max-w-5xl mx-4 h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 flex-shrink-0">
+          <h2 className="text-fore font-semibold">Médiathèque</h2>
+          <button
+            aria-label="×"
+            onClick={onClose}
+            className="text-muted hover:text-fore text-xl leading-none px-1"
+          >
+            ×
+          </button>
+        </div>
+        <div className="flex flex-1 min-h-0">
+          <div className="w-64 border-r border-white/10 flex flex-col flex-shrink-0">
+            <FolderTree
+              config={config}
+              selectedFolder={currentFolder}
+              onSelectFolder={setCurrentFolder}
+            />
+          </div>
+          <AssetGrid config={config} folder={currentFolder} onClose={onClose} onNavigate={setCurrentFolder} />
+        </div>
+      </div>
+    </div>
+  );
+}

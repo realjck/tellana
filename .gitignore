@@ -76,8 +76,12 @@ CLAUDE.local.md
 .worktrees/
 
 # Database & uploads
+tellana.db
+*.sqlite
+*.sqlite3
 backend/tellana.db
 backend/uploads/
+backend/published/
 
 # work assets
 assets/

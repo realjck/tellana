@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AssetRef, Character } from "@/types";
 import { api, resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import ConfirmModal from "@/components/ConfirmModal";
 import CharacterBasicForm from "@/components/CharacterBasicForm";
 import CharacterPosesManager from "@/components/CharacterPosesManager";
@@ -15,18 +16,25 @@ interface Props {
   onEditingCharacter?: (editing: boolean) => void;
 }
 
-type Mode = "list" | "add" | "edit" | "poses";
+type Mode = "list" | "add" | "edit";
 
 export default function CharacterManager({ storyId, characters, onRefresh, onEditingCharacter }: Props) {
+  const bust = useAssetBust(); // reload sprite previews when an asset is replaced in place
   const [mode, setMode] = useState<Mode>("list");
   const [selected, setSelected] = useState<Character | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [previewDefaultSprite, setPreviewDefaultSprite] = useState<AssetRef | null>(null);
+  const [previewPoseKey, setPreviewPoseKey] = useState<string | null>(null);
+  const [addPendingSprites, setAddPendingSprites] = useState<Record<string, AssetRef> | null>(null);
+  const [editPendingSprites, setEditPendingSprites] = useState<Record<string, AssetRef> | null>(null);
+  const [posesManagerKey, setPosesManagerKey] = useState(0);
 
   const goList = () => {
     setSelected(null);
     setMode("list");
     setPreviewDefaultSprite(null);
+    setPreviewPoseKey(null);
+    setAddPendingSprites(null);
     onEditingCharacter?.(false);
   };
 
@@ -34,6 +42,9 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setSelected(c);
     setMode("edit");
     setPreviewDefaultSprite(null);
+    setPreviewPoseKey(null);
+    setAddPendingSprites(null);
+    setEditPendingSprites(null);
     onEditingCharacter?.(true);
   };
 
@@ -41,39 +52,37 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
     setSelected(null);
     setMode("add");
     setPreviewDefaultSprite(null);
+    setPreviewPoseKey(null);
+    setAddPendingSprites(null);
     onEditingCharacter?.(true);
-  };
-
-  const goPoses = (c: Character) => {
-    setSelected(c);
-    setMode("poses");
-    setPreviewDefaultSprite(null);
-    onEditingCharacter?.(true);
-  };
-
-  const refreshAndGoList = () => {
-    onRefresh();
-    goList();
   };
 
   const drawerSprites = selected
-    ? {
+    ? editPendingSprites ?? {
         ...selected.sprites,
         ...(previewDefaultSprite ? { default: previewDefaultSprite } : {}),
       }
     : {};
 
-  const showDrawer = (mode === "edit" || mode === "poses") && selected !== null;
-
   // ── Add mode ────────────────────────────────────────────────────────────────
   if (mode === "add") {
+    const showAddDrawer = addPendingSprites !== null && Object.keys(addPendingSprites).length > 0;
     return (
-      <CharacterBasicForm
-        storyId={storyId}
-        characters={characters}
-        onSaved={(c) => { onRefresh(); goPoses(c); }}
-        onCancel={goList}
-      />
+      <>
+        <CharacterBasicForm
+          storyId={storyId}
+          characters={characters}
+          onSaved={() => { onRefresh(); goList(); }}
+          onCancel={goList}
+          onSpritesChange={setAddPendingSprites}
+        />
+        {showAddDrawer && (
+          <CharacterPosesDrawer
+            characterName="Nouveau personnage"
+            sprites={addPendingSprites}
+          />
+        )}
+      </>
     );
   }
 
@@ -81,20 +90,23 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
   if (mode === "edit" && selected) {
     return (
       <>
-        {showDrawer && (
-          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer" onClick={goList} />
-        )}
+        <div
+          className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer"
+          onClick={goList}
+        />
         {confirmDelete && (
           <ConfirmModal
             message={`Supprimer "${selected.name}" ? Cette action est irréversible.`}
             onConfirm={async () => {
               await api.characters.delete(storyId, selected.id);
               setConfirmDelete(false);
-              refreshAndGoList();
+              goList();
+              onRefresh();
             }}
             onCancel={() => setConfirmDelete(false)}
           />
         )}
+
         <div className="flex flex-col gap-4">
           <CharacterBasicForm
             storyId={storyId}
@@ -103,43 +115,39 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
             onSaved={(c) => {
               setSelected(c);
               setPreviewDefaultSprite(null);
+              setEditPendingSprites(null);
+              setPosesManagerKey(k => k + 1);
               onRefresh();
             }}
             onCancel={goList}
             onDelete={() => setConfirmDelete(true)}
             onPreviewAsset={setPreviewDefaultSprite}
-            onManagePoses={() => goPoses(selected)}
+            onSpritesChange={setEditPendingSprites}
           />
+
+          <div className="border-t border-white/10 pt-2">
+            <div className="text-xs font-semibold text-subtle uppercase tracking-wide mb-3">
+              Poses
+            </div>
+            <CharacterPosesManager
+              key={posesManagerKey}
+              storyId={storyId}
+              character={selected}
+              onSaved={(c) => {
+                setSelected(c);
+                onRefresh();
+              }}
+              onBack={goList}
+              onPoseSelect={setPreviewPoseKey}
+              showHeader={false}
+            />
+          </div>
         </div>
 
         <CharacterPosesDrawer
           characterName={selected.name}
           sprites={drawerSprites}
-        />
-      </>
-    );
-  }
-
-  // ── Poses mode ──────────────────────────────────────────────────────────────
-  if (mode === "poses" && selected) {
-    return (
-      <>
-        {showDrawer && (
-          <div className="fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm z-20 cursor-pointer" onClick={goList} />
-        )}
-        <CharacterPosesManager
-          storyId={storyId}
-          character={selected}
-          characters={characters}
-          onSaved={(c) => {
-            setSelected(c);
-            onRefresh();
-          }}
-          onBack={() => goEdit(selected)}
-        />
-        <CharacterPosesDrawer
-          characterName={selected.name}
-          sprites={selected.sprites}
+          highlightKey={previewPoseKey ?? undefined}
         />
       </>
     );
@@ -162,11 +170,16 @@ export default function CharacterManager({ storyId, characters, onRefresh, onEdi
                 onClick={() => goEdit(c)}
                 className="flex items-center gap-3 bg-elevated hover:bg-raised rounded-md px-3 py-2 border border-white/7 hover:border-white/15 transition-colors text-left w-full group"
               >
-                <img
-                  src={firstSprite ? resolveAsset(firstSprite) : ""}
-                  alt={c.name}
-                  className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
-                />
+                {firstSprite ? (
+                  <img
+                    src={resolveAsset(firstSprite, bust)}
+                    alt={c.name}
+                    className="w-10 h-12 object-contain rounded bg-raised flex-shrink-0"
+                    onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
+                  />
+                ) : (
+                  <div className="w-10 h-12 rounded bg-raised flex-shrink-0" />
+                )}
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-medium text-fore truncate">{c.name}</span>
                 </div>

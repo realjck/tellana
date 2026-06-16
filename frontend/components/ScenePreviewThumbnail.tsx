@@ -3,6 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import type { AssetRef, Character, CharacterPosition } from "@/types";
 import { resolveAsset } from "@/lib/api";
+import { useAssetBust } from "@/lib/assetBust";
 import { DEFAULT_POSITIONS, FALLBACK_POSITION } from "@/lib/scenePositions";
 
 const BASE_W = 1920;
@@ -21,6 +22,7 @@ export default function ScenePreviewThumbnail({
   characterPositions,
   className = "",
 }: Props) {
+  const bust = useAssetBust(); // reload previews when an asset is replaced in place
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -61,7 +63,7 @@ export default function ScenePreviewThumbnail({
           style={
             backgroundAsset
               ? {
-                  backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
+                  backgroundImage: `url("${resolveAsset(backgroundAsset, bust)}")`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }
@@ -75,10 +77,11 @@ export default function ScenePreviewThumbnail({
           {characters.map((c) => {
             const pos = getCharPosition(c);
             const sprite = Object.values(c.sprites)[0];
+            if (!sprite) return null;
             return (
               <img
                 key={c.id}
-                src={sprite ? resolveAsset(sprite) : ""}
+                src={resolveAsset(sprite, bust)}
                 alt={c.name}
                 className="absolute object-contain"
                 style={{
@@ -87,6 +90,7 @@ export default function ScenePreviewThumbnail({
                   left: `${((pos.x + 1) / 2) * 100}%`,
                   transform: `translateX(-50%) scale(${pos.scale}) scaleX(${pos.flip_x ? -1 : 1})`,
                 }}
+                onError={(e) => { e.currentTarget.style.visibility = "hidden"; }}
               />
             );
           })}
