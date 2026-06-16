@@ -137,7 +137,7 @@ export default function CharacterBasicForm({
         )}
         {initial && pendingPoseRows && pendingPoseRows.length > 0 && (
           <p className="text-[11px] text-amber-400/80 mt-1 text-center">
-            {pendingPoseRows.length} pose{pendingPoseRows.length > 1 ? "s" : ""} chargée{pendingPoseRows.length > 1 ? "s" : ""} — enregistrer pour valider les changements
+            {pendingPoseRows.length} pose{pendingPoseRows.length > 1 ? "s" : ""} chargée{pendingPoseRows.length > 1 ? "s" : ""}<br />enregistrer pour valider les changements
           </p>
         )}
       </div>
