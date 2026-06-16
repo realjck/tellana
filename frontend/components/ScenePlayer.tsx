@@ -184,7 +184,7 @@ export default function ScenePlayer({
             style={
               backgroundAsset
                 ? {
-                    backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
+                    backgroundImage: `url("${resolveAsset(backgroundAsset)}")`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }

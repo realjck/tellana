@@ -61,7 +61,7 @@ export default function ScenePreviewThumbnail({
           style={
             backgroundAsset
               ? {
-                  backgroundImage: `url(${resolveAsset(backgroundAsset)})`,
+                  backgroundImage: `url("${resolveAsset(backgroundAsset)}")`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
                 }
