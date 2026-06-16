@@ -75,14 +75,6 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
 
   return (
     <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
-      {config.mode === "folder-selector" && imageAssets.length > 0 && (
-        <button
-          onClick={handleSelectFolder}
-          className="w-full px-4 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-semibold transition-colors"
-        >
-          Choisir ce dossier personnage
-        </button>
-      )}
       <UploadDropZone folder={folder} config={config} />
       {childFolders.length === 0 && assets.length === 0 ? (
         <div className="text-muted text-sm text-center py-4">Dossier vide</div>
@@ -191,6 +183,16 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
               )}
             </div>
           ))}
+        </div>
+      )}
+      {config.mode === "folder-selector" && imageAssets.length > 0 && (
+        <div className="flex justify-center">
+          <button
+            onClick={handleSelectFolder}
+            className="px-6 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-semibold transition-colors"
+          >
+            Choisir ce dossier personnage
+          </button>
         </div>
       )}
       {pendingDelete && (

@@ -23,8 +23,6 @@ export default function UploadDropZone({ folder, config }: Props) {
   const [conflicts, setConflicts] = useState<ConflictInfo[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  if (config.mode === "folder-selector") return null;
-
   async function uploadFile(file: File, replace = false): Promise<void> {
     const result = await api.assets.uploadMedia(file, folder, replace);
     if (!result.ok) {
