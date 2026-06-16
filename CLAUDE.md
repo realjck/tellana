@@ -220,13 +220,29 @@ Composant interne de `GraphPlayer` — même mécanique 1920×1080 que `ScenePla
 - Root div : `h-screen overflow-hidden`. Liste des nœuds scrollable (`flex-1 min-h-0 overflow-y-auto`), bouton Ajouter fixe (`flex-shrink-0`).
 - `onEditingCharacter` callback → masque la navbar story (`opacity-20 pointer-events-none`) pendant l'édition.
 
+## Médiathèque
+
+`MediaLibraryModal` — modale avec `FolderTree` (gauche) + `AssetGrid` (droite). Configurée via `MediaLibraryConfig` :
+
+- `{ mode: "navigation" }` — gestion (upload, rename, delete dossier/fichier). Pas de sélection.
+- `{ mode: "selector", filter?: "images", allowedFolders?, onSelect? }` — sélectionner un fichier → `onSelect(asset)`.
+- `{ mode: "folder-selector", allowedFolders?, initialFolder?, onSelectFolderWithSprites? }` — sélectionner un dossier entier → `onSelectFolderWithSprites(folder, sprites)`. Bouton "Choisir ce dossier personnage" en bas de grille si des images sont présentes.
+
+`UploadDropZone` : upload par clic ou drag-and-drop, disponible dans **tous les modes** (y compris `folder-selector`). Gestion des conflits de nom via `ConfirmModal`.
+
+`mapSpritesFromAssets` (dans `AssetGrid`) : construit `Record<string, AssetRef>` depuis les images d'un dossier. La clé `"default"` est toujours insérée en premier (fichier `default.*` en priorité, sinon premier fichier). Clé = stem du filename (sans extension).
+
+Modèle `Asset` : `{ id, folder, filename, url, content_type, is_seed }`. `folder` = chemin relatif (`characters/alice`). `is_seed` = badge amber dans la grille.
+
 ## Personnages et poses
 
-- `CharacterManager` : modes list / add / edit / poses. `onEditingCharacter?(editing: boolean)` remonte l'état.
-- `CharacterBasicForm` : grille sprites 3 colonnes, bouton "Gérer les poses" amber. Color picker inline à droite du champ nom (bouton carré `w-9 h-9`, `<input type="color">` caché via `sr-only`). Couleur initialisée depuis `initial?.color ?? randomCharacterColor()`.
-- `CharacterPosesManager` : gestion des poses (add, rename, delete, change image). Overlay modale pour noms dupliqués. Badge "défaut" non renommable.
-- `CharacterPosesDrawer` : preview des sprites à droite (z-30).
-- Overlay backdrop `fixed left-[36rem] inset-y-0 right-0` avec `bg-black/50 backdrop-blur-sm`.
+- `CharacterManager` : modes `list | add | edit` (plus de mode `poses`). `onEditingCharacter?(editing: boolean)` remonte l'état.
+  - Mode **add** : `CharacterPosesDrawer` visible dès import des sprites (`addPendingSprites`).
+  - Mode **edit** : `CharacterPosesManager` inline (`showHeader={false}`) + `CharacterPosesDrawer` permanent. `editPendingSprites` tracke les sprites importés avant sauvegarde — `drawerSprites = editPendingSprites ?? { ...selected.sprites, ... }`, réinitialisé après enregistrement.
+  - Overlay backdrop `fixed left-[36rem] inset-y-0 right-0 bg-black/50 backdrop-blur-sm` (mode edit uniquement).
+- `CharacterBasicForm` : bouton unique "Choisir/Changer depuis la médiathèque" (mode `folder-selector`, `allowedFolders: ["characters"]`). En création : liste de poses renommables inline après import (badge amber non renommable pour `"default"`). Color picker inline (`w-9 h-9`, `<input type="color">` via `sr-only`). Enregistrer → retour liste en création, reste en édition.
+- `CharacterPosesManager` : add/rename/delete/change image des poses. `showHeader?: boolean` (défaut `true`) — quand `false`, masque le bouton retour et le titre (embedding inline en mode edit). Overlay modale pour noms dupliqués.
+- `CharacterPosesDrawer` : `fixed left-72 top-0 h-full w-72 z-30`. Props : `characterName`, `sprites`, `highlightKey?`. `activeKey` en état local, synchronisé avec `highlightKey` via `useEffect`.
 
 ## Export et publication standalone
 
@@ -252,7 +268,7 @@ Composant interne de `GraphPlayer` — même mécanique 1920×1080 que `ScenePla
 - Uploads redirigés vers `tmp_path` via `monkeypatch`. Pour les tests export-zip/publish : monkeypatcher aussi `_PLAYER_DIST_DIR` et `_PUBLISHED_DIR` dans `routers.stories`.
 - Lancer depuis `backend/` : `python -m pytest`.
 
-### Frontend Jest (39 tests)
+### Frontend Jest (121 tests)
 - Mock `@/lib/api` : inclure `randomCharacterColor: () => "#FF6B6B"` dans tout mock de ce module (requis par `CharacterBasicForm`).
 - Config dans `jest.config.ts` avec `next/jest.js`.
 - `testMatch` limité à `__tests__/` pour exclure les fichiers Playwright `e2e/`.

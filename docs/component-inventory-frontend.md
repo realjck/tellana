@@ -36,14 +36,25 @@
 
 ---
 
+## Médiathèque
+
+| Composant | Fichier | Rôle |
+|-----------|---------|------|
+| `MediaLibraryModal` | `components/media-library/MediaLibraryModal.tsx` | Modale principale. Panneau gauche `FolderTree` + panneau droit `AssetGrid`. Configurée via `MediaLibraryConfig` (modes : `navigation`, `selector`, `folder-selector`). |
+| `FolderTree` | `components/media-library/FolderTree.tsx` | Arborescence des dossiers. Création de dossier via modale (remplace `prompt()`). Filtre `allowedFolders` si fourni. |
+| `AssetGrid` | `components/media-library/AssetGrid.tsx` | Grille des assets d'un dossier. En mode `folder-selector` : bouton "Choisir ce dossier personnage" en bas si des images sont présentes. `mapSpritesFromAssets` construit le `Record<string, AssetRef>` avec `"default"` en premier. |
+| `UploadDropZone` | `components/media-library/UploadDropZone.tsx` | Upload par clic ou drag-and-drop. Actif dans tous les modes. Gestion des conflits de nom via `ConfirmModal`. |
+
+---
+
 ## Gestion des personnages
 
 | Composant | Fichier | Rôle |
 |-----------|---------|------|
-| `CharacterManager` | `components/CharacterManager.tsx` | Gestionnaire complet (modes : list / add / edit / poses). Callback `onEditingCharacter` remonte l'état d'édition. |
-| `CharacterBasicForm` | `components/CharacterBasicForm.tsx` | Formulaire nom + color picker inline + grille sprites 3 colonnes + bouton "Gérer les poses". |
-| `CharacterPosesManager` | `components/CharacterPosesManager.tsx` | Ajouter/renommer/supprimer/changer l'image des poses. Badge "défaut" non renommable. |
-| `CharacterPosesDrawer` | `components/CharacterPosesDrawer.tsx` | Preview des sprites (panneau z-30 à droite). |
+| `CharacterManager` | `components/CharacterManager.tsx` | Gestionnaire complet (modes : `list \| add \| edit`). `CharacterPosesManager` inline en mode edit (`showHeader={false}`). `editPendingSprites` pour aperçu immédiat lors du ré-import. |
+| `CharacterBasicForm` | `components/CharacterBasicForm.tsx` | Bouton unique médiathèque (mode `folder-selector`). Création : poses renommables inline avant enregistrement. Color picker inline. |
+| `CharacterPosesManager` | `components/CharacterPosesManager.tsx` | Ajouter/renommer/supprimer/changer l'image des poses. Prop `showHeader?: boolean`. Badge "défaut" non renommable. |
+| `CharacterPosesDrawer` | `components/CharacterPosesDrawer.tsx` | Panneau `fixed left-72 w-72 z-30`. Preview sprite actif + onglets poses. |
 
 ---
 
@@ -60,9 +71,9 @@
 
 | Fichier | Exports clés |
 |---------|-------------|
-| `lib/api.ts` | `fetcher`, `resolveAsset(ref)`, `RAINBOW_COLORS`, `randomCharacterColor()`, types TS (`Story`, `Scene`, `Node`, `Character`, `AssetRef`, `CharacterPosition`, `NodeData`) |
+| `lib/api.ts` | `fetcher`, `resolveAsset(ref)`, `RAINBOW_COLORS`, `randomCharacterColor()`, `api.assets.*`, types TS (`Story`, `Scene`, `Node`, `Character`, `Asset`, `AssetRef`, `CharacterPosition`, `NodeData`) |
 | `lib/scenePositions.ts` | `DEFAULT_POSITIONS[0..3]`, `FALLBACK_POSITION` |
-| `types/index.ts` | Types globaux TypeScript |
+| `types/index.ts` | Types globaux TypeScript dont `MediaLibraryConfig` (modes `navigation \| selector \| folder-selector`) |
 
 ---
 
