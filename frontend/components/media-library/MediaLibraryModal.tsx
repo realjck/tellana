@@ -56,19 +56,6 @@ export default function MediaLibraryModal({ config, isOpen, onClose }: Props) {
               selectedFolder={currentFolder}
               onSelectFolder={setCurrentFolder}
             />
-            {config.mode === "folder-selector" && currentFolder && (
-              <div className="p-3 flex-shrink-0">
-                <button
-                  onClick={() => {
-                    config.onSelectFolder?.(currentFolder);
-                    onClose();
-                  }}
-                  className="w-full px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-md text-sm"
-                >
-                  Sélectionner ce dossier
-                </button>
-              </div>
-            )}
           </div>
           <AssetGrid config={config} folder={currentFolder} onClose={onClose} onNavigate={setCurrentFolder} />
         </div>

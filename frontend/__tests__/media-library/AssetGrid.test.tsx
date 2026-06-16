@@ -268,4 +268,116 @@ describe("AssetGrid", () => {
     await act(async () => { fireEvent.click(screen.getByText("Annuler")); });
     expect(mockDelete).not.toHaveBeenCalled();
   });
+
+  // ── Story 4.1 — Bouton "Choisir ce dossier personnage" ───────────────────
+
+  describe("mode folder-selector", () => {
+    const onSelectFolderWithSprites = jest.fn();
+    const folderSelectorConfig: MediaLibraryConfig = {
+      mode: "folder-selector",
+      onSelectFolderWithSprites,
+    };
+
+    beforeEach(() => { onSelectFolderWithSprites.mockReset(); });
+
+    it("affiche le bouton quand dossier contient au moins une image", () => {
+      mockSWR([makeAsset({ filename: "default.png", content_type: "image/png" })]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      expect(screen.getByText("Choisir ce dossier personnage")).toBeInTheDocument();
+    });
+
+    it("n'affiche pas le bouton en mode navigation", () => {
+      mockSWR([makeAsset({ filename: "default.png", content_type: "image/png" })]);
+      render(
+        <AssetGrid config={navConfig} folder="characters/alice" onClose={onClose} />
+      );
+      expect(screen.queryByText("Choisir ce dossier personnage")).not.toBeInTheDocument();
+    });
+
+    it("n'affiche pas le bouton si le dossier ne contient que des non-images", () => {
+      mockSWR([makeAsset({ filename: "theme.mp3", content_type: "audio/mpeg" })]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      expect(screen.queryByText("Choisir ce dossier personnage")).not.toBeInTheDocument();
+    });
+
+    it("n'affiche pas le bouton si le dossier est vide (hors .keep)", () => {
+      mockSWR([makeAsset({ filename: ".keep", content_type: "application/x-empty" })]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      expect(screen.queryByText("Choisir ce dossier personnage")).not.toBeInTheDocument();
+    });
+
+    it("clic bouton appelle onSelectFolderWithSprites avec mapping correct et ferme modale", () => {
+      mockSWR([
+        makeAsset({ id: 1, filename: "default.png", url: "/uploads/characters/alice/default.png", content_type: "image/png" }),
+        makeAsset({ id: 2, filename: "happy.png", url: "/uploads/characters/alice/happy.png", content_type: "image/png" }),
+      ]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      fireEvent.click(screen.getByText("Choisir ce dossier personnage"));
+      expect(onSelectFolderWithSprites).toHaveBeenCalledWith(
+        "characters/alice",
+        expect.objectContaining({
+          default: expect.objectContaining({ url: "/uploads/characters/alice/default.png" }),
+          happy: expect.objectContaining({ url: "/uploads/characters/alice/happy.png" }),
+        })
+      );
+      expect(onClose).toHaveBeenCalled();
+    });
+
+    it("sans default.*, première image devient la clé 'default'", () => {
+      mockSWR([
+        makeAsset({ id: 1, filename: "alice.png", url: "/uploads/characters/alice/alice.png", content_type: "image/png" }),
+        makeAsset({ id: 2, filename: "happy.png", url: "/uploads/characters/alice/happy.png", content_type: "image/png" }),
+      ]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      fireEvent.click(screen.getByText("Choisir ce dossier personnage"));
+      const [, sprites] = onSelectFolderWithSprites.mock.calls[0];
+      expect(sprites).toHaveProperty("default");
+      expect(sprites["default"].url).toBe("/uploads/characters/alice/alice.png");
+      expect(sprites).toHaveProperty("happy");
+      expect(sprites).not.toHaveProperty("alice");
+    });
+
+    it("mapping ignore les fichiers non-image", () => {
+      mockSWR([
+        makeAsset({ id: 1, filename: "default.png", url: "/uploads/characters/alice/default.png", content_type: "image/png" }),
+        makeAsset({ id: 2, filename: "readme.txt", url: "/uploads/characters/alice/readme.txt", content_type: "text/plain" }),
+      ]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      fireEvent.click(screen.getByText("Choisir ce dossier personnage"));
+      const [, sprites] = onSelectFolderWithSprites.mock.calls[0];
+      expect(Object.keys(sprites)).toEqual(["default"]);
+    });
+
+    it("AssetRef généré a le bon format type:'upload'", () => {
+      mockSWR([
+        makeAsset({ id: 1, filename: "default.png", url: "/uploads/characters/alice/default.png", content_type: "image/png" }),
+      ]);
+      render(
+        <AssetGrid config={folderSelectorConfig} folder="characters/alice" onClose={onClose} />
+      );
+      fireEvent.click(screen.getByText("Choisir ce dossier personnage"));
+      const [, sprites] = onSelectFolderWithSprites.mock.calls[0];
+      expect(sprites["default"]).toEqual({
+        type: "upload",
+        url: "/uploads/characters/alice/default.png",
+        opfs_key: null,
+        job_id: null,
+        mime_type: "image/png",
+        width: null,
+        height: null,
+      });
+    });
+  });
 });

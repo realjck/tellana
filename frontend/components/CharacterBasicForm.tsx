@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import type { Asset, AssetRef, Character } from "@/types";
+import type { AssetRef, Character } from "@/types";
 import { api, randomCharacterColor, resolveAsset } from "@/lib/api";
 import MediaLibraryModal from "@/components/media-library/MediaLibraryModal";
 
@@ -34,24 +34,16 @@ export default function CharacterBasicForm({
     initial?.sprites?.["default"] ?? null
   );
   const [isMediaLibraryOpen, setIsMediaLibraryOpen] = useState(false);
+  const [pendingSprites, setPendingSprites] = useState<Record<string, AssetRef> | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const selectAsset = (ref: AssetRef) => {
-    setActiveAsset(ref);
-    onPreviewAsset?.(ref);
-  };
-
-  const handleAssetSelect = (asset: Asset) => {
-    const ref: AssetRef = {
-      type: "upload",
-      url: asset.url,
-      opfs_key: null,
-      job_id: null,
-      mime_type: asset.content_type,
-      width: null,
-      height: null,
-    };
-    selectAsset(ref);
+  const handleFolderSelect = (_folder: string, sprites: Record<string, AssetRef>) => {
+    setPendingSprites(sprites);
+    const defaultSprite = sprites["default"] ?? Object.values(sprites)[0] ?? null;
+    if (defaultSprite) {
+      setActiveAsset(defaultSprite);
+      onPreviewAsset?.(defaultSprite);
+    }
     setIsMediaLibraryOpen(false);
   };
 
@@ -60,7 +52,9 @@ export default function CharacterBasicForm({
     setSaving(true);
     try {
       const existingSprites = initial?.sprites ?? {};
-      const sprites = activeAsset
+      const sprites = pendingSprites
+        ? { ...existingSprites, ...pendingSprites }
+        : activeAsset
         ? { ...existingSprites, default: activeAsset }
         : existingSprites;
       let saved: Character;
@@ -105,6 +99,11 @@ export default function CharacterBasicForm({
               className="h-24 object-contain"
             />
           </div>
+        )}
+        {pendingSprites && Object.keys(pendingSprites).length > 1 && (
+          <p className="text-[11px] text-green-400 mb-2 text-center">
+            {Object.keys(pendingSprites).length} poses importées
+          </p>
         )}
         <button
           onClick={() => setIsMediaLibraryOpen(true)}
@@ -185,10 +184,10 @@ export default function CharacterBasicForm({
 
       <MediaLibraryModal
         config={{
-          mode: "selector",
-          filter: "images",
+          mode: "folder-selector",
           allowedFolders: ["characters"],
-          onSelect: handleAssetSelect,
+          initialFolder: "characters",
+          onSelectFolderWithSprites: handleFolderSelect,
         }}
         isOpen={isMediaLibraryOpen}
         onClose={() => setIsMediaLibraryOpen(false)}

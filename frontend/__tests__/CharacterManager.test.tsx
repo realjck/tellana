@@ -101,7 +101,7 @@ describe("CharacterManager — sélecteur médiathèque", () => {
       <CharacterManager storyId={1} characters={[makeChar()]} onRefresh={jest.fn()} />
     );
     fireEvent.click(screen.getByText("Alice"));
-    expect(screen.getByText(/médiathèque/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/médiathèque/i).length).toBeGreaterThan(0);
   });
 
   it("ouvre la modale médiathèque au clic sur le bouton", () => {
@@ -109,7 +109,7 @@ describe("CharacterManager — sélecteur médiathèque", () => {
       <CharacterManager storyId={1} characters={[makeChar()]} onRefresh={jest.fn()} />
     );
     fireEvent.click(screen.getByText("Alice"));
-    fireEvent.click(screen.getByText(/médiathèque/i));
+    fireEvent.click(screen.getByText("Changer depuis la médiathèque"));
     expect(screen.getByTestId("media-library-modal")).toBeInTheDocument();
   });
 });

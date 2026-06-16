@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import useSWR from "swr";
 import { useSWRConfig } from "swr";
 import { api, resolveAsset } from "@/lib/api";
-import type { MediaLibraryConfig, Asset } from "@/types";
+import type { MediaLibraryConfig, Asset, AssetRef } from "@/types";
 import ConfirmModal from "@/components/ConfirmModal";
 import UploadDropZone from "./UploadDropZone";
 
@@ -32,6 +32,10 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
     (a) =>
       a.filename !== ".keep" &&
       (config.filter !== "images" || a.content_type.startsWith("image/"))
+  );
+
+  const imageAssets = allAssets.filter(
+    (a) => a.filename !== ".keep" && a.content_type.startsWith("image/")
   );
 
   const childFolders = folder
@@ -63,8 +67,22 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
     await mutate("asset-folders");
   };
 
+  const handleSelectFolder = () => {
+    const sprites = mapSpritesFromAssets(imageAssets);
+    config.onSelectFolderWithSprites?.(folder, sprites);
+    onClose();
+  };
+
   return (
     <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+      {config.mode === "folder-selector" && imageAssets.length > 0 && (
+        <button
+          onClick={handleSelectFolder}
+          className="w-full px-4 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-md text-sm font-semibold transition-colors"
+        >
+          Choisir ce dossier personnage
+        </button>
+      )}
       <UploadDropZone folder={folder} config={config} />
       {childFolders.length === 0 && assets.length === 0 ? (
         <div className="text-muted text-sm text-center py-4">Dossier vide</div>
@@ -204,6 +222,32 @@ export default function AssetGrid({ config, folder, onClose, onNavigate }: Props
       )}
     </div>
   );
+}
+
+function mapSpritesFromAssets(images: Asset[]): Record<string, AssetRef> {
+  const sprites: Record<string, AssetRef> = {};
+  const hasDefault = images.some((a) => a.filename.replace(/\.[^.]+$/, "") === "default");
+  let firstAssigned = false;
+
+  for (const a of images) {
+    const stem = a.filename.replace(/\.[^.]+$/, "");
+    const ref: AssetRef = {
+      type: "upload",
+      url: a.url,
+      opfs_key: null,
+      job_id: null,
+      mime_type: a.content_type,
+      width: null,
+      height: null,
+    };
+    if (!hasDefault && !firstAssigned) {
+      sprites["default"] = ref;
+      firstAssigned = true;
+    } else {
+      sprites[stem] = ref;
+    }
+  }
+  return sprites;
 }
 
 function FolderIcon() {

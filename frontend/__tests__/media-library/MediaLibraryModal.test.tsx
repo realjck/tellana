@@ -73,44 +73,28 @@ describe("MediaLibraryModal — fermeture", () => {
 });
 
 describe("MediaLibraryModal — mode folder-selector", () => {
-  it("n'affiche pas le bouton Sélectionner si aucun dossier sélectionné", () => {
+  it("n'affiche pas de bouton de sélection dans le panneau gauche", () => {
     render(
       <MediaLibraryModal
-        config={{ mode: "folder-selector", onSelectFolder: jest.fn() }}
+        config={{ mode: "folder-selector", onSelectFolderWithSprites: jest.fn() }}
         isOpen={true}
         onClose={jest.fn()}
       />
     );
+    // Le bouton est dans AssetGrid (non mocké ici), pas dans le panneau gauche
     expect(screen.queryByText(/sélectionner ce dossier/i)).not.toBeInTheDocument();
   });
 
-  it("affiche le bouton Sélectionner après sélection d'un dossier", () => {
+  it("navigue dans un dossier et affiche AssetGrid", () => {
     render(
       <MediaLibraryModal
-        config={{ mode: "folder-selector", onSelectFolder: jest.fn() }}
+        config={{ mode: "folder-selector", onSelectFolderWithSprites: jest.fn() }}
         isOpen={true}
         onClose={jest.fn()}
       />
     );
-    // Sélectionner un dossier via FolderTree
     fireEvent.click(screen.getByText("backgrounds"));
-    expect(screen.getByText(/sélectionner ce dossier/i)).toBeInTheDocument();
-  });
-
-  it("appelle onSelectFolder et onClose au clic du bouton Sélectionner", () => {
-    const onSelectFolder = jest.fn();
-    const onClose = jest.fn();
-    render(
-      <MediaLibraryModal
-        config={{ mode: "folder-selector", onSelectFolder }}
-        isOpen={true}
-        onClose={onClose}
-      />
-    );
-    fireEvent.click(screen.getByText("backgrounds"));
-    fireEvent.click(screen.getByText(/sélectionner ce dossier/i));
-    expect(onSelectFolder).toHaveBeenCalledWith("backgrounds");
-    expect(onClose).toHaveBeenCalled();
+    expect(screen.getByText("Dossier : backgrounds")).toBeInTheDocument();
   });
 });
 

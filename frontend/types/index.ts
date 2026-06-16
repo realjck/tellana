@@ -27,6 +27,7 @@ export interface MediaLibraryConfig {
   filter?: "images" | "all";
   onSelect?: (asset: Asset) => void;
   onSelectFolder?: (folder: string) => void;
+  onSelectFolderWithSprites?: (folder: string, sprites: Record<string, AssetRef>) => void;
   allowedFolders?: string[];
   initialFolder?: string;
 }

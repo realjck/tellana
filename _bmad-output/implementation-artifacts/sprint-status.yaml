@@ -52,7 +52,7 @@ development_status:
   epic-1-retrospective: optional
 
   # ─── Epic 2 : Composants Médiathèque & Seeds ──────────────────────────────
-  epic-2: in-progress
+  epic-2: done
   2-1-modale-medialibrarymodal-et-navigation-de-dossiers: done
   2-2-grille-de-miniatures: done
   2-3-upload-drag-drop-multi-fichiers: done
@@ -61,14 +61,14 @@ development_status:
   epic-2-retrospective: optional
 
   # ─── Epic 3 : Intégration Médiathèque ─────────────────────────────────────
-  epic-3: in-progress
+  epic-3: done
   3-1-acces-mediatheque-depuis-les-navbars: done
   3-2-selecteur-de-fond-de-scene-via-mediatheque: done
   3-3-selecteur-de-sprite-dialogue-via-mediatheque: done
   epic-3-retrospective: optional
 
   # ─── Epic 4 : Import de personnage par dossier ────────────────────────────
-  epic-4: backlog
-  4-1-selection-de-dossier-et-mapping-automatique: backlog
+  epic-4: in-progress
+  4-1-selection-de-dossier-et-mapping-automatique: review
   4-2-confirmation-enregistrement-et-compatibilite: backlog
   epic-4-retrospective: optional
